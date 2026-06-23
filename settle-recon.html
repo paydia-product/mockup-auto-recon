@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Paydia Bisnis - Settle & Recon">
+    <title>Settle & Recon - Paydia Bisnis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=20260623-v13">
+    <style>
+        /* Settle page overrides for premium details */
+        .settle-flex-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .auto-reporting-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        .selection-summary-container {
+            width: 100%;
+            max-width: 420px;
+            margin-bottom: 24px;
+            font-family: 'Inter', sans-serif;
+            background: transparent;
+        }
+        .selection-summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 4px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .selection-summary-label {
+            font-size: 0.96rem;
+            font-weight: 600;
+            color: #344054;
+        }
+        .selection-summary-value {
+            font-size: 0.96rem;
+            font-weight: 500;
+            color: #475467;
+        }
+
+        /* Text Stack for Table cells */
+        .cell-text-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .cell-text-main {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+        .cell-text-sub {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+        }
+    </style>
+
+<script>
+if (localStorage.getItem('mock_version') !== 'v8') {
+    localStorage.removeItem('paydia_recon_trx');
+    localStorage.removeItem('paydia_disputes');
+    localStorage.removeItem('paydia_logs');
+    localStorage.removeItem('paydia_settlements');
+    localStorage.removeItem('paydia_approvals');
+    localStorage.removeItem('paydia_mock_perms');
+    localStorage.removeItem('paydia_status_overrides');
+    localStorage.setItem('mock_version', 'v8');
+}
+</script>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-text">paydia</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                <img src="https://ui-avatars.com/api/?name=Dion&background=4f46e5&color=fff&size=40" alt="User Avatar">
+            </div>
+            <div class="user-info">
+                <span class="user-name">Dion</span>
+                <span class="user-email">dion@paydia.id</span>
+            </div>
+        </div>
+
+        <div class="sidebar-label">Paydia Bisnis</div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item" id="nav-merchant">
+                <i class="fas fa-store"></i>
+                <span>Merchant</span>
+            </a>
+            <div class="nav-group open" id="nav-settlement-group">
+                <a href="#" class="nav-item has-submenu active-parent" id="nav-settlement">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Settlement <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-up submenu-arrow"></i>
+                </a>
+                <div class="submenu open">
+                    <a href="settle-recon.html" class="submenu-item active" id="nav-settle-recon">
+                        <i class="fas fa-handshake"></i>
+                        <span>Settle & Recon</span>
+                        <span class="sidebar-badge-dot"></span>
+                    </a>
+                </div>
+            </div>
+            <a href="approval.html" class="nav-item" id="nav-approval">
+                <i class="fas fa-check-circle"></i>
+                <span>Approval</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-admin">
+                <i class="fas fa-user-shield"></i>
+                <span>Admin</span>
+            </a>
+            <!-- Reconcile with submenu -->
+            <div class="nav-group" id="nav-reconcile-group">
+                <a href="#" class="nav-item has-submenu" id="nav-reconcile">
+                    <i class="fas fa-check-double"></i>
+                    <span>Reconcile <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="index.html" class="submenu-item" id="nav-qris-acquirer">
+                        <i class="fas fa-download"></i>
+                        <span>QRIS Acquirer</span>
+                        <span class="sidebar-badge-dot"></span>
+                    </a>
+                    <a href="issuer.html" class="submenu-item" id="nav-qris-issuer">
+                        <i class="fas fa-upload"></i>
+                        <span>QRIS Issuer</span>
+                        <span class="sidebar-badge-dot"></span>
+                    </a>
+                    <a href="index.html?tab=dispute" class="submenu-item" id="nav-dispute-data" style="display:none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Dispute Data</span>
+                    </a>
+                </div>
+            </div>
+            <a href="#" class="nav-item" id="nav-vendor">
+                <i class="fas fa-truck"></i>
+                <span>Vendor</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-product">
+                <i class="fas fa-box"></i>
+                <span>Product</span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-marketing">
+                <i class="fas fa-bullhorn"></i>
+                <span>Marketing</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item" id="nav-bank-account">
+                <i class="fas fa-university"></i>
+                <span>Bank Account</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-kasbon">
+                <i class="fas fa-hand-holding-usd"></i>
+                <span>Kasbon</span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-virtual-account">
+                <i class="fas fa-credit-card"></i>
+                <span>Virtual Account</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <div class="nav-group">
+                <a href="#" class="nav-item has-submenu" id="nav-transaction">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transaction <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="#" class="submenu-item" id="nav-trx-payin">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>Payin</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-payout">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>Payout</span>
+                    </a>
+                    <a href="qris-mpm.html" class="submenu-item" id="nav-trx-qris-mpm">
+                        <i class="fas fa-th"></i>
+                        <span>QRIS MPM <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-qris-cpm">
+                        <i class="fas fa-th-large"></i>
+                        <span>QRIS CPM</span>
+                    </a>
+                    <a href="transaksi.html" class="submenu-item" id="nav-trx-app-users">
+                        <i class="fas fa-user"></i>
+                        <span>App Users</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-topup-manual">
+                        <i class="fas fa-download"></i>
+                        <span>Topup Manual</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-auto-reporting">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Auto Reporting</span>
+                    </a>
+                </div>
+            </div>
+            <a href="#" class="nav-item" id="nav-schedule">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Schedule</span>
+            </a>
+            <a href="log.html" class="nav-item" id="nav-log">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Log <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-recap">
+                <i class="fas fa-chart-bar"></i>
+                <span>Recap</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <!-- Top Navbar -->
+        <header class="topbar" id="topbar">
+            <div class="topbar-left">
+                <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-icon" id="notificationBtn" aria-label="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+                <button class="topbar-icon" id="logoutBtn" aria-label="Logout" title="Logout" style="margin-right: 12px; color: #ef4444;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <div class="topbar-user">
+                    <img src="https://ui-avatars.com/api/?name=Dion&background=4f46e5&color=fff&size=32" alt="User" class="topbar-avatar">
+                    <span class="topbar-username">Dion</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="main-content">
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+                <a href="#">Home</a>
+                <span class="breadcrumb-sep">/</span>
+                <a href="#">Paydia Bisnis</a>
+                <span class="breadcrumb-sep">/</span>
+                <a href="#">Settlement</a>
+                <span class="breadcrumb-sep">/</span>
+                <span class="breadcrumb-current">Settle & Recon</span>
+            </nav>
+
+            <h1 class="page-title">Settle & Recon</h1>
+
+            <!-- Main Work Panel -->
+            <div class="card">
+                <div style="padding: 24px;">
+                    <!-- Auto Reporting Schedule Slider Row -->
+                    <div class="settle-flex-row">
+                        <div class="auto-reporting-container">
+                            <span>Auto Reporting Schedule:</span>
+                            <label class="switch">
+                                <input type="checkbox" id="autoReportingToggle">
+                                <span class="slider"></span>
+                            </label>
+                            <span id="autoReportingStatusText" style="font-weight: 600; color: var(--text-secondary);">OFF</span>
+                        </div>
+                    </div>
+
+                    <!-- Toolbar Buttons -->
+                    <div class="settle-flex-row" style="margin-bottom: 12px; position: relative;" id="toolbarRow">
+                        <button class="btn btn-filter" id="filterBtn" style="margin: 0; background: #1e293b; color: white; border-color: #334155;">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        <button class="btn btn-export" id="exportBtn" style="margin: 0; background: #10b981; color: white; border-color: #10b981;">
+                            <i class="far fa-file-excel"></i> Export
+                        </button>
+                        <button class="btn btn-export-bank" id="exportBankBtn" style="margin: 0; background: #3b82f6; color: white; border-color: #2563eb; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                            <i class="far fa-file-excel"></i> Export Segregasi per Bank
+                        </button>
+                        <button class="btn btn-manual-settle" id="btnManualSettle" style="margin: 0; background: #1e1b4b; color: white; border-color: #312e81;">
+                            <i class="fas fa-file-invoice-dollar"></i> Manual Settle
+                        </button>
+                        <button class="btn btn-manual-recon" id="btnManualRecon" style="margin: 0; background: #1e1b4b; color: white; border-color: #312e81;">
+                            <i class="fas fa-sync-alt"></i> Manual Recon
+                        </button>
+                    </div>
+
+                    <!-- Export Progress Bar -->
+                    <div id="exportProgressOverlay" style="display: none; align-items: center; gap: 12px; margin-bottom: 24px; width: 350px;">
+                        <span id="exportProgressText" style="font-weight: 600; font-size: 0.75rem; color: #475569; min-width: 120px; text-align: left;">Memproses... 0%</span>
+                        <div style="flex: 1; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                            <div id="exportProgressBar" style="height: 100%; width: 0%; background: #10b981; transition: width 0.1s linear;"></div>
+                        </div>
+                    </div>
+
+
+
+                        <!-- Filter Popover Card -->
+                        <div class="filter-panel" id="filterPanel" style="top: 50px;">
+                            <div class="filter-panel-header">
+                                <button class="btn-clear-all" type="button" id="btnClearAll">Clear All</button>
+                                <button class="btn-apply-filters" type="button" id="btnApplyFilters">Apply Filters</button>
+                            </div>
+                            <div class="filter-panel-content">
+                                <div class="filter-col-left">
+                                    <div class="filter-section">
+                                        <span class="filter-section-title">Date Range</span>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <input type="date" id="filterStartDate" style="padding: 8px; font-size: 0.8rem; flex: 1;">
+                                            <span style="font-size: 0.75rem; color: var(--text-secondary);">to</span>
+                                            <input type="date" id="filterEndDate" style="padding: 8px; font-size: 0.8rem; flex: 1;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="filter-col-divider"></div>
+                                <div class="filter-col-right">
+                                    <div class="filter-section">
+                                        <span class="filter-section-title">Bank</span>
+                                        <select id="filterBank" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-primary); outline: none;">
+                                            <option value="">Semua Bank</option>
+                                            <option value="BCA">BCA</option>
+                                            <option value="BRI">BRI</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statistics / Info calculations block -->
+                    <div class="selection-summary-container">
+                        <div class="selection-summary-row">
+                            <span class="selection-summary-label">Data Terpilih</span>
+                            <span class="selection-summary-value" id="statsSelectedCount">0</span>
+                        </div>
+                        <div class="selection-summary-row">
+                            <span class="selection-summary-label">Total Nominal</span>
+                            <span class="selection-summary-value" id="statsTotalNominal">Rp 0</span>
+                        </div>
+                    </div>
+
+                    <!-- Bulk Action Bar -->
+                    <div class="bulk-action-bar" id="settleBulkActionBar" style="display: none; padding: 12px 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; margin-bottom: 12px; align-items: center; justify-content: space-between; font-family: 'Inter', sans-serif;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">
+                            <i class="fas fa-tasks" style="color: var(--primary); margin-right: 6px;"></i>
+                            <span id="settleBulkCountText">0</span> transaksi terpilih
+                        </span>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="btn" id="btnBulkSettle" style="background: var(--success); color: white; border: none; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-check-circle"></i> Settle
+                            </button>
+                            <button type="button" class="btn" id="btnBulkCancelSettle" style="background: var(--danger); color: white; border: none; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-times-circle"></i> Batalkan Transaksi
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Table wrapper -->
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-checkbox" style="width: 40px; text-align: center;"><input type="checkbox" id="globalSelectCheckbox"></th>
+                                    <th class="col-no" style="width: 50px;">No.</th>
+                                    <th>Tanggal</th>
+                                    <th>ID Transaksi</th>
+                                    <th>Merchant</th>
+                                    <th>Nominal QRIS (Rp)</th>
+                                    <th>Nominal Settle (Rp)</th>
+                                    <th>Bank</th>
+                                    <th>Status</th>
+                                    <th class="col-action" style="width: 240px; text-align: center;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="settleReconTableBody">
+                                <!-- Injected dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="toast-container"></div>
+
+
+
+    <!-- Action Dropdown Menu -->
+    <div class="dropdown-menu" id="actionDropdownMenu">
+        <button class="dropdown-item btn-dropdown-lihat" id="btnLihatTransaksi">
+            <i class="fas fa-eye" style="color: var(--primary); width: 16px; margin-right: 4px;"></i> Lihat Transaksi
+        </button>
+        <button class="dropdown-item btn-dropdown-settle">
+            <i class="fas fa-check-circle" style="color: var(--success); width: 16px; margin-right: 4px;"></i> Settle
+        </button>
+        <button class="dropdown-item btn-dropdown-cancel-settle" style="color: var(--danger);">
+            <i class="fas fa-times-circle" style="color: var(--danger); width: 16px; margin-right: 4px;"></i> Batalkan Transaksi Settlement
+        </button>
+    </div>
+
+    <!-- Modal: Konfirmasi Settle / Batalkan Settlement -->
+    <div class="modal-overlay" id="confirmModalOverlay">
+        <div class="modal" id="confirmModal" style="max-width: 450px; width: 90%;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="confirmModalTitle">Konfirmasi</h2>
+                <button class="modal-close" id="confirmModalClose" aria-label="Tutup">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p id="confirmModalMessage" style="margin-bottom: 24px; font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary);"></p>
+                <div class="form-actions" style="margin-top: 0; padding-top: 0; border-top: none; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" class="btn btn-cancel" id="confirmCancelBtn">Batal</button>
+                    <button type="button" class="btn" id="confirmSubmitBtn" style="background: var(--primary); color: white; border: none; padding: 8px 16px; font-weight: 600; border-radius: 6px; cursor: pointer;">Konfirmasi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="settle-recon.js?v=20260623-v11"></script>
+    <script src="page-guide.js?v=20260619-v2"></script>
+    <script>
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            fetch('/api/logout', { method: 'POST' }).then(() => { window.location.replace('login.html'); }); return;
+        });
+    </script>
+
+    
+    <!-- Modal: Manual Recon -->
+    <div class="modal-overlay" id="manualReconOverlay">
+        <div class="modal" id="manualReconModal" style="max-width: 420px; width: 90%;">
+            <div class="modal-header">
+                <h2 class="modal-title">Manual Recon</h2>
+                <button class="modal-close" id="manualReconClose" aria-label="Tutup">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; padding-left: 12px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" style="width: 16px; height: 16px;" value="Artajasa Domestik">
+                        <span style="font-size: 0.95rem; color: var(--text-primary);">Artajasa Domestik</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" style="width: 16px; height: 16px;" value="Artajasa Crossborder">
+                        <span style="font-size: 0.95rem; color: var(--text-primary);">Artajasa Crossborder</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" style="width: 16px; height: 16px;" value="Jalin Domestik">
+                        <span style="font-size: 0.95rem; color: var(--text-primary);">Jalin Domestik</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" style="width: 16px; height: 16px;" value="Jalin Crossborder">
+                        <span style="font-size: 0.95rem; color: var(--text-primary);">Jalin Crossborder</span>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-cancel" id="btnCancelManualRecon" style="margin-right: 8px;">Cancel</button>
+                    <button class="btn btn-approve-settlement" id="btnSubmitManualRecon" style="background: #1d4ed8; color: white;">
+                        Submit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Disclaimer -->
+    <div style="position: fixed; bottom: 16px; right: 16px; text-align: right; font-family: 'Inter', sans-serif; pointer-events: none; z-index: 10000;">
+        <div style="display: inline-block; background: rgba(255, 255, 255, 0.9); padding: 6px 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05);">
+            <div style="color: #000000; font-size: 0.75rem; font-weight: 600; line-height: 1.4;">
+                Mockup - Final Result May Different
+            </div>
+            <div style="color: #000000; font-size: 0.75rem; font-weight: 600; line-height: 1.4; margin-top: 2px;">
+                Confidential | Do Not Share Without Permission
+            </div>
+        </div>
+    </div>
+
+<!-- Export Date Range Modal -->
+<div class="modal-overlay" id="exportDateModal" style="display: none; align-items: center; justify-content: center; z-index: 2000;">
+    <div class="modal-content" style="width: 90%; max-width: 400px; padding: 24px;">
+        <div class="modal-header" style="margin-bottom: 20px;">
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Pilih Tanggal Export</h2>
+        </div>
+        <div style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 0.875rem; margin-bottom: 8px;">Tanggal Export</label>
+            <input type="date" id="exportDateInput" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button id="cancelExportBtn" class="btn" style="background: white; border: 1px solid #cbd5e1;">Batal</button>
+            <button id="submitExportBtn" class="btn" style="background: #10b981; color: white;">Export</button>
+        </div>
+    </div>
+</div>
+
+</body>
+
+</html>
+
+<!-- List Transaksi Modal -->
+<div id="listTransaksiModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 2000;">
+    <div class="modal-content" style="width: 90%; max-width: 1000px; padding: 24px;">
+        <div class="modal-header" style="margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-size: 1.25rem; font-weight: 600; color: #1e293b; margin: 0;">List Transaksi</h2>
+            <button class="modal-close" id="closeListTransaksiBtn" aria-label="Close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+        </div>
+        
+        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+            <button class="btn btn-filter" style="margin: 0; background: #1e293b; color: white; border-color: #334155;"><i class="fas fa-filter"></i> Filter</button>
+            <button class="btn btn-export" style="margin: 0; background: #10b981; color: white; border-color: #10b981;"><i class="far fa-file-excel"></i> Export</button>
+        </div>
+
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+            <table class="data-table">
+                <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+                    <tr>
+                        <th>Tanggal Transaksi</th>
+                        <th>ID Transaksi</th>
+                        <th>RRN</th>
+                        <th>Nama Merchant</th>
+                        <th>Kategori</th>
+                        <th>Status</th>
+                        <th>Nominal Transaksi (Rp)</th>
+                        <th>Nominal MDR (Rp)</th>
+                        <th>Nominal Total (Rp)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="listTransaksiTbody">
+                    <!-- Dynamic content -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="pagination" style="margin-top: 16px;">
+            <!-- dummy pagination -->
+            <button class="btn-page" disabled>&lt;</button>
+            <button class="btn-page active">1</button>
+            <button class="btn-page" disabled>&gt;</button>
+        </div>
+    </div>
+</div>

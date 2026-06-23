@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ar-mockup",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "/Users/dionscholus/Documents/paydia auto recon mockup", "--no-port-switching"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

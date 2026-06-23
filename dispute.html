@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Paydia Bisnis - Dispute Data Dashboard">
+    <title>Dispute Data - Paydia Bisnis</title>
+    <script>
+        window.location.replace("index.html?tab=dispute");
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=20260623-v13">
+
+<script>
+if (localStorage.getItem('mock_version') !== 'v8') {
+    localStorage.removeItem('paydia_recon_trx');
+    localStorage.removeItem('paydia_disputes');
+    localStorage.removeItem('paydia_logs');
+    localStorage.removeItem('paydia_settlements');
+    localStorage.removeItem('paydia_approvals');
+    localStorage.removeItem('paydia_mock_perms');
+    localStorage.removeItem('paydia_status_overrides');
+    localStorage.removeItem('paydia_rrn_notes');
+    localStorage.setItem('mock_version', 'v8');
+}
+</script>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-text">paydia</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                <img src="https://ui-avatars.com/api/?name=Dion&background=4f46e5&color=fff&size=40" alt="User Avatar">
+            </div>
+            <div class="user-info">
+                <span class="user-name">Dion</span>
+                <span class="user-email">dion@paydia.id</span>
+            </div>
+        </div>
+
+        <div class="sidebar-label">Paydia Bisnis</div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item" id="nav-merchant">
+                <i class="fas fa-store"></i>
+                <span>Merchant</span>
+            </a>
+            <div class="nav-group" id="nav-settlement-group">
+                <a href="#" class="nav-item has-submenu" id="nav-settlement">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Settlement <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="settle-recon.html" class="submenu-item" id="nav-settle-recon">
+                        <i class="fas fa-handshake"></i>
+                        <span>Settle & Recon</span>
+                        <span class="sidebar-badge-dot"></span>
+                    </a>
+                </div>
+            </div>
+            <a href="approval.html" class="nav-item" id="nav-approval">
+                <i class="fas fa-check-circle"></i>
+                <span>Approval</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-admin">
+                <i class="fas fa-user-shield"></i>
+                <span>Admin</span>
+            </a>
+            <!-- Reconcile with submenu -->
+            <div class="nav-group open" id="nav-reconcile-group">
+                <a href="#" class="nav-item has-submenu active-parent" id="nav-reconcile">
+                    <i class="fas fa-check-double"></i>
+                    <span>Reconcile <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-up submenu-arrow"></i>
+                </a>
+                <div class="submenu open">
+                    <a href="index.html" class="submenu-item" id="nav-qris-acquirer">
+                        <i class="fas fa-download"></i>
+                        <span>QRIS Acquirer</span>
+                        <span class="sidebar-badge-dot"></span>
+                    </a>
+                    <a href="issuer.html" class="submenu-item" id="nav-qris-issuer">
+                        <i class="fas fa-upload"></i>
+                        <span>QRIS Issuer</span>
+                        <span class="sidebar-badge-dot"></span>
+                    </a>
+                    <a href="dispute.html" class="submenu-item active" id="nav-dispute-data">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Dispute Data</span>
+                    </a>
+                </div>
+            </div>
+            <a href="#" class="nav-item" id="nav-vendor">
+                <i class="fas fa-truck"></i>
+                <span>Vendor</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-product">
+                <i class="fas fa-box"></i>
+                <span>Product</span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-marketing">
+                <i class="fas fa-bullhorn"></i>
+                <span>Marketing</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item" id="nav-bank-account">
+                <i class="fas fa-university"></i>
+                <span>Bank Account</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-kasbon">
+                <i class="fas fa-hand-holding-usd"></i>
+                <span>Kasbon</span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-virtual-account">
+                <i class="fas fa-credit-card"></i>
+                <span>Virtual Account</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <!-- Transaction with submenu -->
+            <div class="nav-group" id="nav-transaction-group">
+                <a href="#" class="nav-item has-submenu" id="nav-transaction">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transaction <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="#" class="submenu-item" id="nav-trx-payin">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>Payin</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-payout">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>Payout</span>
+                    </a>
+                    <a href="qris-mpm.html" class="submenu-item" id="nav-trx-qris-mpm">
+                        <i class="fas fa-th"></i>
+                        <span>QRIS MPM <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-qris-cpm">
+                        <i class="fas fa-th-large"></i>
+                        <span>QRIS CPM</span>
+                    </a>
+                    <a href="transaksi.html" class="submenu-item" id="nav-trx-app-users">
+                        <i class="fas fa-user"></i>
+                        <span>App Users</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-topup-manual">
+                        <i class="fas fa-download"></i>
+                        <span>Topup Manual</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-auto-reporting">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Auto Reporting</span>
+                    </a>
+                </div>
+            </div>
+            <a href="#" class="nav-item" id="nav-schedule">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Schedule</span>
+            </a>
+            <a href="log.html" class="nav-item" id="nav-log">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Log <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-recap">
+                <i class="fas fa-chart-bar"></i>
+                <span>Recap</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item" id="nav-callback-recovery">
+                <i class="fas fa-undo-alt"></i>
+                <span>Callback Recovery</span>
+            </a>
+
+            <!-- Mock Permission Control Panel -->
+            <div class="permission-control-widget" id="permissionWidget">
+                <div class="permission-widget-header" id="permissionWidgetToggle">
+                    <i class="fas fa-key"></i>
+                    <span>Mock Permissions</span>
+                    <i class="fas fa-chevron-up widget-arrow"></i>
+                </div>
+                <div class="permission-widget-body" id="permissionWidgetBody">
+                    <label class="perm-checkbox-label" title="Dapat membaca & melihat dashboard rekonsiliasi">
+                        <input type="checkbox" id="permRead" checked> Read Reconcile
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat melakukan On-Hold / Settle unmatch">
+                        <input type="checkbox" id="permFlagging" checked> Flagging Control
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat menginput & mengedit data dispute">
+                        <input type="checkbox" id="permInputDispute" checked> Input Dispute
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat mengeksport CSV data rekon">
+                        <input type="checkbox" id="permExport" checked> Export CSV
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat melakukan finalize hasil rekonsiliasi">
+                        <input type="checkbox" id="permApprove" checked> Finalize Reconcile
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat menjalankan re-run matching engine">
+                        <input type="checkbox" id="permRerun" checked> Re-run Reconcile
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat mengakses log audit trail aktivitas">
+                        <input type="checkbox" id="permLog" checked> View Log Activity
+                    </label>
+                </div>
+            </div>
+
+            <!-- Mock Data Control Panel -->
+            <div class="permission-control-widget collapsed" id="simulatorWidget" style="margin-top: 10px;">
+                <div class="permission-widget-header" id="simulatorWidgetToggle">
+                    <i class="fas fa-database" style="color: var(--success) !important;"></i>
+                    <span>Mock Data Control</span>
+                    <i class="fas fa-chevron-down widget-arrow"></i>
+                </div>
+                <div class="permission-widget-body" id="simulatorWidgetBody">
+                    <button id="btnPopulateMock" style="width: 100%; padding: 8px; font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 600; border-radius: 6px; border: none; background: var(--success); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fas fa-seedling"></i> Populate Mock Data
+                    </button>
+                    <button id="btnClearData" style="width: 100%; padding: 8px; font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--danger); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fas fa-trash-alt"></i> Clear Data
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <!-- Top Navbar -->
+        <header class="topbar" id="topbar">
+            <div class="topbar-left">
+                <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-icon" id="notificationBtn" aria-label="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+                <button class="topbar-icon" id="logoutBtn" aria-label="Logout" title="Logout" style="margin-right: 12px; color: #ef4444;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <div class="topbar-user">
+                    <img src="https://ui-avatars.com/api/?name=Dion&background=4f46e5&color=fff&size=32" alt="User" class="topbar-avatar">
+                    <span class="topbar-username">Dion</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="main-content">
+            <!-- Breadcrumb -->
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+                <a href="#">Home</a>
+                <span class="breadcrumb-sep">/</span>
+                <a href="#">Paydia Bisnis</a>
+                <span class="breadcrumb-sep">/</span>
+                <span class="breadcrumb-current">Dispute Data</span>
+            </nav>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+                <h1 class="page-title" style="margin-bottom: 0;">Dispute Data</h1>
+            </div>
+
+
+
+            <!-- Main Work Panel -->
+            <div class="card">
+                <!-- Toolbar with Global Filters -->
+                <div class="toolbar" style="position: relative;">
+                    <div class="toolbar-left" style="position: relative;">
+                        <button class="btn btn-filter" id="filterBtn">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        
+                        <!-- Filter Panel Dropdown (Popover Card) -->
+                        <div class="filter-panel" id="filterPanel">
+                            <!-- Header: Clear All & Apply Buttons -->
+                            <div class="filter-panel-header">
+                                <button class="btn-clear-all" type="button" id="btnClearAll">Clear All</button>
+                                <button class="btn-apply-filters" type="button" id="btnApplyFilters">Apply Filters</button>
+                            </div>
+                            
+                            <!-- Main columns -->
+                            <div class="filter-panel-content">
+                                <!-- Left Column -->
+                                <div class="filter-col-left">
+                                     <!-- Date Section -->
+                                     <div class="filter-section">
+                                         <span class="filter-section-title">Tanggal Rekon Range</span>
+                                         <div style="display: flex; gap: 8px; align-items: center;">
+                                             <input type="date" id="filterStartDate" style="padding: 8px; font-size: 0.8rem; flex: 1;">
+                                             <span style="font-size: 0.75rem; color: var(--text-secondary);">to</span>
+                                             <input type="date" id="filterEndDate" style="padding: 8px; font-size: 0.8rem; flex: 1;">
+                                         </div>
+                                     </div>
+                                    
+                                    <!-- Switching Section -->
+                                    <div class="filter-section">
+                                        <span class="filter-section-title">Switching</span>
+                                        <select id="filterSwitching">
+                                            <option value="">Semua</option>
+                                            <option value="Rintis">Rintis (BCA)</option>
+                                            <option value="Artajasa">Artajasa (ATM Bersama)</option>
+                                            <option value="Jalin">Jalin (Link)</option>
+                                            <option value="Alto">Alto</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Divider -->
+                                <div class="filter-col-divider"></div>
+                                
+                                <!-- Right Column -->
+                                <div class="filter-col-right">
+                                    <!-- Alasan Dispute Section -->
+                                    <div class="filter-section">
+                                        <span class="filter-section-title">Alasan Dispute</span>
+                                        <select id="filterDisputeType">
+                                            <option value="">Semua</option>
+                                            <option value="1st chargeback">1st Chargeback</option>
+                                            <option value="2nd chargeback">2nd Chargeback</option>
+                                            <option value="good faith">Good Faith</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- Status Section -->
+                                    <div class="filter-section">
+                                        <span class="filter-section-title">Status</span>
+                                        <select id="filterStatus">
+                                            <option value="">Semua</option>
+                                            <option value="Open">Open</option>
+                                            <option value="Closed">Closed</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-export" id="btnAddDispute" style="box-shadow: none; background: var(--success); color: white; border: none;">
+                            <i class="fas fa-plus"></i> Tambah Dispute Good Faith
+                        </button>
+                    </div>
+                    <div class="toolbar-right">
+                        <div class="search-box">
+                            <input type="text" id="searchInput" placeholder="Cari Ref ID / Dispute ID" aria-label="Search">
+                        </div>
+                        <button class="btn btn-search" id="searchBtn">Cari</button>
+                        <button class="btn btn-export" id="exportBtn">
+                            <i class="fas fa-file-csv"></i> Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dispute List Table -->
+                <div style="padding: 0 24px 24px;">
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                             <thead>
+                                 <tr>
+                                     <th class="col-no">No</th>
+                                     <th>Tanggal Transaksi</th>
+                                     <th>ID Transaksi</th>
+                                     <th>RRN</th>
+                                     <th>Nominal Transaksi (Rp)</th>
+                                     <th>Nominal Tip (Rp)</th>
+                                     <th>Nominal MDR (Rp)</th>
+                                     <th>Nominal Total (Rp)</th>
+                                     <th>Nama Merchant</th>
+                                     <th>Alasan Dispute</th>
+                                     <th>Switching</th>
+                                     <th>Status</th>
+                                     <th>Tipe Dispute</th>
+                                     <th>Bukti</th>
+                                     <th class="col-action">Action</th>
+                                 </tr>
+                             </thead>
+                            <tbody id="disputeTableBody">
+                                <!-- Injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination (Footer) -->
+                <div class="pagination-wrapper">
+                    <span class="pagination-info" id="paginationInfo">1 - 10 of 10</span>
+                    <div class="pagination" id="pagination">
+                        <button class="page-btn" id="prevPage" aria-label="Previous page">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <!-- Injected by JS -->
+                        <button class="page-btn" id="nextPage" aria-label="Next page">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals definitions -->
+
+    <!-- Modal 1: Drill-down Detail Transaksi -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="detailModal">
+            <div class="modal-header">
+                <h2 class="modal-title">Rincian Transaksi QRIS</h2>
+                <button class="modal-close" id="modalClose" aria-label="Tutup">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: Input / Edit Dispute Form -->
+    <!-- Modal 4: Input / Edit Dispute Form -->
+    <div class="modal-overlay" id="disputeOverlay">
+        <div class="modal" id="disputeModal" style="max-width: 950px; width: 95%;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="disputeModalTitle">Tambah Dispute Good Faith</h2>
+                <button class="modal-close" id="disputeClose" aria-label="Tutup">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Search Controls -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: flex-end; margin-bottom: 20px; background: rgba(99, 102, 241, 0.04); padding: 16px; border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.08);">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="searchDisputeRrn" class="form-label">RRN</label>
+                        <input type="text" id="searchDisputeRrn" class="form-input" placeholder="Masukkan RRN..." style="margin-bottom:0;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="searchDisputeStartDate" class="form-label">Tanggal Mulai</label>
+                        <input type="date" id="searchDisputeStartDate" class="form-input" style="margin-bottom:0;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="searchDisputeEndDate" class="form-label">Tanggal Selesai</label>
+                        <input type="date" id="searchDisputeEndDate" class="form-input" style="margin-bottom:0;">
+                    </div>
+                    <div>
+                        <button type="button" class="btn" id="btnSearchDisputeTrx" style="background: var(--primary); color: white; border: none; height: 38px; padding: 0 16px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                            <i class="fas fa-search"></i> Cari
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div class="table-wrapper" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 6px;">
+                    <table class="data-table" id="disputeSearchTable" style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center;"><input type="checkbox" id="disputeSearchSelectAll"></th>
+                                <th>Tanggal Transaksi</th>
+                                <th>ID Transaksi</th>
+                                <th>RRN</th>
+                                <th>Nominal Transaksi (Rp)</th>
+                                <th>Nominal Tip (Rp)</th>
+                                <th>Nominal MDR (Rp)</th>
+                                <th>Nominal Total (Rp)</th>
+                                <th>Nama Merchant</th>
+                                <th>Switching</th>
+                            </tr>
+                        </thead>
+                        <tbody id="disputeSearchTableBody">
+                            <tr>
+                                <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                    Silakan masukkan RRN dan/atau Range Tanggal untuk mencari transaksi.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="form-actions" style="margin-top: 0; padding-top: 0; border-top: none;">
+                    <button type="button" class="btn btn-cancel" id="disputeCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-submit" id="disputeSubmitBtn" style="background: var(--success); color: white; border-color: var(--success);" disabled>Simpan Dispute</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Take Notes -->
+    <div class="modal-overlay" id="notesOverlay" style="z-index: 1050;">
+        <div class="modal" id="notesModal" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Lihat / Edit Catatan Dispute</h2>
+                <button class="modal-close" id="notesClose" aria-label="Tutup">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="notesForm" autocomplete="off">
+                    <input type="hidden" id="notesTargetId">
+                    <div class="form-group">
+                        <label for="notesText" class="form-label">Catatan <span class="required">*</span> <small style="color:var(--text-muted);font-weight:400;">Wajib diisi jika Tolak proses</small></label>
+                        <textarea id="notesText" class="form-input form-textarea" placeholder="Masukkan catatan / deskripsi untuk dispute ini (maks 255 karakter)..." rows="4" maxlength="255" required style="resize: none;"></textarea>
+                        <div style="text-align: right; font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;" id="notesCharCount">0 / 255</div>
+                        <div class="form-error" id="notesTextError">Catatan tidak boleh kosong</div>
+                    </div>
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button type="button" class="btn btn-cancel" id="notesCancelBtn">Cancel</button>
+                        <button type="submit" class="btn btn-submit" id="notesSubmitBtn">Simpan Catatan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Bukti Image Preview -->
+    <div class="modal-overlay" id="buktiPreviewOverlay" style="display:none;z-index:10001;">
+        <div class="modal" style="max-width:600px;width:95%;text-align:center;">
+            <div class="modal-header">
+                <h2 class="modal-title">Bukti Dispute</h2>
+                <button class="modal-close" id="buktiPreviewClose"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="padding:16px;">
+                <img id="buktiPreviewImg" src="" alt="Bukti" style="max-width:100%;max-height:60vh;border-radius:8px;object-fit:contain;">
+                <div style="margin-top:16px;">
+                    <button class="btn" id="buktiHapusBtn" style="background:var(--danger);color:white;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;"><i class="fas fa-trash"></i> Hapus Bukti</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Import Progress Loader -->
+    <div class="progress-modal-overlay" id="importProgressOverlay">
+        <div class="progress-container">
+            <h3 class="modal-title" style="margin-bottom: 8px;">Import Data Dispute</h3>
+            <p style="font-size: 0.82rem; color: var(--text-secondary);">Membaca dan memproses file CSV dispute...</p>
+            <div class="progress-bar-bg" style="margin: 16px 0;">
+                <div class="progress-bar-fill" id="importProgressBarFill" style="width: 0%; background: var(--success);"></div>
+            </div>
+            <div class="progress-status" id="importProgressStatus">Membaca file (0%)</div>
+        </div>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script src="dispute.js?v=20260622-v11"></script>
+    <script>
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            fetch('/api/logout', { method: 'POST' }).then(() => { window.location.replace('login.html'); }); return;
+        });
+    </script>
+    <!-- Disclaimer -->
+    <div style="position: fixed; bottom: 16px; right: 16px; text-align: right; font-family: 'Inter', sans-serif; pointer-events: none; z-index: 10000;">
+        <div style="display: inline-block; background: rgba(255, 255, 255, 0.9); padding: 6px 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05);">
+            <div style="color: #000000; font-size: 0.75rem; font-weight: 600; line-height: 1.4;">
+                Mockup - Final Result May Different
+            </div>
+            <div style="color: #000000; font-size: 0.75rem; font-weight: 600; line-height: 1.4; margin-top: 2px;">
+                Confidential | Do Not Share Without Permission
+            </div>
+        </div>
+    </div>
+</body>
+</html>

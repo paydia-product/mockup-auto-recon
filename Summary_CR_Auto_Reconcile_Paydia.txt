@@ -1,0 +1,418 @@
+PAYDIA
+Summary CR — Auto Reconcile Tools
+QRIS Acquirer & Issuer
+Versi 2.0  |  Mei 2026  |  Dokumen: Terbatas
+Bab 1 — Kejelasan tentang CR Ini
+Apa yang Mau Diselesaikan
+Proses rekonsiliasi oleh tim Operation untuk transaksi QRIS (Acquirer & Issuer) di Paydia saat ini masih sebagian besar manual — menggunakan Excel untuk review hasil rekon dan Microsoft Sharepoint untuk pencatatan dispute. Ini tidak scalable, rawan human error, dan berisiko miss SLA settlement seiring pertumbuhan volume transaksi.
+Kondisi Sistem Saat Ini
+Engine rekonsiliasi sudah berjalan — proses matching Acquirer dan Issuer sudah ada, hasil match dan unmatch sudah dihasilkan oleh sistem IT. Masalahnya adalah tim Ops harus membuka dan menganalisis file CSV secara manual setiap hari untuk melihat hasil tersebut. Belum ada interface yang memungkinkan Ops bekerja langsung dari sistem.
+Solusi yang Dibangun
+Interface rekonsiliasi yang menampilkan hasil dari engine existing — tabel Match dan Unmatch untuk Acquirer dan Issuer — lengkap dengan fitur flagging, input dispute, re-run matching, approval settlement, dan export. Tidak ada perubahan pada engine matching yang sudah berjalan.
+Flow Besar yang Disepakati
+Transaksi terjadi hari H (window: 23.31 H-1 s/d 23.30 H)  → Switching kirim file CSV ke SFTP pada H+1 jam 06.00  → Engine existing proses matching otomatis  → Hasil muncul di Dashboard Rekonsiliasi (interface baru)  → Ops review: flagging unmatch, input dispute  → Jika engine bermasalah: Ops trigger re-run matching  → Management approve hasil rekon  → Finance export & proses settlement  → SLA: dana merchant terkirim sebelum H+1 jam 15.00  → Window kerja efektif Ops + Finance: ±9 jam
+Batasan Scope
+Fokus: membangun interface untuk Ops — bukan modifikasi engine matching
+Engine SFTP ingestion, CSV parser, dan matching logic: tidak disentuh
+Approval settlement: modifikasi fitur existing agar bisa handle request dari flow rekonsiliasi ini
+Telegram alert proses lambat (>3 menit): mandatory
+Tidak ada custom feature di luar yang didefinisikan di CR
+Bab 2 — Hal yang Masih TBD atau Diasumsikan
+Item bertanda TBD harus dikonfirmasi sebelum atau selama development berlangsung. Item bertanda Asumsi berlaku selama belum ada koreksi dari pihak terkait.
+#
+Topik
+Status
+Asumsi yang Dipakai
+Siapa yang Konfirmasi
+T1
+Tipe data dispute secara lengkap
+TBD
+Multiple tipe, sistem didesain extensible — tipe bisa ditambah tanpa ubah struktur
+Ops / Yulius
+T2
+Field detail di drill-down transaksi
+TBD (asumsi dipakai)
+Transaction ID, Reference Number, Tanggal & Waktu, Nominal, Merchant ID & Name, RC, Status Rekon, Switching, Tipe (Acquirer/Issuer), Skema (MPM/CPM), Domestic/Crossborder, Flagging Status, Dispute Ref
+Ops / Yulius
+T3
+Benchmark performa matching engine
+TBD
+Diukur di sprint pertama — NFR ditetapkan setelah data aktual tersedia
+IT / BE
+T4
+Window approval Management
+Confirmed
+Diatur secara SOP oleh management. Tidak ada reminder otomatis dari sistem
+Management
+T5
+Siapa yang bisa manage user permission
+TBD
+Hanya orang berwenang yang ditentukan secara internal
+Internal
+T6
+RC selain code 00 dan 68 yang ditampilkan di tabel Decline
+TBD
+Semua RC non-00 dan non-68 masuk tabel Decline, dikonfirmasi dengan Ops
+Ops / Yulius
+T7
+Contingency file SFTP telat
+Confirmed
+Tidak ada fallback otomatis — tim follow up ke Switching secara manual sesuai SOP existing
+—
+Bab 3 — Rencana Detail Pengerjaan
+A. Modifikasi Fitur Existing
+A1 — User Permission System
+Tambah modul baru "Reconcile" ke dalam sistem permission existing (per user, per aksi granular).
+Permission
+Deskripsi
+Read
+Bisa melihat dashboard dan semua tabel rekonsiliasi
+Flagging
+Bisa melakukan On-Hold / Release pada transaksi Unmatch
+Input Dispute
+Bisa menginput dan mengedit data dispute
+Export
+Bisa export CSV hasil rekonsiliasi dengan filter bank
+Approve Settlement
+Bisa melakukan approval hasil rekon sebelum settlement
+Re-run Reconcile
+Bisa trigger ulang proses matching untuk sesi hari ini
+View Log Activity
+Bisa melihat log aktivitas sistem dan user
+A2 — Approval Settlement (Existing)
+Fitur approval sudah ada. Yang perlu dilakukan: pastikan fitur ini bisa menerima dan memproses approval request dari flow rekonsiliasi — menampilkan summary nominal yang akan di-settle dan mencatat audit trail approval per sesi rekonsiliasi.
+B. Fitur & Halaman Baru
+B1 — Reconcile Dashboard
+Halaman utama kerja harian tim Ops. Menampilkan hasil engine existing dalam interface yang bisa dioperasikan langsung.
+Summary Section
+Cards overview yang selalu terlihat di atas halaman: total transaksi, total match, total unmatch, total on-hold, total dispute, nominal settlement. Default: data H+1 hari ini (transaksi kemarin). Mengikuti filter tanggal jika filter aktif.
+Filter Global
+Tersedia di atas tabel — berlaku untuk semua tab: tanggal, switching (Rintis, Artajasa, Jalin, Alto), tipe (Acquirer/Issuer), RC, status rekonsiliasi, status flagging, dispute.
+Tab Acquirer
+Sub-fitur
+Deskripsi
+Match Table
+Read-only. Kolom utama: Transaction ID, Reference Number, Tanggal & Waktu, Nominal, Merchant ID & Name, RC, Switching
+Unmatch Table
+Kolom tambahan: Label (Paydia-Only / Switching-Only), Flagging Status. Baris yang belum di-flag bisa di-flag oleh user dengan permission Flagging
+Flagging Control
+Tombol On-Hold / Release per baris di Unmatch Table. Setiap aksi tercatat di audit trail
+Drill-down Detail
+Klik baris manapun untuk lihat field lengkap transaksi (sesuai T2)
+RC Decline Table
+Read-only. Transaksi selain RC 00 dan RC 68 (detail RC dikonfirmasi via T6). Hanya untuk analisis — tidak ada aksi yang bisa dilakukan
+Tab Issuer
+Struktur identik dengan Tab Acquirer — Match Table, Unmatch Table, Flagging Control, Drill-down, RC Decline Table. Data source dari engine Issuer.
+Tab Dispute
+Sub-fitur
+Deskripsi
+Dispute List
+Tabel semua data dispute yang diinput, terhubung ke transaksi via Transaction ID / Reference Number. Hanya mencatat dan labeling transaksi dispute — follow-up action tidak handle oleh sistem. Filter: tanggal, tipe dispute, status, switching
+Form Input Dispute
+Input data dispute baru secara manual — menggantikan Sharepoint
+Edit Dispute
+Edit data dispute yang sudah diinput selama belum di-approve
+B2 — Progress Indicator
+Loading indicator standar yang tampil saat engine sedang memproses. User tahu sistem berjalan tanpa perlu refresh manual.
+B3 — Re-run Mechanism
+Tombol "Re-run" di dashboard untuk trigger ulang proses matching jika hasil bermasalah atau engine gagal di tengah jalan. Konteks selalu sesi rekonsiliasi hari ini — tidak bisa digunakan untuk tanggal historis. Yang di-trigger ulang adalah proses matching saja, bukan load ulang file dari SFTP. Setiap re-run dicatat di audit trail: siapa yang trigger, kapan, hasilnya apa. Hanya bisa diakses oleh user dengan permission Re-run Reconcile.
+B4 — Approval Flow (Reconcile)
+Sub-fitur
+Deskripsi
+Approval Button
+Hanya muncul dan bisa diklik oleh user dengan permission Approve Settlement
+Confirmation Dialog
+Tampilkan summary sebelum approve: total match, total unmatch yang di-release, total nominal yang akan di-settle
+Audit Trail
+Dicatat: siapa yang approve, kapan, summary nominal yang diapprove
+B5 — Export & Filter per Bank
+Sub-fitur
+Deskripsi
+Export CSV
+Export data rekonsiliasi sesuai filter aktif. Jika filter Bank A aktif, export hanya menghasilkan data Bank A
+Disclaimer Otomatis
+Setiap file export menyertakan: Generated By, Date Generated, Time Generated, dan narasi disclaimer standar
+B6 — Log Activity
+Mencatat semua aktivitas sistem dan user: export, flagging, release, approval, input dispute, edit dispute, re-run — dengan timestamp dan nama user. Bisa diakses oleh user dengan permission View Log Activity.
+B7 — Telegram Alert
+Alert
+Status
+Trigger
+Proses lambat
+Mandatory
+Engine berjalan lebih dari 3 menit
+Bab 4 — Estimasi Mandays
+Asumsi Kapasitas Efektif
+Angka berikut adalah asumsi awal yang wajib divalidasi bersama lead engineer dan PM di kickoff sprint pertama. Estimasi mandays wajib direvisi setelah validasi.
+Role
+Jumlah
+Kapasitas Efektif
+Dasar Asumsi
+UIUX
+1 orang
+70%
+Buffer 30% untuk revisi, alignment, dan handoff
+FE
+2 orang
+60%
+Buffer ad hoc dan project lain
+BE
+3 orang
+45%
+Buffer lebih besar karena ad hoc isu transaksi live hampir selalu domain BE
+QA
+2 orang
+55%
+Buffer ad hoc dan project lain
+Satuan estimasi: Story Points (SP), di mana 1 SP ≈ 1 hari kerja efektif 1 orang.
+Fase 0 — Spike & Alignment
+Tidak ada dependency. Semua role bisa mulai paralel di fase ini.
+Task
+UIUX
+FE
+BE
+QA
+Spike: validasi output format engine existing, benchmark performa
+—
+—
+3
+—
+Tech design & API contract
+—
+1
+2
+—
+Test planning & test case writing
+—
+—
+—
+3
+Subtotal
+0
+1
+5
+3
+Milestone Fase 0: Spike selesai + API contract disetujui + test case draft tersedia → Fase 1 bisa dimulai.
+Fase 1 — UIUX Design
+Dimulai setelah API contract selesai. FE dan BE tidak boleh mulai build sebelum desain halaman terkait selesai.
+Task
+UIUX (SP)
+Design: Dashboard layout, summary cards, filter global
+3
+Design: Tab Acquirer — Match Table, Unmatch Table, Flagging, Drill-down, RC Decline
+4
+Design: Tab Issuer — struktur identik Acquirer
+2
+Design: Tab Dispute — list, form input, edit
+3
+Design: Re-run mechanism, Progress indicator
+1
+Design: Approval flow — button, confirmation dialog
+2
+Design: Export flow + disclaimer
+1
+Design: Log Activity
+1
+Subtotal
+17
+Milestone Fase 1: Semua desain halaman selesai dan di-review → Fase 2 bisa dimulai.
+Fase 2 — Build (FE + BE Paralel per Modul)
+Dimulai setelah desain modul terkait selesai dari UIUX. FE dan BE berjalan paralel, tapi FE tidak bisa integrasi sebelum API BE siap.
+A. Modifikasi Existing
+Task
+FE (SP)
+BE (SP)
+Catatan
+A1 — Tambah modul Reconcile di permission system
+1
+2
+Ikuti pola modul existing
+A2 — Adjust approval settlement untuk handle request dari flow rekon
+1
+2
+Extend fitur existing, pastikan audit trail per sesi
+Subtotal
+2
+4
+B. Fitur Baru
+Task
+FE (SP)
+BE (SP)
+Catatan
+B1 — Summary cards + filter global
+3
+3
+BE: API agregasi + multi-filter. FE: state management cross-tab
+B1 — Match Table + Unmatch Table Acquirer
+4
+3
+BE: pagination + indexing. FE: dua tabel berbeda
+B1 — Flagging control + audit trail Acquirer
+1
+2
+Tombol per baris + pencatatan audit
+B1 — Drill-down detail Acquirer
+2
+1
+B1 — RC Decline Table Acquirer
+1
+1
+Read-only, relatif simpel
+B1 — Tab Issuer (reuse komponen Acquirer)
+3
+2
+FE reuse komponen, BE beda data source
+B1 — Tab Dispute: list + filter
+3
+3
+Terhubung ke transaksi via ref
+B1 — Tab Dispute: form input + edit
+2
+2
+Form dengan validasi
+B2 — Progress indicator
+1
+—
+Pure FE, tidak butuh API baru
+B3 — Re-run mechanism
+1
+2
+BE: trigger engine + audit trail
+B4 — Approval flow: button + dialog + audit
+2
+2
+Extend dari A2
+B5 — Export CSV + filter per bank + disclaimer
+1
+3
+BE: async export untuk volume besar
+B6 — Log Activity
+2
+2
+B7 — Telegram alert (mandatory: proses lambat)
+—
+2
+Pure BE, integrasi bot existing
+Subtotal
+26
+28
+Milestone Fase 2: Semua API dan UI selesai, integrasi FE-BE done → Fase 3 bisa dimulai.
+Fase 3 — Testing (QA)
+Dimulai setelah modul terkait selesai build dan integrasi FE-BE done. QA hanya test BE (logic, API, integrasi) — tidak test UI.
+Task
+QA (SP)
+Testing A1 — Permission system
+1
+Testing A2 — Approval settlement existing
+2
+Testing B1 — Summary cards + filter global
+2
+Testing B1 — Match + Unmatch Acquirer
+3
+Testing B1 — Flagging + audit trail
+2
+Testing B1 — Drill-down + RC Decline
+1
+Testing B1 — Tab Issuer
+2
+Testing B1 — Tab Dispute
+2
+Testing B3 — Re-run mechanism
+2
+Testing B4 — Approval flow
+2
+Testing B5 — Export + filter per bank
+2
+Testing B6 — Log Activity
+1
+Testing B7 — Telegram alert
+1
+Integration testing end-to-end
+4
+Subtotal
+27
+Milestone Fase 3: Semua test case passed, tidak ada critical/major bug open → Fase 4 bisa dimulai.
+Fase 4 — UAT & Revisi
+UAT dilakukan bersama tim Ops sebagai pengguna utama.
+Task
+UIUX
+FE
+BE
+QA
+Catatan
+UAT dengan tim Ops
+—
+1
+1
+2
+Support & dokumentasi feedback
+Revisi desain dari feedback UAT
+3
+—
+—
+—
+UIUX update desain dulu sebelum FE implementasi
+Implementasi revisi dari UAT
+—
+3
+2
+—
+Buffer — aktual tergantung volume feedback
+Re-testing pasca revisi
+—
+—
+—
+2
+Subtotal
+3
+4
+3
+4
+Total dan Konversi ke Kalender
+Role
+Total SP
+Orang
+Kapasitas Efektif
+Kalender Days
+UIUX
+20 SP
+1
+70%
+≈ 29 hari
+FE
+33 SP
+2
+60%/orang
+≈ 28 hari
+BE
+40 SP
+3
+45%/orang
+≈ 30 hari
+QA
+34 SP
+2
+55%/orang
+≈ 31 hari
+Karena ada dependency ketat antar fase, durasi total tidak bisa dijumlah — harus dilihat secara sequential:
+Fase 0 (Spike + Alignment)   : ±1 mingguFase 1 (UIUX Design)         : ±4–6 minggu  → UIUX adalah critical path                               FE & BE bisa mulai modif existing (A1, A2)                               setelah desain halaman pertama selesaiFase 2 (Build)               : ±4–5 minggu  → FE dan BE paralel per modulFase 3 (Testing)             : ±3 minggu    → Overlap dengan akhir Fase 2Fase 4 (UAT + Revisi)        : ±2 mingguEstimasi total durasi project: ±11–12 minggu kalender
+Catatan: UIUX adalah critical path baru di project ini. Selama UIUX belum selesai per modul, FE dan BE tidak bisa mulai build modul tersebut.
+Catatan Risiko Mandays
+Risiko
+Dampak
+Mitigasi
+UIUX menjadi bottleneck (1 orang)
+Seluruh timeline bisa bergeser jika UIUX terlambat
+UIUX prioritaskan desain Tab Acquirer dulu — FE dan BE bisa mulai build modul ini sementara UIUX lanjut desain modul lain
+Format output engine existing tidak terdokumentasi
+Tambah 3–5 hari BE di Fase 0
+Spike di minggu 1 wajib cover ini sebelum API contract dibuat
+TBD item (T1, T2, T6) belum terjawab saat build dimulai
+FE dan BE bisa blocked untuk dispute form dan drill-down
+Kejar konfirmasi Ops sebelum UIUX mulai desain Tab Dispute
+Ad hoc transaksi issues melonjak
+Kapasitas BE bisa drop signifikan
+Hindari jadwalkan task BE paling kompleks di periode akhir bulan atau event besar
+Feedback UAT dari Ops banyak dan struktural
+Bisa tambah 2–3 minggu
+Libatkan 1 orang Ops untuk review desain UIUX sebelum Fase 2 dimulai

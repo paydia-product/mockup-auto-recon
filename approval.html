@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Paydia Bisnis - Approval Dashboard">
+    <title>Approval - Paydia Bisnis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=20260623-v13">
+
+<script>
+if (localStorage.getItem('mock_version') !== 'v8') {
+    localStorage.removeItem('paydia_recon_trx');
+    localStorage.removeItem('paydia_disputes');
+    localStorage.removeItem('paydia_logs');
+    localStorage.removeItem('paydia_settlements');
+    localStorage.removeItem('paydia_approvals');
+    localStorage.removeItem('paydia_mock_perms');
+    localStorage.removeItem('paydia_status_overrides');
+    localStorage.setItem('mock_version', 'v8');
+}
+</script>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-text">paydia</span>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                <img src="https://ui-avatars.com/api/?name=Dion&background=4f46e5&color=fff&size=40" alt="User Avatar">
+            </div>
+            <div class="user-info">
+                <span class="user-name">Dion</span>
+                <span class="user-email">dion@paydia.id</span>
+            </div>
+        </div>
+
+        <div class="sidebar-label">Paydia Bisnis</div>
+
+        <nav class="sidebar-nav">
+            <a href="index.html" class="nav-item" id="nav-merchant">
+                <i class="fas fa-store"></i>
+                <span>Merchant</span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-settlement">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Settlement <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="approval.html" class="nav-item active" id="nav-approval">
+                <i class="fas fa-check-circle"></i>
+                <span>Approval</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-admin">
+                <i class="fas fa-user-shield"></i>
+                <span>Admin</span>
+            </a>
+            <!-- Reconcile with submenu -->
+            <div class="nav-group" id="nav-reconcile-group">
+                <a href="#" class="nav-item has-submenu" id="nav-reconcile">
+                    <i class="fas fa-check-double"></i>
+                    <span>Reconcile <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="index.html" class="submenu-item" id="nav-qris-acquirer">
+                        <i class="fas fa-download"></i>
+                        <span>QRIS Acquirer</span>
+                    </a>
+                    <a href="issuer.html" class="submenu-item" id="nav-qris-issuer">
+                        <i class="fas fa-upload"></i>
+                        <span>QRIS Issuer</span>
+                    </a>
+                    <a href="index.html?tab=dispute" class="submenu-item" id="nav-dispute-data" style="display:none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Dispute Data</span>
+                    </a>
+                </div>
+            </div>
+            <a href="#" class="nav-item" id="nav-vendor">
+                <i class="fas fa-truck"></i>
+                <span>Vendor</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-product">
+                <i class="fas fa-box"></i>
+                <span>Product</span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-marketing">
+                <i class="fas fa-bullhorn"></i>
+                <span>Marketing</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item" id="nav-bank-account">
+                <i class="fas fa-university"></i>
+                <span>Bank Account</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-kasbon">
+                <i class="fas fa-hand-holding-usd"></i>
+                <span>Kasbon</span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-virtual-account">
+                <i class="fas fa-credit-card"></i>
+                <span>Virtual Account</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <div class="nav-group" id="nav-transaction-group">
+                <a href="#" class="nav-item has-submenu" id="nav-transaction">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transaction <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    <i class="fas fa-chevron-down submenu-arrow"></i>
+                </a>
+                <div class="submenu">
+                    <a href="#" class="submenu-item" id="nav-trx-payin">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>Payin</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-payout">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>Payout</span>
+                    </a>
+                    <a href="qris-mpm.html" class="submenu-item" id="nav-trx-qris-mpm">
+                        <i class="fas fa-th"></i>
+                        <span>QRIS MPM <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-qris-cpm">
+                        <i class="fas fa-th-large"></i>
+                        <span>QRIS CPM</span>
+                    </a>
+                    <a href="transaksi.html" class="submenu-item" id="nav-trx-app-users">
+                        <i class="fas fa-user"></i>
+                        <span>App Users</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-topup-manual">
+                        <i class="fas fa-download"></i>
+                        <span>Topup Manual</span>
+                    </a>
+                    <a href="#" class="submenu-item" id="nav-trx-auto-reporting">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Auto Reporting</span>
+                    </a>
+                </div>
+            </div>
+            <a href="#" class="nav-item" id="nav-schedule">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Schedule</span>
+            </a>
+            <a href="log.html" class="nav-item" id="nav-log">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Log <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-recap">
+                <i class="fas fa-chart-bar"></i>
+                <span>Recap</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item has-submenu" id="nav-settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+                <i class="fas fa-chevron-down submenu-arrow"></i>
+            </a>
+            <a href="#" class="nav-item" id="nav-callback-recovery">
+                <i class="fas fa-undo-alt"></i>
+                <span>Callback Recovery</span>
+            </a>
+
+            <!-- Mock Permission Control Panel -->
+            <div class="permission-control-widget" id="permissionWidget">
+                <div class="permission-widget-header" id="permissionWidgetToggle">
+                    <i class="fas fa-key"></i>
+                    <span>Mock Permissions</span>
+                    <i class="fas fa-chevron-up widget-arrow"></i>
+                </div>
+                <div class="permission-widget-body" id="permissionWidgetBody">
+                    <label class="perm-checkbox-label" title="Dapat membaca & melihat dashboard rekonsiliasi">
+                        <input type="checkbox" id="permRead" checked> Read Reconcile
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat melakukan On-Hold / Settle unmatch">
+                        <input type="checkbox" id="permFlagging" checked> Flagging Control
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat menginput & mengedit data dispute">
+                        <input type="checkbox" id="permInputDispute" checked> Input Dispute
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat mengeksport CSV data rekon">
+                        <input type="checkbox" id="permExport" checked> Export CSV
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat melakukan finalize hasil rekonsiliasi">
+                        <input type="checkbox" id="permApprove" checked> Finalize Reconcile
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat menjalankan re-run matching engine">
+                        <input type="checkbox" id="permRerun" checked> Re-run Reconcile
+                    </label>
+                    <label class="perm-checkbox-label" title="Dapat mengakses log audit trail aktivitas">
+                        <input type="checkbox" id="permLog" checked> View Log Activity
+                    </label>
+                </div>
+            </div>
+
+            <!-- Mock Data Control Panel -->
+            <div class="permission-control-widget collapsed" id="simulatorWidget" style="margin-top: 10px;">
+                <div class="permission-widget-header" id="simulatorWidgetToggle">
+                    <i class="fas fa-database" style="color: var(--success) !important;"></i>
+                    <span>Mock Data Control</span>
+                    <i class="fas fa-chevron-down widget-arrow"></i>
+                </div>
+                <div class="permission-widget-body" id="simulatorWidgetBody">
+                    <button id="btnPopulateMock" style="width: 100%; padding: 8px; font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 600; border-radius: 6px; border: none; background: var(--success); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fas fa-seedling"></i> Populate Mock Data
+                    </button>
+                    <button id="btnClearData" style="width: 100%; padding: 8px; font-family: 'Inter', sans-serif; font-size: 0.76rem; font-weight: 600; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--danger); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="fas fa-trash-alt"></i> Clear Data
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <!-- Top Navbar -->
+        <header class="topbar" id="topbar">
+            <div class="topbar-left">
+                <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <div class="topbar-right">
+                <button class="topbar-icon" id="notificationBtn" aria-label="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge">3</span>
+                </button>
+                <button class="topbar-icon" id="logoutBtn" aria-label="Logout" title="Logout" style="margin-right: 12px; color: #ef4444;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <div class="topbar-user">
+                    <img src="https://ui-avatars.com/api/?name=Dion&background=4f46e5&color=fff&size=32" alt="User" class="topbar-avatar">
+                    <span class="topbar-username">Dion</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="main-content">
+            <div class="breadcrumb">
+                <a href="index.html">Home</a>
+                <span class="breadcrumb-sep">/</span>
+                <a href="#">Paydia Bisnis</a>
+                <span class="breadcrumb-sep">/</span>
+                <span class="breadcrumb-current">Approval</span>
+            </div>
+            <h1 class="page-title">Approval</h1>
+
+            <!-- Table Card -->
+            <div class="card">
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-filter" id="filterBtn">
+                            <i class="fas fa-filter"></i>
+                            Filter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Panel -->
+                <div class="filter-panel" id="filterPanel">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="filterTipeRequest">Tipe Request</label>
+                            <select id="filterTipeRequest">
+                                <option value="">Semua</option>
+                                <option value="ubah-status-dc">Ubah Status Transaksi Digital Content</option>
+                                <option value="ubah-status-bisnis">Ubah Status Transaksi Pengguna Bisnis</option>
+                                <option value="campaign-promo">Campaign Promo</option>
+                                <option value="merchant">Merchant</option>
+                                <option value="ubah-public-key">Ubah Public Key Merchant</option>
+                                <option value="ubah-data-merchant">Ubah Data Merchant</option>
+                                <option value="ubah-akses-akun">Ubah Akses Akun</option>
+                                <option value="ubah-status-topup">Ubah Status Top Up Pengguna</option>
+                                <option value="ubah-detail">Ubah Detail Pengguna</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filterAdmin">Admin</label>
+                            <input type="text" id="filterAdmin" placeholder="Cari admin...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="table-wrapper">
+                    <table class="data-table" id="approvalTable">
+                        <thead>
+                            <tr>
+                                <th class="col-no">No</th>
+                                <th>Tanggal</th>
+                                <th>Account</th>
+                                <th>Admin</th>
+                                <th>Tipe Request</th>
+                                <th class="col-action-approval">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approvalTableBody">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination-wrapper">
+                    <span class="pagination-info" id="paginationInfo">1 - 10 of 28</span>
+                    <div class="pagination" id="pagination">
+                        <button class="page-btn" id="prevPage" aria-label="Previous page">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="page-btn" id="nextPage" aria-label="Next page">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script src="approval.js?v=20260619-v12"></script>
+    <script src="page-guide.js?v=20260619-v2"></script>
+    <script>
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            fetch('/api/logout', { method: 'POST' }).then(() => { window.location.replace('login.html'); }); return;
+        });
+    </script>
+    <!-- Disclaimer -->
+    <div style="position: fixed; bottom: 16px; right: 16px; text-align: right; font-family: 'Inter', sans-serif; pointer-events: none; z-index: 10000;">
+        <div style="display: inline-block; background: rgba(255, 255, 255, 0.9); padding: 6px 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05);">
+            <div style="color: #000000; font-size: 0.75rem; font-weight: 600; line-height: 1.4;">
+                Mockup - Final Result May Different
+            </div>
+            <div style="color: #000000; font-size: 0.75rem; font-weight: 600; line-height: 1.4; margin-top: 2px;">
+                Confidential | Do Not Share Without Permission
+            </div>
+        </div>
+    </div>
+</body>
+</html>
