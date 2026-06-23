@@ -285,54 +285,58 @@ function openConfirmationModal(item) {
     if (item.tipeRequest === 'Ubah Transaksi Mismatch') {
         document.getElementById('confirmModalTitle').textContent = 'Permintaan Ubah Transaksi Mismatch';
         
-        let actionDesc = 'Flag Settle Transaksi';
-        if (item.actionType === 'buat_trx') {
-            actionDesc = 'Buat Transaksi Baru';
-        }
-        
-        let targetTableDesc = 'Unmatch Transaction';
-        if (item.refTable === 'dispute') {
-            targetTableDesc = 'Dispute Transaction';
-        }
+        const actionDesc = item.actionType === 'buat_trx' ? 'Buat Transaksi' : 'Flag Settle';
+
+        // PRD: section Detail Transaksi (merchant, MID, MPAN) + list tabel transaksi yang diajukan.
+        const trxList = JSON.parse(localStorage.getItem('paydia_recon_trx') || '[]');
+        const targetIds = Array.isArray(item.txIds) && item.txIds.length ? item.txIds : [item.refId];
+        const rows = targetIds.map(id => trxList.find(t => t.id == id)).filter(Boolean);
+        const rcOf = t => (t.rc || t.rcSwitching || t.rcPaydia || '-');
+        const listRows = rows.map((t, i) => `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${t.date || '-'}</td>
+                <td>${t.refNo || '-'}</td>
+                <td style="text-align:right;">Rp ${formatNominal(t.nominal || 0)}</td>
+                <td>${rcOf(t)}</td>
+                <td>${t.switching || '-'}</td>
+                <td>${t.label || '-'}</td>
+            </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">-</td></tr>`;
 
         body.innerHTML = `
             <div class="modal-section">
-                <h3 class="modal-section-title"><i class="fas fa-info-circle section-toggle-icon"></i> Detail Transaksi Mismatch</h3>
+                <h3 class="modal-section-title"><i class="fas fa-info-circle section-toggle-icon"></i> Detail Transaksi</h3>
                 <table class="modal-detail-table">
-                    <tr>
-                        <td class="detail-label">Ref ID / Trx ID</td>
-                        <td class="detail-value"><strong>${item.refId}</strong></td>
-                    </tr>
-                    <tr>
-                        <td class="detail-label">Tipe Sumber</td>
-                        <td class="detail-value">${targetTableDesc}</td>
-                    </tr>
-                    <tr>
-                        <td class="detail-label">Tindakan Diminta</td>
-                        <td class="detail-value"><span class="status-badge status-proses">${actionDesc}</span></td>
-                    </tr>
-                    <tr>
-                        <td class="detail-label">Akun / Merchant</td>
-                        <td class="detail-value">${item.account ? item.account.replace(/\n/g, '<br>') : '-'}</td>
-                    </tr>
-                    <tr>
-                        <td class="detail-label">Nominal</td>
-                        <td class="detail-value"><strong>Rp ${formatNominal(item.nominal)}</strong></td>
-                    </tr>
+                    <tr><td class="detail-label">Nama Merchant</td><td class="detail-value"><strong>${item.merchantName || '-'}</strong></td></tr>
+                    <tr><td class="detail-label">MID</td><td class="detail-value">${item.merchantId || '-'}</td></tr>
+                    <tr><td class="detail-label">MPAN</td><td class="detail-value">${item.mpan || '-'}</td></tr>
+                    <tr><td class="detail-label">Total Nominal</td><td class="detail-value"><strong>Rp ${formatNominal(item.nominal)}</strong></td></tr>
                 </table>
+                <div style="overflow-x:auto; margin-top:10px;">
+                    <table class="modal-detail-table" style="font-size:0.78rem;">
+                        <thead>
+                            <tr style="background:var(--bg-subtle,#f5f5f7);">
+                                <th style="text-align:left;padding:6px;">No</th>
+                                <th style="text-align:left;padding:6px;">Tanggal Proses</th>
+                                <th style="text-align:left;padding:6px;">RRN</th>
+                                <th style="text-align:right;padding:6px;">Nominal Transaksi</th>
+                                <th style="text-align:left;padding:6px;">RC</th>
+                                <th style="text-align:left;padding:6px;">Switching</th>
+                                <th style="text-align:left;padding:6px;">Tipe Unmatch</th>
+                            </tr>
+                        </thead>
+                        <tbody>${listRows}</tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="modal-section">
-                <h3 class="modal-section-title"><i class="fas fa-comment-alt section-toggle-icon"></i> Catatan Pengajuan</h3>
+                <h3 class="modal-section-title"><i class="fas fa-comment-alt section-toggle-icon"></i> Request Detail</h3>
                 <table class="modal-detail-table">
-                    <tr>
-                        <td class="detail-label">Diajukan Oleh</td>
-                        <td class="detail-value">${item.admin}</td>
-                    </tr>
-                    <tr>
-                        <td class="detail-label">Catatan Ops</td>
-                        <td class="detail-value">${item.alasan || '-'}</td>
-                    </tr>
+                    <tr><td class="detail-label">Requester</td><td class="detail-value">${item.admin}</td></tr>
+                    <tr><td class="detail-label">Tanggal Request</td><td class="detail-value">${item.tanggal || '-'}</td></tr>
+                    <tr><td class="detail-label">Tipe Unmatch</td><td class="detail-value">${rows[0] ? (rows[0].label || '-') : '-'}</td></tr>
+                    <tr><td class="detail-label">Aksi</td><td class="detail-value"><span class="status-badge status-proses">${actionDesc}</span></td></tr>
                 </table>
             </div>
         `;
@@ -638,8 +642,12 @@ function handleApprove() {
                 const savedTrx = localStorage.getItem('paydia_recon_trx');
                 if (savedTrx) {
                     const trxList = JSON.parse(savedTrx);
-                    const trx = trxList.find(t => t.id == refId);
-                    if (trx) {
+                    // Bulk: txIds array (grouped per merchant). Single: fall back to [refId].
+                    const targetIds = Array.isArray(activeApprovalItem.txIds) && activeApprovalItem.txIds.length
+                        ? activeApprovalItem.txIds : [refId];
+                    targetIds.forEach(tid => {
+                        const trx = trxList.find(t => t.id == tid);
+                        if (!trx) return;
                         if (activeApprovalItem.actionType === 'buat_trx') {
                             trx.flaggingStatus = 'Transaksi Terbuat';
                             trx.rcPaydia = trx.rcPaydia || '00';
@@ -648,8 +656,8 @@ function handleApprove() {
                             trx.flaggingStatus = 'Flag Settle';
                             copyToSettlements(trx);
                         }
-                        localStorage.setItem('paydia_recon_trx', JSON.stringify(trxList));
-                    }
+                    });
+                    localStorage.setItem('paydia_recon_trx', JSON.stringify(trxList));
                 }
             } else if (activeApprovalItem.refTable === 'dispute') {
                 const savedDis = localStorage.getItem('paydia_disputes');

@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=20260623-v13">
 
 <script>
-if (localStorage.getItem('mock_version') !== 'v8') {
+if (localStorage.getItem('mock_version') !== 'v12') {
     localStorage.removeItem('paydia_recon_trx');
     localStorage.removeItem('paydia_disputes');
     localStorage.removeItem('paydia_logs');
@@ -21,7 +21,7 @@ if (localStorage.getItem('mock_version') !== 'v8') {
     localStorage.removeItem('paydia_approvals');
     localStorage.removeItem('paydia_mock_perms');
     localStorage.removeItem('paydia_status_overrides');
-    localStorage.setItem('mock_version', 'v8');
+    localStorage.setItem('mock_version', 'v12');
 }
 </script>
 </head>
@@ -338,7 +338,7 @@ if (localStorage.getItem('mock_version') !== 'v8') {
     <!-- Overlay for mobile sidebar -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <script src="approval.js?v=20260619-v12"></script>
+    <script src="approval.js?v=20260623-v13"></script>
     <script src="page-guide.js?v=20260619-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {

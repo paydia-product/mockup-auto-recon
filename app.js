@@ -18,11 +18,11 @@ const rawTransactions = [
     
     // --- ACQUIRER UNMATCHED ---
     { id: 'TX-ACQ-20001', refNo: 'REF-20260527-020', date: '2026-05-27 07:11:02', nominal: 75000, merchantId: 'MID-88134', merchantName: 'Indomaret', rcSwitching: '00', rcPaydia: null, switching: 'Jalin', statusRekon: 'Unmatched', label: 'Switching-Only RC00', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-20002', refNo: 'REF-20260527-021', date: '2026-05-27 09:44:32', nominal: 220000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rcSwitching: '00', rcPaydia: null, switching: 'Rintis', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: 'DISP-001' },
-    { id: 'TX-ACQ-20003', refNo: 'REF-20260527-022', date: '2026-05-27 10:05:14', nominal: 500000, merchantId: 'MID-88220', merchantName: 'Sushi Tei', rc: '68', switching: 'Artajasa', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-20004', refNo: 'REF-20260527-023', date: '2026-05-27 15:30:19', nominal: 180000, merchantId: 'MID-88301', merchantName: 'Starbucks', rc: '68', rcSwitching: '68', rcPaydia: '68', switching: 'Alto', statusRekon: 'Unmatched', label: 'Switching-Only RC68', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Crossborder', disputeRef: null },
+    { id: 'TX-ACQ-20002', refNo: 'REF-20260527-021', date: '2026-05-27 09:44:32', nominal: 220000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rcPaydia: '00', rcSwitching: null, switching: 'Rintis', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: 'DISP-001' },
+    { id: 'TX-ACQ-20003', refNo: 'REF-20260527-022', date: '2026-05-27 10:05:14', nominal: 500000, merchantId: 'MID-88220', merchantName: 'Sushi Tei', rcPaydia: '00', rcSwitching: null, switching: 'Artajasa', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-20004', refNo: 'REF-20260527-023', date: '2026-05-27 15:30:19', nominal: 180000, merchantId: 'MID-88301', merchantName: 'Starbucks', rcSwitching: '68', rcPaydia: null, switching: 'Alto', statusRekon: 'Unmatched', label: 'Switching-Only RC68', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Crossborder', disputeRef: null },
     { id: 'TX-ACQ-20005', refNo: 'REF-20260527-024', date: '2026-05-27 12:08:33', nominal: 120000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rcSwitching: '00', rcPaydia: null, switching: 'Jalin', switchingTime: '12:09:33', statusRekon: 'Unmatched', label: 'Double RRN', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-20008', refNo: 'REF-20260527-026', date: '2026-05-27 16:02:09', nominal: 67000, nominalPaydia: 67000, nominalSwitching: 67000, merchantId: 'MID-88301', merchantName: 'Starbucks', rc: '00', rcPaydia: '00', rcSwitching: '05', switching: 'Jalin', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-20008', refNo: 'REF-20260527-026', date: '2026-05-27 16:02:09', nominal: 67000, merchantId: 'MID-88301', merchantName: 'Starbucks', rcPaydia: '00', rcSwitching: null, switching: 'Jalin', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
     { id: 'TX-ACQ-20009', refNo: 'REF-20260527-027', date: '2026-05-27 13:21:48', nominal: 90000, nominalPaydia: 90000, nominalSwitching: 90000, merchantId: 'MID-88134', merchantName: 'Indomaret', rc: '05', rcPaydia: '05', rcSwitching: '00', switching: 'Rintis', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
     { id: 'TX-ISS-20009', refNo: 'REF-20260527-054', date: '2026-05-27 14:55:12', nominal: 145000, nominalPaydia: 145000, nominalSwitching: 145000, merchantId: 'MID-99120', merchantName: 'Solaria Mall', rc: '68', rcPaydia: '68', rcSwitching: '00', switching: 'Artajasa', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Issuer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
 
@@ -129,7 +129,8 @@ let transactions = [];
 let disputes = [];
 let reconProcesses = [];
 let currentPage = 1;
-const perPage = 10;
+const perPage = 50; // PRD: default 50 baris per halaman
+const BULK_MAX = 50; // PRD: maks 50 data per bulk action
 let selectedUnmatchIds = [];
 let visibleUnmatchedList = [];
 let visibleDisputeList = [];
@@ -2073,7 +2074,8 @@ function bindEvents() {
                         hideFlagDropdown();
                         return;
                     }
-                    if (t.label === 'Beda Status Transaksi' && t.rcPaydia !== '00') {
+                    // PRD: semua data yang diklik Flag Recon dicek status Paydia harus sukses (rcPaydia '00').
+                    if (t.rcPaydia !== '00') {
                         showToast('Tidak Bisa Flag Recon', 'Status transaksi belum sukses, silahkan ubah status transaksi menjadi sukses di halaman transaksi');
                         hideFlagDropdown();
                         return;
@@ -2136,14 +2138,11 @@ function bindEvents() {
                         hideFlagDropdown();
                         return;
                     }
-                    openActionConfirmModal(`Apakah Anda yakin ingin membuat transaksi untuk ${t.id}? Transaksi akan tersedia di halaman Transaksi QRIS MPM.`, () => {
-                        // Create the Paydia-side transaction record directly so it appears in QRIS MPM.
-                        t.flaggingStatus = 'Transaksi Terbuat';
-                        t.rcPaydia = t.rcPaydia || '00';
-                        t.skema = 'MPM';
-                        saveTrxToStorage();
-                        writeLog('buat-trx-unmatch', `email : dion@paydia.id\naction : Membuat transaksi untuk ${t.id} (tersedia di Transaksi QRIS MPM)`);
-                        showToast('Transaksi Dibuat', `Transaksi ${t.id} berhasil dibuat dan tersedia di halaman Transaksi QRIS MPM.`);
+                    openActionConfirmModal(`Apakah Anda yakin ingin mengajukan <strong>Buat Transaksi</strong> untuk ${t.id}? (Memerlukan persetujuan Management)`, () => {
+                        // PRD: Buat Transaksi wajib lewat approval; status tetap On-Hold sampai disetujui.
+                        createUnmatchApproval('buat_trx', [t]);
+                        writeLog('buat-trx-unmatch-request', `email : dion@paydia.id\naction : Mengajukan buat transaksi untuk ${t.id}`);
+                        showToast('Pending Approval', `Pengajuan buat transaksi berhasil dikirim untuk transaksi ${t.id}.`);
                         renderActiveTableWithLoading();
                     });
                 }
@@ -2173,25 +2172,7 @@ function bindEvents() {
                     }
                     openActionConfirmModal(`Apakah Anda yakin ingin mengajukan <strong>Flag Settle</strong> untuk transaksi ${t.id}? (Memerlukan persetujuan Management)`, () => {
                         // Keep flaggingStatus as is (Flag Recon) while pending approval
-                        const approvals = JSON.parse(localStorage.getItem('paydia_approvals') || '[]');
-                        const now = new Date();
-                        const timeStr = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear() + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
-                        approvals.unshift({
-                            id: 'RQ-' + (10000 + Math.floor(Math.random() * 90000)),
-                            tanggal: timeStr,
-                            account: `Flag Settle: ${t.id}\n${t.merchantName || 'Unmatch'}`,
-                            admin: 'Dion',
-                            tipeRequest: 'Ubah Transaksi Mismatch',
-                            refTable: 'unmatch',
-                            actionType: 'flag_settle',
-                            status: 'Pending',
-                            refId: t.id,
-                            alasan: 'Persetujuan flag settle data unmatched',
-                            nominal: t.nominal || 0,
-                            statusRekon: 'Pending'
-                        });
-                        localStorage.setItem('paydia_approvals', JSON.stringify(approvals));
-
+                        createUnmatchApproval('flag_settle', [t]);
                         writeLog('flag-settle-unmatch-request', `email : dion@paydia.id\naction : Mengajukan flag settle untuk transaksi ${t.id}`);
                         showToast('Pending Approval', `Pengajuan pending approval berhasil dikirim untuk transaksi ${t.id}.`);
                         renderActiveTableWithLoading();
@@ -3127,6 +3108,36 @@ function unmatchRowActions(t) {
     return BULK_ACTION_ORDER.filter(a => isUnmatchEligible(t, a));
 }
 
+// PRD: Buat Transaksi & Flag Settle wajib lewat approval. Bulk request digrouping per merchant.
+// txList = transaksi dari SATU merchant yang sama (single-row = 1 elemen).
+function createUnmatchApproval(action, txList) {
+    if (!txList || !txList.length) return;
+    const approvals = JSON.parse(localStorage.getItem('paydia_approvals') || '[]');
+    const now = new Date();
+    const timeStr = String(now.getDate()).padStart(2, '0') + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + now.getFullYear() + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+    const first = txList[0];
+    const actionLabel = action === 'buat_trx' ? 'Buat Transaksi' : 'Flag Settle';
+    approvals.unshift({
+        id: 'RQ-' + (10000 + Math.floor(Math.random() * 90000)),
+        tanggal: timeStr,
+        account: `${first.merchantName || 'Unmatch'}\nMID: ${first.merchantId || '-'}`,
+        admin: 'Dion',
+        tipeRequest: 'Ubah Transaksi Mismatch',
+        refTable: 'unmatch',
+        actionType: action,
+        status: 'Pending',
+        refId: first.id,
+        txIds: txList.map(t => t.id),
+        merchantName: first.merchantName || '-',
+        merchantId: first.merchantId || '-',
+        mpan: first.mpan || '-',
+        alasan: `Persetujuan ${actionLabel} ${txList.length} transaksi unmatched`,
+        nominal: txList.reduce((s, t) => s + (t.nominal || 0), 0),
+        statusRekon: 'Pending'
+    });
+    localStorage.setItem('paydia_approvals', JSON.stringify(approvals));
+}
+
 function updateBulkActionBar() {
     const selectAllCheckbox = document.getElementById('acqUnmatchSelectAll');
     const bulkBar = document.getElementById('acqBulkActionBar');
@@ -3160,7 +3171,13 @@ function initBulkActions() {
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', () => {
             if (selectAllCheckbox.checked) {
-                visibleUnmatchedList.forEach(t => { if (!selectedUnmatchIds.includes(t.id)) selectedUnmatchIds.push(t.id); });
+                let capped = false;
+                visibleUnmatchedList.forEach(t => {
+                    if (selectedUnmatchIds.includes(t.id)) return;
+                    if (selectedUnmatchIds.length >= BULK_MAX) { capped = true; return; }
+                    selectedUnmatchIds.push(t.id);
+                });
+                if (capped) showToast('Maksimal 50 Data', 'Maksimal 50 data dapat dipilih dalam satu bulk action.');
             } else {
                 visibleUnmatchedList.forEach(t => {
                     const idx = selectedUnmatchIds.indexOf(t.id);
@@ -3178,6 +3195,11 @@ function initBulkActions() {
             if (!checkbox) return;
             const id = checkbox.dataset.id;
             if (checkbox.checked) {
+                if (selectedUnmatchIds.length >= BULK_MAX && !selectedUnmatchIds.includes(id)) {
+                    checkbox.checked = false;
+                    showToast('Maksimal 50 Data', 'Maksimal 50 data dapat dipilih dalam satu bulk action.');
+                    return;
+                }
                 if (!selectedUnmatchIds.includes(id)) selectedUnmatchIds.push(id);
             } else {
                 const idx = selectedUnmatchIds.indexOf(id);
@@ -3372,63 +3394,42 @@ function handleBulkDisputeAction(action, ids) {
 // Execute a bulk action across selected rows, applying the same effect as the
 // single-row handler. Rows whose action set no longer includes `action` are skipped.
 function handleBulkUnmatchAction(action, ids) {
+    // PRD: maks 50 data sekali waktu.
+    if (ids.length > BULK_MAX) {
+        showToast('Maksimal 50 Data', 'Maksimal 50 data dapat diproses dalam satu bulk action.');
+        return;
+    }
+
     // Loading state: spinner in the action button, unclickable.
     const btnContainer = document.getElementById('acqBulkActionButtons');
     if (btnContainer) { btnContainer.style.pointerEvents = 'none'; btnContainer.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i>'; }
 
-    let count = 0;
-    const settlementsToAdd = [];
     try {
-        ids.forEach(id => {
-            const t = transactions.find(item => item.id === id);
-            if (!t || !isUnmatchEligible(t, action)) return;
-            if (action === 'flag_recon') {
-                t.flaggingStatus = 'Flag Recon';
-                count++;
-            } else if (action === 'tolak') {
-                t.flaggingStatus = 'Ditolak';
-                count++;
-            } else if (action === 'buat_trx') {
-                t.flaggingStatus = 'Transaksi Terbuat';
-                t.skema = 'MPM';
-                t.rcPaydia = t.rcPaydia || '00';
-                count++;
-            } else if (action === 'flag_settle') {
-                t.flaggingStatus = 'Flag Settle';
-                settlementsToAdd.push(t);
-                count++;
-            }
-        });
+        const eligible = ids
+            .map(id => transactions.find(item => item.id === id))
+            .filter(t => t && isUnmatchEligible(t, action));
 
-        if (count === 0) {
+        if (eligible.length === 0) {
             if (btnContainer) { btnContainer.style.pointerEvents = ''; }
             showToast('Tidak Ada Perubahan', 'Tidak ada transaksi yang bisa diproses.');
             updateBulkActionBar();
             return;
         }
 
-        if (settlementsToAdd.length) {
-            const savedSettlements = localStorage.getItem('paydia_settlements');
-            const database = savedSettlements ? JSON.parse(savedSettlements) : [];
-            settlementsToAdd.forEach(t => {
-                if (!database.some(item => item.txId == t.id)) {
-                    database.unshift({
-                        id: Date.now() + Math.floor(Math.random() * 1000),
-                        tanggal: t.date, txId: t.id,
-                        merchantCode: t.merchantId || '240827001000000',
-                        merchantName: t.merchantName,
-                        nominalQris: t.nominal, nominalSettle: t.nominal,
-                        bankCode: t.switching === 'Jalin' ? 'BRI' : 'BCA',
-                        bankAccount: '12345678', bankAccountName: t.merchantName,
-                        status: 'Pembayaran'
-                    });
-                }
-            });
-            localStorage.setItem('paydia_settlements', JSON.stringify(database));
+        if (action === 'buat_trx' || action === 'flag_settle') {
+            // PRD: lewat approval, request digrouping per merchant.
+            const groups = {};
+            eligible.forEach(t => { (groups[t.merchantId || '-'] = groups[t.merchantId || '-'] || []).push(t); });
+            Object.values(groups).forEach(group => createUnmatchApproval(action, group));
+            const reqCount = Object.keys(groups).length;
+            writeLog('bulk-unmatch-' + action + '-request', `email : dion@paydia.id\naction : Mengajukan bulk ${BULK_ACTION_LABELS[action]} untuk ${eligible.length} transaksi (${reqCount} request approval per merchant)`);
+        } else {
+            // flag_recon & tolak: langsung diterapkan (tanpa approval).
+            eligible.forEach(t => { t.flaggingStatus = action === 'tolak' ? 'Ditolak' : 'Flag Recon'; });
+            saveTrxToStorage();
+            writeLog('bulk-unmatch-' + action, `email : dion@paydia.id\naction : Bulk ${BULK_ACTION_LABELS[action]} untuk ${eligible.length} transaksi unmatched`);
         }
 
-        saveTrxToStorage();
-        writeLog('bulk-unmatch-' + action, `email : dion@paydia.id\naction : Bulk ${BULK_ACTION_LABELS[action]} untuk ${count} transaksi unmatched`);
         selectedUnmatchIds = [];
         showToast('Berhasil', 'Berhasil bulk proses data');
         setTimeout(() => window.location.reload(), 1000);
