@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=20260623-v13">
 
 <script>
-if (localStorage.getItem('mock_version') !== 'v10') {
+if (localStorage.getItem('mock_version') !== 'v11') {
     localStorage.removeItem('paydia_recon_trx');
     localStorage.removeItem('paydia_disputes');
     localStorage.removeItem('paydia_logs');
@@ -22,7 +22,7 @@ if (localStorage.getItem('mock_version') !== 'v10') {
     localStorage.removeItem('paydia_mock_perms');
     localStorage.removeItem('paydia_status_overrides');
     localStorage.removeItem('paydia_rrn_notes');
-    localStorage.setItem('mock_version', 'v10');
+    localStorage.setItem('mock_version', 'v11');
 }
 </script>
 </head>
@@ -902,7 +902,7 @@ if (localStorage.getItem('mock_version') !== 'v10') {
         </div>
     </div>
 
-    <script src="app.js?v=20260623-v21"></script>
+    <script src="app.js?v=20260623-v22"></script>
     <script src="page-guide.js?v=20260619-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {

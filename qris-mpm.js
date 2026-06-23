@@ -436,9 +436,9 @@ function initDropdownActions() {
                     </div>
                 `;
             } else {
-                const isBedaStatus = trx && trx.label === 'Beda Status Transaksi';
+                const canUbahStatus = trx && (trx.label === 'Beda Status Transaksi' || trx.label === 'Paydia-Only Success');
                 menu.innerHTML = `
-                    ${isBedaStatus ? `<button class="dropdown-item btn-ubah-status" data-id="${id}">
+                    ${canUbahStatus ? `<button class="dropdown-item btn-ubah-status" data-id="${id}">
                         <i class="fas fa-edit" style="color: var(--primary); width: 16px; margin-right: 4px;"></i> Ubah Status Transaksi
                     </button>` : ''}
                     <button class="dropdown-item btn-cancel-trx" data-id="${id}">

@@ -82,7 +82,15 @@ const rawTransactions = [
     { id: 'TX-BULK-048', refNo: 'REF-20260520-147', date: '2026-05-20 15:15:00', nominal: 60000, merchantId: 'MID-88901', merchantName: 'Matahari Dept Store', rcPaydia: '00', rcSwitching: '05', nominalPaydia: 60000, nominalSwitching: 60000, switching: 'Alto', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Crossborder', disputeRef: null },
     { id: 'TX-BULK-049', refNo: 'REF-20260521-146', date: '2026-05-21 09:15:00', nominal: 490000, merchantId: 'MID-88901', merchantName: 'Matahari Dept Store', rcPaydia: '00', rcSwitching: '05', nominalPaydia: 490000, nominalSwitching: 490000, switching: 'Jalin', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
     { id: 'TX-BULK-050', refNo: 'REF-20260521-147', date: '2026-05-21 13:00:00', nominal: 210000, merchantId: 'MID-88901', merchantName: 'Matahari Dept Store', rcPaydia: '00', rcSwitching: '05', nominalPaydia: 210000, nominalSwitching: 210000, switching: 'Artajasa', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
-    
+    // Validasi Tolak (MID-77021 "Toko Validasi"): Paydia-Only & Beda Status — tolak hanya bila transaksi gagal.
+    // VAL-001/002 sukses → tolak DIBLOKIR (ubah status ke Gagal di QRIS MPM dulu). VAL-003/004 sudah gagal → tolak BISA. VAL-005/006 sukses → tolak DIBLOKIR.
+    { id: 'TX-VAL-001', refNo: 'REF-20260522-201', date: '2026-05-22 09:00:00', nominal: 320000, merchantId: 'MID-77021', merchantName: 'Toko Validasi', rcPaydia: '00', rcSwitching: null, switching: 'Jalin', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-VAL-002', refNo: 'REF-20260522-202', date: '2026-05-22 10:30:00', nominal: 145000, merchantId: 'MID-77021', merchantName: 'Toko Validasi', rcPaydia: '00', rcSwitching: null, switching: 'Rintis', statusRekon: 'Unmatched', label: 'Paydia-Only Success', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Crossborder', disputeRef: null },
+    { id: 'TX-VAL-003', refNo: 'REF-20260522-203', date: '2026-05-22 11:15:00', nominal: 530000, merchantId: 'MID-77021', merchantName: 'Toko Validasi', rcPaydia: '05', rcSwitching: '00', nominalPaydia: 530000, nominalSwitching: 530000, switching: 'Artajasa', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-VAL-004', refNo: 'REF-20260522-204', date: '2026-05-22 13:45:00', nominal: 88000, merchantId: 'MID-77021', merchantName: 'Toko Validasi', rcPaydia: '51', rcSwitching: '00', nominalPaydia: 88000, nominalSwitching: 88000, switching: 'Alto', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-VAL-005', refNo: 'REF-20260522-205', date: '2026-05-22 14:20:00', nominal: 410000, merchantId: 'MID-77021', merchantName: 'Toko Validasi', rcPaydia: '00', rcSwitching: '05', nominalPaydia: 410000, nominalSwitching: 410000, switching: 'Jalin', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Crossborder', disputeRef: null },
+    { id: 'TX-VAL-006', refNo: 'REF-20260522-206', date: '2026-05-22 15:50:00', nominal: 67000, merchantId: 'MID-77021', merchantName: 'Toko Validasi', rcPaydia: '00', rcSwitching: '05', nominalPaydia: 67000, nominalSwitching: 67000, switching: 'Rintis', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+
     // --- ACQUIRER DECLINED ---
     { id: 'TX-ACQ-30001', refNo: 'REF-20260527-030', date: '2026-05-27 08:02:11', nominal: 11000, merchantId: 'MID-88134', merchantName: 'Indomaret', rc: '51', switching: 'Jalin', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
     { id: 'TX-ACQ-30002', refNo: 'REF-20260527-031', date: '2026-05-27 11:45:00', nominal: 95000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rc: '05', switching: 'Rintis', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
@@ -835,6 +843,28 @@ function syncFilterContext() {
     const showDispute = activeSubtab === 'acq-dispute';
     document.querySelectorAll('.filter-ctx-unmatch').forEach(el => el.classList.toggle('filter-ctx-visible', showUnmatch));
     document.querySelectorAll('.filter-ctx-dispute').forEach(el => el.classList.toggle('filter-ctx-visible', showDispute));
+}
+
+// Reset all reconcile filters + search to default (called on subtab switch and Clear All)
+function resetFilters() {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const sd = document.getElementById('filterStartDate'); if (sd) sd.value = todayStr;
+    const ed = document.getElementById('filterEndDate'); if (ed) ed.value = todayStr;
+    const v = document.getElementById('filterVendor'); if (v) v.selectedIndex = 0;
+    const lk = document.getElementById('filterLokasi'); if (lk) lk.selectedIndex = 0;
+    const tx = document.getElementById('filterTxId'); if (tx) tx.value = '';
+    const mi = document.getElementById('filterMerchantId'); if (mi) mi.value = '';
+    ['chkStatusSukses', 'chkStatusGagal', 'chkStatusPending', 'chkKategoriTopup', 'chkKategoriUser']
+        .forEach(idv => { const el = document.getElementById(idv); if (el) el.checked = false; });
+    document.querySelectorAll('.chk-unmatch-status, .chk-unmatch-rc, .chk-unmatch-tipe, .chk-dispute-status, .chk-dispute-alasan')
+        .forEach(c => { c.checked = false; });
+    if (searchInput) searchInput.value = '';
+}
+
+// A transaction is "gagal" when Paydia RC is present and not sukses ('00') / pending ('68').
+function isTrxGagal(t) {
+    return !!t && !!t.rcPaydia && t.rcPaydia !== '00' && t.rcPaydia !== '68';
 }
 
 // Collect checked values for a given checkbox class
@@ -1625,6 +1655,7 @@ function bindEvents() {
             activeSubtab = targetSub;
 
             resetBulkMode();
+            resetFilters();
             syncBulkActionButton();
             syncFilterContext();
             renderActiveTableWithLoading();
@@ -1689,28 +1720,7 @@ function bindEvents() {
     // Clear All button click (Reset)
     if (btnClearAll) {
         btnClearAll.addEventListener('click', () => {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            
-            if (document.getElementById('filterStartDate')) document.getElementById('filterStartDate').value = `${yyyy}-${mm}-${dd}`;
-            if (document.getElementById('filterEndDate')) document.getElementById('filterEndDate').value = `${yyyy}-${mm}-${dd}`;
-            if (document.getElementById('filterVendor')) document.getElementById('filterVendor').selectedIndex = 0;
-            if (document.getElementById('filterTxId')) document.getElementById('filterTxId').value = '';
-            if (document.getElementById('filterMerchantId')) document.getElementById('filterMerchantId').value = '';
-            
-            if (document.getElementById('chkStatusSukses')) document.getElementById('chkStatusSukses').checked = false;
-            if (document.getElementById('chkStatusGagal')) document.getElementById('chkStatusGagal').checked = false;
-            if (document.getElementById('chkStatusPending')) document.getElementById('chkStatusPending').checked = false;
-            
-            if (document.getElementById('chkKategoriTopup')) document.getElementById('chkKategoriTopup').checked = false;
-            if (document.getElementById('chkKategoriUser')) document.getElementById('chkKategoriUser').checked = false;
-
-            // Clear multi-select checklist filters (unmatch + dispute)
-            document.querySelectorAll('.chk-unmatch-status, .chk-unmatch-rc, .chk-unmatch-tipe, .chk-dispute-status, .chk-dispute-alasan').forEach(c => { c.checked = false; });
-
-            if (searchInput) searchInput.value = '';
+            resetFilters();
             showToast('Filter Direset', 'Semua filter pencarian direset.');
             renderActiveTableWithLoading();
         });
@@ -2089,6 +2099,12 @@ function bindEvents() {
             if (dropdownItem.classList.contains('btn-unmatch-tolak')) {
                 const t = transactions.find(item => item.id == activeFlaggingTrxId);
                 if (t) {
+                    // Paydia-Only / Beda Status: transaksi harus gagal dulu sebelum bisa ditolak.
+                    if ((t.label === 'Paydia-Only Success' || t.label === 'Beda Status Transaksi') && !isTrxGagal(t)) {
+                        showToast('Tidak Bisa Tolak', 'Transaksi harus berstatus gagal terlebih dahulu, silahkan ubah status transaksi menjadi gagal di halaman Transaksi QRIS MPM.');
+                        hideFlagDropdown();
+                        return;
+                    }
                     // PRD: Tolak wajib mengisi catatan lebih dulu
                     if (!(rrnNotes[t.id] || '').trim()) {
                         showToast('Catatan Wajib', 'Harus mengisi catatan untuk aksi Tolak');
@@ -3085,7 +3101,12 @@ function isUnmatchEligible(t, action) {
         return false;
     }
     if (action === 'flag_settle') return st === 'Flag Recon';
-    if (action === 'tolak') return onHold;
+    if (action === 'tolak') {
+        if (!onHold) return false;
+        // Paydia-Only / Beda Status: transaksi harus gagal dulu sebelum bisa ditolak.
+        if (paydiaOrBeda && !isTrxGagal(t)) return false;
+        return true;
+    }
     return false;
 }
 
