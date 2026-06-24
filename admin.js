@@ -63,7 +63,7 @@ function renderTable() {
             <td>${a.email}</td>
             <td>${a.nama}</td>
             <td><span class="admin-status ${cls}">${a.status}</span></td>
-            <td style="text-align:center;"><button class="btn btn-edit-admin" data-id="${a.id}" style="background:var(--primary,#4f46e5); color:white; border:none; padding:6px 16px;">Edit</button></td>
+            <td style="text-align:center;"><button class="btn btn-edit-admin" data-id="${a.id}" style="background:var(--primary,#4f46e5); color:white; border:none; padding:6px 16px;">Edit <i class="fas fa-hammer" style="margin-left:4px; font-size:0.72rem;" title="Butuh Pengerjaan"></i></button></td>
         `;
         tbody.appendChild(tr);
     });
@@ -204,12 +204,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (b) { currentPage = parseInt(b.dataset.page, 10); renderTable(); }
     });
 
-    // Sidebar submenu toggles
+    // Sidebar submenu toggles (must toggle .submenu.open — that's what the CSS keys on)
     document.querySelectorAll('.nav-item.has-submenu').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             const group = item.closest('.nav-group');
+            const submenu = group ? group.querySelector('.submenu') : null;
+            const arrow = item.querySelector('.submenu-arrow');
             if (group) group.classList.toggle('open');
+            if (submenu) submenu.classList.toggle('open');
+            if (arrow) { arrow.classList.toggle('fa-chevron-down'); arrow.classList.toggle('fa-chevron-up'); }
         });
     });
+
+    // Sidebar collapse + mobile toggles (parity with other pages)
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const mobileToggle = document.getElementById('mobileToggle');
+    if (sidebarToggle && sidebar) sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('collapsed'));
+    if (mobileToggle && sidebar) mobileToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
 });

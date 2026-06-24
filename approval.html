@@ -70,7 +70,7 @@
                     </a>
                     <a href="issuer.html" class="submenu-item" id="nav-qris-issuer">
                         <i class="fas fa-upload"></i>
-                        <span>QRIS Issuer</span>
+                        <span>QRIS Issuer <i class="fas fa-hourglass-half" style="color:#6366f1; margin-left:6px; font-size:0.78rem;" title="Dikerjakan Next Phase"></i></span>
                     </a>
                     <a href="index.html?tab=dispute" class="submenu-item" id="nav-dispute-data" style="display:none;">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -254,36 +254,38 @@
             <!-- Table Card -->
             <div class="card">
                 <!-- Toolbar -->
-                <div class="toolbar">
-                    <div class="toolbar-left">
+                <div class="toolbar" style="position: relative;">
+                    <div class="toolbar-left" style="position: relative;">
                         <button class="btn btn-filter" id="filterBtn">
                             <i class="fas fa-filter"></i>
                             Filter
                         </button>
-                    </div>
-                </div>
 
-                <!-- Filter Panel -->
-                <div class="filter-panel" id="filterPanel">
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="filterTipeRequest">Tipe Request</label>
-                            <select id="filterTipeRequest">
-                                <option value="">Semua</option>
-                                <option value="ubah-status-dc">Ubah Status Transaksi Digital Content</option>
-                                <option value="ubah-status-bisnis">Ubah Status Transaksi Pengguna Bisnis</option>
-                                <option value="campaign-promo">Campaign Promo</option>
-                                <option value="merchant">Merchant</option>
-                                <option value="ubah-public-key">Ubah Public Key Merchant</option>
-                                <option value="ubah-data-merchant">Ubah Data Merchant</option>
-                                <option value="ubah-akses-akun">Ubah Akses Akun</option>
-                                <option value="ubah-status-topup">Ubah Status Top Up Pengguna</option>
-                                <option value="ubah-detail">Ubah Detail Pengguna</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label for="filterAdmin">Admin</label>
-                            <input type="text" id="filterAdmin" placeholder="Cari admin...">
+                        <!-- Filter Panel (anchored under the Filter button, styled like other pages) -->
+                        <div class="filter-panel" id="filterPanel" style="width: 420px;">
+                            <div class="filter-panel-header">
+                                <button class="btn-clear-all" type="button" id="btnClearAllApproval">Clear All</button>
+                                <button class="btn-apply-filters" type="button" id="btnApplyFiltersApproval">Apply Filters</button>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:16px;">
+                                <div class="filter-group" style="display:flex; flex-direction:column; gap:6px;">
+                                    <label for="filterTipeRequest" style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">Tipe Request</label>
+                                    <select id="filterTipeRequest" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+                                        <option value="">Semua</option>
+                                        <option value="Ubah Transaksi Mismatch">Proses Transaksi Mismatch</option>
+                                        <option value="Finalize Reconcile">Finalize Reconcile</option>
+                                        <option value="Ubah Status Transaksi Digital Content">Ubah Status Transaksi Digital Content</option>
+                                        <option value="Ubah Status Transaksi Pengguna Bisnis">Ubah Status Transaksi Pengguna Bisnis</option>
+                                        <option value="Campaign Promo">Campaign Promo</option>
+                                        <option value="Merchant">Merchant</option>
+                                        <option value="Ubah Public Key Merchant">Ubah Public Key Merchant</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group" style="display:flex; flex-direction:column; gap:6px;">
+                                    <label for="filterAdmin" style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">Admin</label>
+                                    <input type="text" id="filterAdmin" placeholder="Cari admin..." style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -326,7 +328,7 @@
     <!-- Overlay for mobile sidebar -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <script src="approval.js?v=20260624-v15"></script>
+    <script src="approval.js?v=20260624-v16"></script>
     <script src="page-guide.js?v=20260619-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {

@@ -207,8 +207,14 @@ function getAllApprovals() {
         return [];
     }
     const stored = JSON.parse(localStorage.getItem('paydia_approvals') || '[]');
-    return [...stored, ...seedApprovals];
+    let all = [...stored, ...seedApprovals];
+    // Apply active filters (Tipe Request + Admin)
+    if (approvalFilters.tipe) all = all.filter(a => (a.tipeRequest || '') === approvalFilters.tipe);
+    if (approvalFilters.admin) all = all.filter(a => (a.admin || '').toLowerCase().includes(approvalFilters.admin));
+    return all;
 }
+
+let approvalFilters = { tipe: '', admin: '' };
 
 // ── Skeleton Loader ──
 function renderSkeleton(colsCount) {
@@ -845,6 +851,27 @@ function bindEvents() {
     filterBtn.addEventListener('click', () => {
         filterPanel.classList.toggle('open');
         filterBtn.classList.toggle('active');
+    });
+
+    // Apply / Clear filters
+    const btnApply = document.getElementById('btnApplyFiltersApproval');
+    const btnClear = document.getElementById('btnClearAllApproval');
+    if (btnApply) btnApply.addEventListener('click', () => {
+        approvalFilters.tipe = document.getElementById('filterTipeRequest').value;
+        approvalFilters.admin = document.getElementById('filterAdmin').value.trim().toLowerCase();
+        currentPage = 1;
+        renderTableWithLoading();
+        renderPagination();
+        filterPanel.classList.remove('open');
+        filterBtn.classList.remove('active');
+    });
+    if (btnClear) btnClear.addEventListener('click', () => {
+        document.getElementById('filterTipeRequest').value = '';
+        document.getElementById('filterAdmin').value = '';
+        approvalFilters = { tipe: '', admin: '' };
+        currentPage = 1;
+        renderTableWithLoading();
+        renderPagination();
     });
 
     // Approval button clicks
