@@ -147,18 +147,46 @@ document.addEventListener('DOMContentLoaded', () => {
     initMockDataControl();
 });
 
+// Map raw writeLog types -> clean display types (PRD activity log naming).
 const typeAliases = {
-    'flagging-control': 'Flagging',
-    'Flagging Control': 'Flagging',
-    're-run-matching': 'Re-run Reconcile',
-    'input-dispute': 'Input Dispute',
-    'edit-dispute': 'Edit Dispute',
-    'approve-settlement': 'Finalisasi',
+    // Tabel Unmatch
+    'flag-recon-unmatch': 'Flag Recon',
+    'bulk-unmatch-flag_recon': 'Flag Recon',
+    'buat-trx-unmatch': 'Buat Transaksi',
+    'buat-trx-unmatch-request': 'Buat Transaksi',
+    'bulk-unmatch-buat_trx-request': 'Buat Transaksi',
+    'flag-settle-unmatch': 'Flag Settle',
+    'flag-settle-unmatch-request': 'Flag Settle',
+    'bulk-unmatch-flag_settle-request': 'Flag Settle',
+    'tolak-unmatch': 'Tolak',
+    'bulk-unmatch-tolak': 'Tolak',
+    'edit-notes-unmatch': 'Edit Catatan',
+    'edit-notes-dispute': 'Edit Catatan',
+    // Export
+    'export-matched': 'Ekspor Data Tabel',
+    'export-unmatched': 'Ekspor Data Tabel',
+    'export-dispute': 'Ekspor Data Tabel',
+    'export-declined': 'Ekspor Data Tabel',
     'export-csv': 'Ekspor Data Tabel',
     'Export': 'Ekspor Data Tabel',
     'Export CSV': 'Ekspor Data Tabel',
-    'export-bank': 'Ekspor Data per Bank',
-    'Export Bank': 'Ekspor Data per Bank',
+    'export-bank': 'Ekspor Segregasi per Bank',
+    'Export Bank': 'Ekspor Segregasi per Bank',
+    // Settle & Recon
+    'settle-settlement': 'Settle Settlement',
+    'settle-settle-recon': 'Settle Settlement',
+    'cancel-settlement': 'Batalkan Settlement',
+    'cancel-settlement-settle-recon': 'Batalkan Settlement',
+    // Approval
+    'approve-flag-settle-unmatch': 'Approval Flag Settle',
+    'approve-buat-trx-unmatch': 'Approval Buat Transaksi',
+    'approve-settlement': 'Finalisasi',
+    // Dispute / others
+    'add-dispute-goodfaith': 'Tambah Dispute Good Faith',
+    'cancel-transaction-mpm': 'Batalkan Transaksi MPM',
+    're-run-matching': 'Re-run Reconcile',
+    'flagging-control': 'Flagging',
+    'Flagging Control': 'Flagging',
     'telegram-alert': 'Telegram Alert'
 };
 
@@ -200,8 +228,10 @@ function initDatabase() {
 // ── Main Rendering ──
 function renderTableData() {
     const dateVal = document.getElementById('filterDate').value;
-    const containerVal = document.getElementById('filterContainer').value;
-    const typeVal = document.getElementById('filterType').value;
+    const containerVals = [...document.querySelectorAll('.chk-container:checked')].map(c => c.value);
+    const typeVals = [...document.querySelectorAll('.chk-type:checked')].map(c => c.value);
+    const detailVal = (document.getElementById('filterDetail')?.value || '').trim().toLowerCase();
+    const ipVal = (document.getElementById('filterIp')?.value || '').trim().toLowerCase();
     const searchVal = searchInput.value.trim().toLowerCase();
 
     const tbody = document.getElementById('logsTableBody');
@@ -216,12 +246,14 @@ function renderTableData() {
 
     let filtered = logs.filter(l => {
         if (filterDateStr && !l.tanggal.startsWith(filterDateStr)) return false;
-        if (containerVal && l.container !== containerVal) return false;
-        if (typeVal && l.type !== typeVal) return false;
-        if (searchVal && 
-            !l.id.toString().includes(searchVal) && 
-            !l.type.toLowerCase().includes(searchVal) && 
-            !l.detail.toLowerCase().includes(searchVal) && 
+        if (containerVals.length && !containerVals.includes(l.container)) return false;
+        if (typeVals.length && !typeVals.includes(l.type)) return false;
+        if (detailVal && !l.detail.toLowerCase().includes(detailVal)) return false;
+        if (ipVal && !l.ip.toLowerCase().includes(ipVal)) return false;
+        if (searchVal &&
+            !l.id.toString().includes(searchVal) &&
+            !l.type.toLowerCase().includes(searchVal) &&
+            !l.detail.toLowerCase().includes(searchVal) &&
             !l.ip.toLowerCase().includes(searchVal)) return false;
         return true;
     });
@@ -343,11 +375,20 @@ function bindEvents() {
         }
     });
 
-    document.querySelectorAll('.filter-group select, #filterDate').forEach(el => {
-        el.addEventListener('change', () => {
-            currentPage = 1;
-            renderTableData();
-        });
+    // Apply / Clear filter buttons (checkbox multi-select panel)
+    const btnApply = document.getElementById('btnApplyFiltersLog');
+    if (btnApply) btnApply.addEventListener('click', () => {
+        currentPage = 1;
+        renderTableData();
+        filterPanel.classList.remove('open');
+        filterBtn.classList.remove('active');
+    });
+    const btnClear = document.getElementById('btnClearAllLog');
+    if (btnClear) btnClear.addEventListener('click', () => {
+        document.querySelectorAll('.chk-container, .chk-type').forEach(c => { c.checked = false; });
+        ['filterDate', 'filterDetail', 'filterIp'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        currentPage = 1;
+        renderTableData();
     });
 
     // Export log activity

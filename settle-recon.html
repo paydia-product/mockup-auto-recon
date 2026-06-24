@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=20260623-v13">
+    <link rel="stylesheet" href="styles.css?v=20260624-v14">
     <style>
         /* Settle page overrides for premium details */
         .settle-flex-row {
@@ -112,18 +112,7 @@
         }
     </style>
 
-<script>
-if (localStorage.getItem('mock_version') !== 'v8') {
-    localStorage.removeItem('paydia_recon_trx');
-    localStorage.removeItem('paydia_disputes');
-    localStorage.removeItem('paydia_logs');
-    localStorage.removeItem('paydia_settlements');
-    localStorage.removeItem('paydia_approvals');
-    localStorage.removeItem('paydia_mock_perms');
-    localStorage.removeItem('paydia_status_overrides');
-    localStorage.setItem('mock_version', 'v8');
-}
-</script>
+<script src="boot.js?v=20260624-v14"></script>
 </head>
 
 <body>
@@ -171,11 +160,11 @@ if (localStorage.getItem('mock_version') !== 'v8') {
             </div>
             <a href="approval.html" class="nav-item" id="nav-approval">
                 <i class="fas fa-check-circle"></i>
-                <span>Approval</span>
+                <span>Approval <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
             </a>
-            <a href="#" class="nav-item" id="nav-admin">
+            <a href="admin.html" class="nav-item" id="nav-admin">
                 <i class="fas fa-user-shield"></i>
-                <span>Admin</span>
+                <span>Admin <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
             </a>
             <!-- Reconcile with submenu -->
             <div class="nav-group" id="nav-reconcile-group">
@@ -435,14 +424,13 @@ if (localStorage.getItem('mock_version') !== 'v8') {
                                 <tr>
                                     <th class="col-checkbox" style="width: 40px; text-align: center;"><input type="checkbox" id="globalSelectCheckbox"></th>
                                     <th class="col-no" style="width: 50px;">No.</th>
-                                    <th>Tanggal</th>
-                                    <th>ID Transaksi</th>
+                                    <th>Settlement ID</th>
                                     <th>Merchant</th>
-                                    <th>Nominal QRIS (Rp)</th>
-                                    <th>Nominal Settle (Rp)</th>
+                                    <th>Tipe Settlement</th>
+                                    <th style="text-align: center;">Jumlah Transaksi</th>
+                                    <th>Total Nominal Settle (Rp)</th>
                                     <th>Bank</th>
-                                    <th>Status</th>
-                                    <th class="col-action" style="width: 240px; text-align: center;">Aksi</th>
+                                    <th class="col-action" style="width: 200px; text-align: center;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="settleReconTableBody">
@@ -493,7 +481,7 @@ if (localStorage.getItem('mock_version') !== 'v8') {
         </div>
     </div>
 
-    <script src="settle-recon.js?v=20260623-v11"></script>
+    <script src="settle-recon.js?v=20260624-v12"></script>
     <script src="page-guide.js?v=20260619-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {
@@ -555,15 +543,23 @@ if (localStorage.getItem('mock_version') !== 'v8') {
 <div class="modal-overlay" id="exportDateModal" style="display: none; align-items: center; justify-content: center; z-index: 2000;">
     <div class="modal-content" style="width: 90%; max-width: 400px; padding: 24px;">
         <div class="modal-header" style="margin-bottom: 20px;">
-            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Pilih Tanggal Export</h2>
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin: 0;">Export Segregasi per Bank</h2>
         </div>
-        <div style="margin-bottom: 24px;">
-            <label style="display: block; font-size: 0.875rem; margin-bottom: 8px;">Tanggal Export</label>
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 0.875rem; margin-bottom: 8px;">Tanggal Export <span style="color:#ef4444;">*</span></label>
             <input type="date" id="exportDateInput" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+        </div>
+        <div id="exportTipeWrap" style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 0.875rem; margin-bottom: 8px;">Tipe Settlement <span style="color:#ef4444;">*</span></label>
+            <select id="exportTipeInput" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <option value="">Pilih tipe settlement</option>
+                <option value="Reguler Matched">Reguler Matched</option>
+                <option value="Tambahan Matched">Tambahan Matched</option>
+            </select>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 12px;">
             <button id="cancelExportBtn" class="btn" style="background: white; border: 1px solid #cbd5e1;">Batal</button>
-            <button id="submitExportBtn" class="btn" style="background: #10b981; color: white;">Export</button>
+            <button id="submitExportBtn" class="btn" style="background: #10b981; color: white; opacity: 0.5; cursor: not-allowed;" disabled>Export</button>
         </div>
     </div>
 </div>
@@ -576,29 +572,21 @@ if (localStorage.getItem('mock_version') !== 'v8') {
 <div id="listTransaksiModal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 2000;">
     <div class="modal-content" style="width: 90%; max-width: 1000px; padding: 24px;">
         <div class="modal-header" style="margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="font-size: 1.25rem; font-weight: 600; color: #1e293b; margin: 0;">List Transaksi</h2>
+            <h2 id="listTransaksiTitle" style="font-size: 1.25rem; font-weight: 600; color: #1e293b; margin: 0;">List Transaksi</h2>
             <button class="modal-close" id="closeListTransaksiBtn" aria-label="Close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
-        </div>
-        
-        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
-            <button class="btn btn-filter" style="margin: 0; background: #1e293b; color: white; border-color: #334155;"><i class="fas fa-filter"></i> Filter</button>
-            <button class="btn btn-export" style="margin: 0; background: #10b981; color: white; border-color: #10b981;"><i class="far fa-file-excel"></i> Export</button>
         </div>
 
         <div class="table-container" style="max-height: 400px; overflow-y: auto;">
             <table class="data-table">
                 <thead style="position: sticky; top: 0; background: white; z-index: 10;">
                     <tr>
-                        <th>Tanggal Transaksi</th>
+                        <th>No</th>
+                        <th>Tanggal</th>
                         <th>ID Transaksi</th>
-                        <th>RRN</th>
-                        <th>Nama Merchant</th>
-                        <th>Kategori</th>
+                        <th style="text-align:right;">Nominal QRIS (Rp)</th>
+                        <th style="text-align:right;">Nominal Settle (Rp)</th>
+                        <th>Bank</th>
                         <th>Status</th>
-                        <th>Nominal Transaksi (Rp)</th>
-                        <th>Nominal MDR (Rp)</th>
-                        <th>Nominal Total (Rp)</th>
-                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="listTransaksiTbody">

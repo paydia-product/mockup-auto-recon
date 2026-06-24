@@ -14,11 +14,45 @@ const mockSettlements = [
     { id: 8, tanggal: '03-01-2025 07:31:10', txId: 'a91f02bc77de41128cc0a8f4d2b6e310', merchantCode: '240512001000000', merchantName: 'Warung Bu Sri', nominalQris: 65000.00, nominalSettle: 65000.00, bankCode: 'Mandiri', bankAccount: '1370011223344', bankAccountName: 'Sri Wahyuni', status: 'Pembayaran' },
     { id: 9, tanggal: '03-01-2025 07:32:05', txId: 'b72c19ad88ef52239dd1b9f5e3c7f421', merchantCode: '240512001000000', merchantName: 'Warung Bu Sri', nominalQris: 42000.00, nominalSettle: 42000.00, bankCode: 'Mandiri', bankAccount: '1370011223344', bankAccountName: 'Sri Wahyuni', status: 'Pembayaran' },
     { id: 10, tanggal: '03-01-2025 07:33:40', txId: 'c53d28be99fa63340ee2caf6f4d8a532', merchantCode: '240718001000000', merchantName: 'Toko Berkah Jaya', nominalQris: 120000.00, nominalSettle: 120000.00, bankCode: 'Permata', bankAccount: '0980011556677', bankAccountName: 'Hendra Gunawan', status: 'Pembayaran' },
-    { id: 11, tanggal: '03-01-2025 07:34:55', txId: 'd64e39cf00ab74451ff3dba7a5e9b643', merchantCode: '240718001000000', merchantName: 'Toko Berkah Jaya', nominalQris: 55000.00, nominalSettle: 55000.00, bankCode: 'CIMB Niaga', bankAccount: '7650011889900', bankAccountName: 'Hendra Gunawan', status: 'Pembayaran' }
+    { id: 11, tanggal: '03-01-2025 07:34:55', txId: 'd64e39cf00ab74451ff3dba7a5e9b643', merchantCode: '240718001000000', merchantName: 'Toko Berkah Jaya', nominalQris: 55000.00, nominalSettle: 55000.00, bankCode: 'CIMB Niaga', bankAccount: '7650011889900', bankAccountName: 'Hendra Gunawan', status: 'Pembayaran' },
+    // Tambahan Matched = hasil flag settle manual dari tabel unmatch (PRD)
+    { id: 12, tanggal: '18-06-2026 09:10:00', txId: 'TX-ACQ-20001', merchantCode: '240827001000001', merchantName: 'Indomaret', nominalQris: 75000.00, nominalSettle: 75000.00, bankCode: 'BRI', bankAccount: '024701001749309', bankAccountName: 'Indomaret Pusat', tipeSettlement: 'Tambahan Matched', status: 'Pembayaran' },
+    { id: 13, tanggal: '18-06-2026 09:12:00', txId: 'TX-ACQ-20005', merchantCode: '240827001000001', merchantName: 'Indomaret', nominalQris: 120000.00, nominalSettle: 120000.00, bankCode: 'BRI', bankAccount: '024701001749309', bankAccountName: 'Indomaret Pusat', tipeSettlement: 'Tambahan Matched', status: 'Pembayaran' }
 ];
 
 let database = [];
-let selectedIds = [];
+let selectedIds = []; // holds settlementId strings (per-group selection)
+let currentGroups = [];
+
+// PRD: settlement digrouping per merchant + tipe settlement, tiap group punya Settlement ID.
+function settlementIdOf(item) {
+    const tipe = item.tipeSettlement || 'Reguler Matched';
+    const code = tipe === 'Tambahan Matched' ? 'TM' : 'RM';
+    // Group per merchant: use the full merchant code as the distinguishing key
+    // (seed codes all end in 000000, so a tail-slice would wrongly merge merchants).
+    return 'STL-' + code + '-' + String(item.merchantCode || 'UNKNOWN');
+}
+
+function buildGroups(items) {
+    const map = {};
+    items.forEach(item => {
+        const sid = settlementIdOf(item);
+        if (!map[sid]) {
+            map[sid] = {
+                settlementId: sid,
+                tipeSettlement: item.tipeSettlement || 'Reguler Matched',
+                merchantName: item.merchantName, merchantCode: item.merchantCode,
+                bankCode: item.bankCode, bankAccount: item.bankAccount, bankAccountName: item.bankAccountName,
+                tanggal: item.tanggal, items: [], totalQris: 0, totalSettle: 0
+            };
+        }
+        const g = map[sid];
+        g.items.push(item);
+        g.totalQris += Number(item.nominalQris) || 0;
+        g.totalSettle += Number(item.nominalSettle) || 0;
+    });
+    return Object.values(map);
+}
 
 // Initialize local DB state
 function initDatabase() {
@@ -66,54 +100,46 @@ function renderTableData() {
         return true;
     });
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding: 40px 16px; color: var(--text-muted);">Tidak ada data settlement</td></tr>`;
+    currentGroups = buildGroups(filtered);
+
+    if (currentGroups.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 40px 16px; color: var(--text-muted);">Tidak ada data settlement</td></tr>`;
         updateStats();
         return;
     }
 
-    filtered.forEach((item, idx) => {
-        const tr = document.createElement('tr');
-        const isChecked = selectedIds.includes(item.id);
+    const tipeBadge = t => t === 'Tambahan Matched' ? 'status-dikembalikan' : 'status-sukses';
 
-        let displayStatus = item.status || 'Pembayaran';
-        if (displayStatus === 'Mulai pembayaran') {
-            displayStatus = 'Mulai Pembayaran';
-        }
-        let statusClass = 'status-sukses'; // default for "Pembayaran" (green/success)
-        if (displayStatus === 'Mulai Pembayaran') {
-            statusClass = 'status-dikembalikan'; // blue/info style for "Mulai Pembayaran"
-        }
+    currentGroups.forEach((g, idx) => {
+        const tr = document.createElement('tr');
+        const isChecked = selectedIds.includes(g.settlementId);
+        // group settled when all its transactions already started payment
+        const allSettled = g.items.every(it => (it.status || 'Pembayaran') === 'Mulai Pembayaran');
 
         tr.innerHTML = `
             <td class="col-checkbox" style="text-align: center;">
-                <input type="checkbox" class="row-checkbox" data-id="${item.id}" ${isChecked ? 'checked' : ''}>
+                <input type="checkbox" class="row-checkbox" data-id="${g.settlementId}" ${isChecked ? 'checked' : ''}>
             </td>
             <td class="col-no">${idx + 1}</td>
-            <td style="font-variant-numeric: tabular-nums;">${item.tanggal}</td>
-            <td style="font-family: monospace; font-size: 0.8rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.txId}">
-                ${item.txId}
-            </td>
+            <td style="font-family: monospace; font-size: 0.82rem; font-weight: 600; color: var(--primary);">${g.settlementId}</td>
             <td>
                 <div class="cell-text-stack">
-                    <span class="cell-text-main">${item.merchantName}</span>
-                    <span class="cell-text-sub">${item.merchantCode}</span>
+                    <span class="cell-text-main">${g.merchantName}</span>
+                    <span class="cell-text-sub">${g.merchantCode}</span>
                 </div>
             </td>
-            <td style="font-variant-numeric: tabular-nums; font-weight: 500;">Rp ${item.nominalQris.toLocaleString('id-ID', { minimumFractionDigits: 2 })}</td>
-            <td style="font-variant-numeric: tabular-nums; font-weight: 600;">Rp ${item.nominalSettle.toLocaleString('id-ID', { minimumFractionDigits: 2 })}</td>
+            <td><span class="status-badge ${tipeBadge(g.tipeSettlement)}">${g.tipeSettlement}</span></td>
+            <td style="text-align: center; font-variant-numeric: tabular-nums; font-weight: 600;">${g.items.length}</td>
+            <td style="font-variant-numeric: tabular-nums; font-weight: 600;">Rp ${g.totalSettle.toLocaleString('id-ID', { minimumFractionDigits: 2 })}</td>
             <td>
                 <div class="cell-text-stack">
-                    <span class="cell-text-main">${item.bankCode}</span>
-                    <span class="cell-text-sub">${item.bankAccount} - ${item.bankAccountName}</span>
+                    <span class="cell-text-main">${g.bankCode}</span>
+                    <span class="cell-text-sub">${g.bankAccount} - ${g.bankAccountName}</span>
                 </div>
-            </td>
-            <td>
-                <span class="status-badge ${statusClass}">${displayStatus}</span>
             </td>
             <td class="col-action" style="text-align: center; white-space: nowrap;">
-                <a href="#" class="action-link btn-action-dropdown-trigger" data-id="${item.id}" style="font-size: 0.82rem; font-weight: 600; text-decoration: none; color: var(--primary); padding: 6px 12px; border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 6px; background: rgba(99, 102, 241, 0.05); display: inline-block;">
-                    Action <i class="fas fa-chevron-down" style="font-size:0.7rem; margin-left: 4px;"></i>
+                <a href="#" class="action-link btn-action-dropdown-trigger" data-id="${g.settlementId}" data-settled="${allSettled}" style="font-size: 0.82rem; font-weight: 600; text-decoration: none; color: var(--primary); padding: 6px 12px; border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 6px; background: rgba(99, 102, 241, 0.05); display: inline-block;">
+                    Aksi <i class="fas fa-chevron-down" style="font-size:0.7rem; margin-left: 4px;"></i>
                 </a>
             </td>
         `;
@@ -133,10 +159,10 @@ function updateStats() {
     if (!countEl || !nominalEl) return;
 
     let totalNominal = 0;
-    selectedIds.forEach(id => {
-        const item = database.find(item => item.id === id);
-        if (item) {
-            totalNominal += item.nominalSettle;
+    selectedIds.forEach(sid => {
+        const g = currentGroups.find(x => x.settlementId === sid);
+        if (g) {
+            totalNominal += g.totalSettle;
         }
     });
 
@@ -260,7 +286,7 @@ function bindEvents() {
             const isChecked = globalSelect.checked;
             const checkboxes = document.querySelectorAll('.row-checkbox');
             checkboxes.forEach(cb => {
-                const id = parseInt(cb.dataset.id, 10);
+                const id = cb.dataset.id;
                 cb.checked = isChecked;
                 const idx = selectedIds.indexOf(id);
                 if (isChecked) {
@@ -337,7 +363,7 @@ function bindEvents() {
         tbody.addEventListener('change', (e) => {
             const cb = e.target.closest('.row-checkbox');
             if (cb) {
-                const id = parseInt(cb.dataset.id, 10);
+                const id = cb.dataset.id;
                 const idx = selectedIds.indexOf(id);
                 if (cb.checked) {
                     if (idx === -1) selectedIds.push(id);
@@ -365,7 +391,7 @@ function bindEvents() {
                 e.preventDefault();
                 e.stopPropagation();
 
-                const id = parseInt(trigger.dataset.id, 10);
+                const id = trigger.dataset.id;
                 const menu = document.getElementById('actionDropdownMenu');
 
                 if (activeSettleTrxId === id && menu.classList.contains('show')) {
@@ -388,102 +414,64 @@ function bindEvents() {
             dropdownMenu.addEventListener('click', (e) => {
                 if (e.target.closest('.btn-dropdown-lihat')) {
                     e.preventDefault();
-                    if (activeSettleTrxId) {
-                        const item = database.find(t => t.id == activeSettleTrxId);
-                        if (item) {
-                            const targetNominal = typeof item.nominalSettle === 'number' ? item.nominalSettle : parseFloat(item.nominalSettle.toString().replace(/,/g,'')) || 10000;
-                            const tbody = document.getElementById('listTransaksiTbody');
-                            
-                            const nominal1 = targetNominal * 0.5;
-                            const nominal2 = targetNominal * 0.3;
-                            const nominal3 = targetNominal * 0.2;
-                            const cbMinus = 5000;
-                            const cbPlus = 5000;
-                            
-                            const fmt = n => n.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:2});
-                            const date = "01-01-2025 00:00:00";
-                            const mname = item.merchantName || item.namaMerchant || "Merchant";
-                            
-                            // ponytail: 1st/2nd chargeback & good faith are the dispute-minus categories; pick one per row
-                            const cbCats = ['1st Chargeback', '2nd Chargeback', 'Good Faith'];
-                            const makeRow = (id, n, isChargeback) => {
-                                let kategori = 'Merchant Bayar';
-                                let nStr = fmt(n);
-                                if (isChargeback === '+') { kategori = 'Represent'; nStr = fmt(Math.abs(n)); }
-                                else if (isChargeback === '-') { kategori = cbCats[Math.floor(Math.random()*cbCats.length)]; nStr = '-' + fmt(Math.abs(n)); }
-                                const mdr = Math.abs(n) * 0.003;
-                                const mdrStr = fmt(mdr);
-                                const totalStr = (isChargeback === '-' ? '-' : '') + fmt(Math.abs(n) - mdr);
-                                return `<tr>
-                                    <td>${date}</td>
-                                    <td>${id}</td>
-                                    <td>25011300000${Math.floor(Math.random()*90)+10}</td>
-                                    <td>${mname}</td>
-                                    <td>${kategori}</td>
-                                    <td><span class="status-badge success">Sukses</span></td>
-                                    <td>${nStr}</td>
-                                    <td>${mdrStr}</td>
-                                    <td>${totalStr}</td>
-                                    <td><button class="btn-action">Action <i class="fas fa-chevron-down"></i></button></td>
-                                </tr>`;
-                            };
-
-                            let html = '';
-                            html += makeRow('159724e4b1e444...', nominal1);
-                            html += makeRow('361c1177f98f4cc...', nominal2);
-                            html += makeRow('06a36d113ca34e...', nominal3);
-                            html += makeRow('8a12d2b3834248...', cbMinus, '-');
-                            html += makeRow('29be8a3d0ae49a...', cbPlus, '+');
-                            
-                            tbody.innerHTML = html;
-                            const _ltm = document.getElementById('listTransaksiModal');
-                            _ltm.style.display = '';        // clear inline display:none
-                            _ltm.classList.add('show');     // .modal-overlay needs .show to be visible
-                        }
+                    const group = currentGroups.find(g => g.settlementId === activeSettleTrxId);
+                    if (group) {
+                        const fmt = n => Number(n).toLocaleString('id-ID', { minimumFractionDigits: 2 });
+                        const titleEl = document.getElementById('listTransaksiTitle');
+                        if (titleEl) titleEl.textContent = `List Transaksi — ${group.settlementId} (${group.merchantName})`;
+                        const rows = group.items.map((it, i) => {
+                            const st = (it.status || 'Pembayaran') === 'Mulai Pembayaran' ? 'Mulai Pembayaran' : 'Pembayaran';
+                            const stClass = st === 'Mulai Pembayaran' ? 'status-dikembalikan' : 'status-sukses';
+                            return `<tr>
+                                <td>${i + 1}</td>
+                                <td style="font-variant-numeric:tabular-nums;">${it.tanggal}</td>
+                                <td style="font-family:monospace; font-size:0.78rem;">${it.txId}</td>
+                                <td style="text-align:right; font-variant-numeric:tabular-nums;">Rp ${fmt(it.nominalQris)}</td>
+                                <td style="text-align:right; font-variant-numeric:tabular-nums; font-weight:600;">Rp ${fmt(it.nominalSettle)}</td>
+                                <td>${it.bankCode}</td>
+                                <td><span class="status-badge ${stClass}">${st}</span></td>
+                            </tr>`;
+                        }).join('');
+                        document.getElementById('listTransaksiTbody').innerHTML = rows;
+                        const _ltm = document.getElementById('listTransaksiModal');
+                        _ltm.style.display = '';
+                        _ltm.classList.add('show');
                     }
                     hideDropdown();
                 } else if (e.target.closest('.btn-dropdown-settle')) {
                     e.preventDefault();
-                    if (activeSettleTrxId) {
-                        const item = database.find(t => t.id == activeSettleTrxId);
-                        if (item) {
-                            showConfirmModal(
-                                'Konfirmasi Settle',
-                                `Apakah Anda yakin ingin melakukan settlement untuk transaksi ${item.txId} dengan nominal Rp ${item.nominalSettle.toLocaleString('id-ID')}?`,
-                                () => {
-                                    item.status = 'Mulai Pembayaran';
-                                    saveDatabase();
-                                    
-                                    // Log the settle activity
-                                    writeLog('settle-settle-recon', `Settle transaksi ${item.txId} (Nominal: Rp ${item.nominalSettle.toLocaleString('id-ID')})`);
-                                    
-                                    showToast('Settlement Berhasil', `Transaksi ${item.txId} berhasil disettle.`);
-                                    renderTableData();
-                                }
-                            );
-                        }
+                    const group = currentGroups.find(g => g.settlementId === activeSettleTrxId);
+                    if (group) {
+                        showConfirmModal(
+                            'Konfirmasi Settle',
+                            `Settle ${group.items.length} transaksi pada ${group.settlementId} (${group.merchantName}) total Rp ${group.totalSettle.toLocaleString('id-ID')}?`,
+                            () => {
+                                group.items.forEach(it => { it.status = 'Mulai Pembayaran'; });
+                                saveDatabase();
+                                writeLog('settle-settle-recon', `Settle ${group.items.length} transaksi pada ${group.settlementId} (${group.merchantName}, total Rp ${group.totalSettle.toLocaleString('id-ID')})`);
+                                showToast('Settlement Berhasil', `${group.settlementId} berhasil disettle.`);
+                                renderTableData();
+                            }
+                        );
                     }
                     hideDropdown();
                 } else if (e.target.closest('.btn-dropdown-cancel-settle')) {
                     e.preventDefault();
-                    if (activeSettleTrxId) {
-                        const item = database.find(t => t.id == activeSettleTrxId);
-                        if (item) {
-                            showConfirmModal(
-                                'Konfirmasi Pembatalan Settlement',
-                                `Apakah Anda yakin ingin membatalkan settlement untuk transaksi ${item.txId}? Transaksi ini akan dihapus dari daftar settlement & recon.`,
-                                () => {
-                                    database = database.filter(t => t.id != activeSettleTrxId);
-                                    saveDatabase();
-                                    
-                                    // Log the cancel settle activity
-                                    writeLog('cancel-settlement-settle-recon', `Batalkan settlement transaksi ${item.txId}`);
-                                    
-                                    showToast('Settlement Dibatalkan', `Settlement untuk transaksi ${item.txId} berhasil dibatalkan.`);
-                                    renderTableData();
-                                }
-                            );
-                        }
+                    const group = currentGroups.find(g => g.settlementId === activeSettleTrxId);
+                    if (group) {
+                        showConfirmModal(
+                            'Konfirmasi Pembatalan Settlement',
+                            `Batalkan settlement ${group.settlementId} (${group.items.length} transaksi)? Seluruh transaksi pada group ini akan dihapus dari Settle & Recon.`,
+                            () => {
+                                const ids = group.items.map(it => it.id);
+                                database = database.filter(t => !ids.includes(t.id));
+                                saveDatabase();
+                                writeLog('cancel-settlement-settle-recon', `Batalkan settlement ${group.settlementId} (${group.merchantName}, ${ids.length} transaksi)`);
+                                showToast('Settlement Dibatalkan', `${group.settlementId} berhasil dibatalkan.`);
+                                selectedIds = selectedIds.filter(s => s !== group.settlementId);
+                                renderTableData();
+                            }
+                        );
                     }
                     hideDropdown();
                 }
@@ -512,17 +500,16 @@ function bindEvents() {
             }
             showConfirmModal(
                 'Konfirmasi Settle',
-                `Apakah Anda yakin ingin melakukan settlement untuk ${selectedIds.length} transaksi terpilih?`,
+                `Apakah Anda yakin ingin melakukan settlement untuk ${selectedIds.length} group settlement terpilih?`,
                 () => {
-                    selectedIds.forEach(id => {
-                        const item = database.find(t => t.id === id);
-                        if (item) {
-                            item.status = 'Mulai Pembayaran';
-                            writeLog('settle-settle-recon', `Settle transaksi ${item.txId} (Nominal: Rp ${item.nominalSettle.toLocaleString('id-ID')})`);
-                        }
+                    let n = 0;
+                    selectedIds.forEach(sid => {
+                        const g = currentGroups.find(x => x.settlementId === sid);
+                        if (g) g.items.forEach(it => { it.status = 'Mulai Pembayaran'; n++; });
                     });
                     saveDatabase();
-                    showToast('Settle Berhasil', `${selectedIds.length} transaksi berhasil disettle.`);
+                    writeLog('settle-settle-recon', `Settle ${n} transaksi pada ${selectedIds.length} group settlement`);
+                    showToast('Settle Berhasil', `${selectedIds.length} group settlement berhasil disettle.`);
                     selectedIds = [];
                     renderTableData();
                 }
@@ -540,16 +527,16 @@ function bindEvents() {
                 'Konfirmasi Pembatalan Transaksi',
                 `Apakah Anda yakin ingin membatalkan ${selectedIds.length} transaksi terpilih? Transaksi ini akan dihapus dari daftar settlement & recon.`,
                 () => {
-                    const idsToCancel = [...selectedIds];
-                    idsToCancel.forEach(id => {
-                        const item = database.find(t => t.id === id);
-                        if (item) {
-                            writeLog('cancel-settlement-settle-recon', `Batalkan transaksi ${item.txId}`);
-                        }
+                    const sids = [...selectedIds];
+                    const txIds = [];
+                    sids.forEach(sid => {
+                        const g = currentGroups.find(x => x.settlementId === sid);
+                        if (g) g.items.forEach(it => txIds.push(it.id));
                     });
-                    database = database.filter(t => !idsToCancel.includes(t.id));
+                    database = database.filter(t => !txIds.includes(t.id));
                     saveDatabase();
-                    showToast('Pembatalan Selesai', `${idsToCancel.length} transaksi berhasil dibatalkan.`);
+                    writeLog('cancel-settlement-settle-recon', `Batalkan ${txIds.length} transaksi pada ${sids.length} group settlement`);
+                    showToast('Pembatalan Selesai', `${sids.length} group settlement berhasil dibatalkan.`);
                     selectedIds = [];
                     renderTableData();
                 }
@@ -1125,22 +1112,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateModal = document.getElementById('exportDateModal');
     const cancelBtn = document.getElementById('cancelExportBtn');
     const submitBtn = document.getElementById('submitExportBtn');
+    const dateInput = document.getElementById('exportDateInput');
+    const tipeInput = document.getElementById('exportTipeInput');
+    const tipeWrap = document.getElementById('exportTipeWrap');
 
     let activeExportMode = 'utama';
 
-    // .modal-overlay is hidden via opacity/visibility and only revealed by the .show class.
-    // Setting style.display alone leaves it transparent (the bug). Toggle .show AND clear the
-    // inline display:none that the markup ships with.
     const openModal = (m) => { if (m) { m.style.display = ''; m.classList.add('show'); } };
     const closeModal = (m) => { if (m) m.classList.remove('show'); };
 
+    // PRD: Tanggal + Tipe Settlement mandatory; tombol Export hanya aktif kalau dua field terisi.
+    const refreshSubmitState = () => {
+        if (!submitBtn) return;
+        const needTipe = activeExportMode === 'bank';
+        const ok = !!(dateInput && dateInput.value) && (!needTipe || (tipeInput && tipeInput.value));
+        submitBtn.disabled = !ok;
+        submitBtn.style.opacity = ok ? '1' : '0.5';
+        submitBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+    };
+    if (dateInput) dateInput.addEventListener('input', refreshSubmitState);
+    if (tipeInput) tipeInput.addEventListener('change', refreshSubmitState);
+
     if (btnExpUtama) btnExpUtama.addEventListener('click', () => {
         activeExportMode = 'utama';
+        if (tipeWrap) tipeWrap.style.display = 'none';
+        refreshSubmitState();
         openModal(dateModal);
     });
 
     if (btnExpBank) btnExpBank.addEventListener('click', () => {
         activeExportMode = 'bank';
+        if (tipeWrap) tipeWrap.style.display = '';
+        refreshSubmitState();
         openModal(dateModal);
     });
 
@@ -1149,7 +1152,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (submitBtn) submitBtn.addEventListener('click', () => {
+        if (submitBtn.disabled) return;
         closeModal(dateModal);
+        // Filter by selected tipe settlement (bank mode). PRD: hasil per tipe settlement terpilih.
+        const tipeSel = activeExportMode === 'bank' && tipeInput ? tipeInput.value : '';
+        const exportData = tipeSel
+            ? database.filter(r => (r.tipeSettlement || 'Reguler Matched') === tipeSel)
+            : database;
+
         const overlay = document.getElementById('exportProgressOverlay');
         overlay.style.display = 'flex';
         let progress = 0;
@@ -1167,7 +1177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     overlay.style.display = 'none';
                     bar.style.width = '0%';
-                    window.showSettlementExcelModal(database, activeExportMode);
+                    window.showSettlementExcelModal(exportData, activeExportMode);
                 }, 500);
             }
         }, 200);

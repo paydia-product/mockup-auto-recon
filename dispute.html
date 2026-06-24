@@ -13,21 +13,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=20260623-v13">
+    <link rel="stylesheet" href="styles.css?v=20260624-v14">
 
-<script>
-if (localStorage.getItem('mock_version') !== 'v8') {
-    localStorage.removeItem('paydia_recon_trx');
-    localStorage.removeItem('paydia_disputes');
-    localStorage.removeItem('paydia_logs');
-    localStorage.removeItem('paydia_settlements');
-    localStorage.removeItem('paydia_approvals');
-    localStorage.removeItem('paydia_mock_perms');
-    localStorage.removeItem('paydia_status_overrides');
-    localStorage.removeItem('paydia_rrn_notes');
-    localStorage.setItem('mock_version', 'v8');
-}
-</script>
+<script src="boot.js?v=20260624-v14"></script>
 </head>
 
 <body>
@@ -75,11 +63,11 @@ if (localStorage.getItem('mock_version') !== 'v8') {
             </div>
             <a href="approval.html" class="nav-item" id="nav-approval">
                 <i class="fas fa-check-circle"></i>
-                <span>Approval</span>
+                <span>Approval <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
             </a>
-            <a href="#" class="nav-item" id="nav-admin">
+            <a href="admin.html" class="nav-item" id="nav-admin">
                 <i class="fas fa-user-shield"></i>
-                <span>Admin</span>
+                <span>Admin <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
             </a>
             <!-- Reconcile with submenu -->
             <div class="nav-group open" id="nav-reconcile-group">

@@ -2545,3 +2545,7 @@ body {
 }
 .page-guide-item.open .page-guide-item-body { display: block; }
 .page-guide-item-body b { color: #1e293b; }
+
+/* Log filter checkbox rows */
+.log-chk { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; padding: 5px 0; cursor: pointer; }
+.log-chk input { width: 16px; height: 16px; cursor: pointer; }

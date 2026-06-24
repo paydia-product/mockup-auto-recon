@@ -10,20 +10,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=20260623-v13">
+    <link rel="stylesheet" href="styles.css?v=20260624-v14">
 
-<script>
-if (localStorage.getItem('mock_version') !== 'v8') {
-    localStorage.removeItem('paydia_recon_trx');
-    localStorage.removeItem('paydia_disputes');
-    localStorage.removeItem('paydia_logs');
-    localStorage.removeItem('paydia_settlements');
-    localStorage.removeItem('paydia_approvals');
-    localStorage.removeItem('paydia_mock_perms');
-    localStorage.removeItem('paydia_status_overrides');
-    localStorage.setItem('mock_version', 'v8');
-}
-</script>
+<script src="boot.js?v=20260624-v14"></script>
 </head>
 
 <body>
@@ -71,11 +60,11 @@ if (localStorage.getItem('mock_version') !== 'v8') {
             </div>
             <a href="approval.html" class="nav-item" id="nav-approval">
                 <i class="fas fa-check-circle"></i>
-                <span>Approval</span>
+                <span>Approval <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
             </a>
-            <a href="#" class="nav-item" id="nav-admin">
+            <a href="admin.html" class="nav-item" id="nav-admin">
                 <i class="fas fa-user-shield"></i>
-                <span>Admin</span>
+                <span>Admin <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
             </a>
             <!-- Reconcile with submenu -->
             <div class="nav-group" id="nav-reconcile-group">
@@ -297,40 +286,49 @@ if (localStorage.getItem('mock_version') !== 'v8') {
                     </div>
                 </div>
 
-                <!-- Filter Panel -->
+                <!-- Filter Panel (checkbox multi-select per PRD) -->
                 <div class="filter-panel" id="filterPanel">
-                    <div class="filter-row">
-                        <div class="filter-group">
-                            <label for="filterDate">Tanggal</label>
-                            <input type="date" id="filterDate">
+                    <div style="display:flex; gap:32px; flex-wrap:wrap; align-items:flex-start;">
+                        <div style="min-width:200px;">
+                            <div style="font-weight:700; font-size:0.95rem; margin-bottom:12px;">Container</div>
+                            <label class="log-chk"><input type="checkbox" class="chk-container" value="paydia-reconcile"> paydia-reconcile</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-container" value="paydia-settle-recon"> paydia-settle-recon</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-container" value="paydia-trx-mpm"> paydia-trx-mpm</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-container" value="paydia-account-admin"> paydia-account-admin</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-container" value="paydia-account"> paydia-account</label>
                         </div>
-                        <div class="filter-group">
-                            <label for="filterContainer">Container</label>
-                            <select id="filterContainer">
-                                <option value="">Semua</option>
-                                <option value="paydia-account">paydia-account (Merchant)</option>
-                                <option value="paydia-account-admin">paydia-account-admin (Admin Portal)</option>
-                                <option value="paydia-reconcile">paydia-reconcile (Reconciliation Engine)</option>
-                            </select>
+                        <div style="min-width:240px;">
+                            <div style="font-weight:700; font-size:0.95rem; margin-bottom:12px;">Type</div>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Flag Recon"> Flag Recon</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Buat Transaksi"> Buat Transaksi</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Flag Settle"> Flag Settle</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Tolak"> Tolak</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Edit Catatan"> Edit Catatan</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Ekspor Data Tabel"> Ekspor Data Tabel</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Ekspor Segregasi per Bank"> Ekspor Segregasi per Bank</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Settle Settlement"> Settle Settlement</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Batalkan Settlement"> Batalkan Settlement</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Approval Flag Settle"> Approval Flag Settle</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Approval Buat Transaksi"> Approval Buat Transaksi</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Tambah Dispute Good Faith"> Tambah Dispute Good Faith</label>
+                            <label class="log-chk"><input type="checkbox" class="chk-type" value="Telegram Alert"> Telegram Alert</label>
                         </div>
-                        <div class="filter-group">
-                            <label for="filterType">Type</label>
-                            <select id="filterType">
-                                <option value="">Semua</option>
-                                <option value="merchant-login">merchant-login</option>
-                                <option value="admin-login">admin-login</option>
-                                <option value="Flagging">Flagging</option>
-                                <option value="Re-run Reconcile">Re-run Matching</option>
-                                <option value="Finalisasi">Finalisasi</option>
-                                <option value="Input Dispute">Input Dispute</option>
-                                <option value="Edit Dispute">Edit Dispute</option>
-                                <option value="Import Dispute">Import / Add Dispute</option>
-                                <option value="approve-settlement">Finalize Reconcile</option>
-                                <option value="Ekspor Data Tabel">Ekspor Data Tabel</option>
-                                <option value="Ekspor Data per Bank">Ekspor Data per Bank</option>
-                                <option value="Telegram Alert">Telegram Alert</option>
-                            </select>
+                        <div style="min-width:170px;">
+                            <div style="font-weight:700; font-size:0.95rem; margin-bottom:12px;">Tanggal</div>
+                            <input type="date" id="filterDate" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
                         </div>
+                        <div style="min-width:170px;">
+                            <div style="font-weight:700; font-size:0.95rem; margin-bottom:12px;">Detail</div>
+                            <input type="text" id="filterDetail" placeholder="detail" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+                        </div>
+                        <div style="min-width:170px;">
+                            <div style="font-weight:700; font-size:0.95rem; margin-bottom:12px;">IP</div>
+                            <input type="text" id="filterIp" placeholder="ip address" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:12px; margin-top:20px;">
+                        <button class="btn" id="btnClearAllLog" style="background:white; border:1px solid #cbd5e1; border-radius:20px; padding:8px 20px;">Clear All</button>
+                        <button class="btn" id="btnApplyFiltersLog" style="background:var(--primary,#4f46e5); color:white; border:none; border-radius:20px; padding:8px 20px;">Apply Filters</button>
                     </div>
                 </div>
 
@@ -375,7 +373,7 @@ if (localStorage.getItem('mock_version') !== 'v8') {
     <!-- Overlay for mobile sidebar -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <script src="log.js?v=20260619-v10"></script>
+    <script src="log.js?v=20260624-v11"></script>
     <script src="page-guide.js?v=20260619-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {

@@ -515,6 +515,7 @@ function copyToSettlements(t) {
             bankCode: t.switching === 'Jalin' ? 'BRI' : 'BCA',
             bankAccount: '12345678',
             bankAccountName: t.merchantName || 'Merchant',
+            tipeSettlement: 'Tambahan Matched', // PRD: hasil flag settle manual unmatch
             status: 'Pembayaran'
         });
         localStorage.setItem('paydia_settlements', JSON.stringify(database));
