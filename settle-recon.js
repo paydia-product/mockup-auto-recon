@@ -103,7 +103,7 @@ function renderTableData() {
     currentGroups = buildGroups(filtered);
 
     if (currentGroups.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 40px 16px; color: var(--text-muted);">Tidak ada data settlement</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding: 40px 16px; color: var(--text-muted);">Tidak ada data settlement</td></tr>`;
         updateStats();
         return;
     }
@@ -115,12 +115,15 @@ function renderTableData() {
         const isChecked = selectedIds.includes(g.settlementId);
         // group settled when all its transactions already started payment
         const allSettled = g.items.every(it => (it.status || 'Pembayaran') === 'Mulai Pembayaran');
+        const statusText = allSettled ? 'Mulai Pembayaran' : 'Pembayaran';
+        const statusClass = allSettled ? 'status-dikembalikan' : 'status-sukses';
 
         tr.innerHTML = `
             <td class="col-checkbox" style="text-align: center;">
                 <input type="checkbox" class="row-checkbox" data-id="${g.settlementId}" ${isChecked ? 'checked' : ''}>
             </td>
             <td class="col-no">${idx + 1}</td>
+            <td style="font-variant-numeric: tabular-nums;">${g.tanggal}</td>
             <td style="font-family: monospace; font-size: 0.82rem; font-weight: 600; color: var(--primary);">${g.settlementId}</td>
             <td>
                 <div class="cell-text-stack">
@@ -128,7 +131,7 @@ function renderTableData() {
                     <span class="cell-text-sub">${g.merchantCode}</span>
                 </div>
             </td>
-            <td style="text-align: center; font-variant-numeric: tabular-nums; font-weight: 600;">${g.items.length}</td>
+            <td style="font-variant-numeric: tabular-nums; font-weight: 500;">Rp ${g.totalQris.toLocaleString('id-ID', { minimumFractionDigits: 2 })}</td>
             <td style="font-variant-numeric: tabular-nums; font-weight: 600;">Rp ${g.totalSettle.toLocaleString('id-ID', { minimumFractionDigits: 2 })}</td>
             <td>
                 <div class="cell-text-stack">
@@ -136,7 +139,8 @@ function renderTableData() {
                     <span class="cell-text-sub">${g.bankAccount} - ${g.bankAccountName}</span>
                 </div>
             </td>
-            <td><span class="status-badge ${tipeBadge(g.tipeSettlement)}">${g.tipeSettlement}</span></td>
+            <td style="white-space: normal;"><span class="status-badge ${tipeBadge(g.tipeSettlement)}" style="font-size: 0.66rem; white-space: normal; display: inline-block; line-height: 1.3;">${g.tipeSettlement}</span></td>
+            <td style="white-space: normal;"><span class="status-badge ${statusClass}" style="font-size: 0.66rem; white-space: normal; display: inline-block; line-height: 1.3;">${statusText}</span></td>
             <td class="col-action" style="text-align: center; white-space: nowrap;">
                 <a href="#" class="action-link btn-action-dropdown-trigger" data-id="${g.settlementId}" data-settled="${allSettled}" style="font-size: 0.82rem; font-weight: 600; text-decoration: none; color: var(--primary); padding: 6px 12px; border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 6px; background: rgba(99, 102, 241, 0.05); display: inline-block;">
                     Aksi <i class="fas fa-chevron-down" style="font-size:0.7rem; margin-left: 4px;"></i>
@@ -840,6 +844,35 @@ window.showSettlementExcelModal = function(raw_data, mode) {
                 "Nomor Rekening": row.bankAccount || row["No. Rek Bank"] || row["Nomor Rekening"] || "",
                 "Nama Pemilik Rekening": row.bankAccountName || row["Nama Rek Bank"] || row["Nama Pemilik Rekening"] || ""
             };
+        });
+    }
+
+    // PRD: transaksi merchant yang sama (per tanggal + nomor rekening) digabung jadi 1 baris
+    // settlement dengan nominal ditotal. Biaya admin flat sekali per payout (di luar BCA/BRI/Mandiri).
+    if (mode === 'bank' && data && data.length) {
+        const aggMap = {};
+        data.forEach(r => {
+            const dateKey = (r["Tanggal dan Jam Proses"] || '').split(' ')[0];
+            const key = (r["MID"] || '') + '|' + dateKey + '|' + (r["Nomor Rekening"] || '');
+            if (!aggMap[key]) {
+                aggMap[key] = Object.assign({}, r, {
+                    "ID Transaksi": 'STL-' + (r["MID"] || 'UNKNOWN'),
+                    "RRN": '',
+                    "Nominal Awal": 0,
+                    "Adjustment Chargeback (+)": 0,
+                    "Adjustment Chargeback (-)": 0
+                });
+            }
+            const g = aggMap[key];
+            g["Nominal Awal"] += r["Nominal Awal"] || 0;
+            g["Adjustment Chargeback (+)"] += r["Adjustment Chargeback (+)"] || 0;
+            g["Adjustment Chargeback (-)"] += r["Adjustment Chargeback (-)"] || 0;
+        });
+        data = Object.values(aggMap).map(g => {
+            const biaya = /BCA|MANDIRI|BRI/i.test(g["Nama Bank"] || '') ? 0 : 6500;
+            g["Biaya Admin"] = biaya;
+            g["Nominal Settlement"] = g["Nominal Awal"] - biaya + g["Adjustment Chargeback (+)"] - g["Adjustment Chargeback (-)"];
+            return g;
         });
     }
 

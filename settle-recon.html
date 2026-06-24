@@ -424,13 +424,15 @@
                                 <tr>
                                     <th class="col-checkbox" style="width: 40px; text-align: center;"><input type="checkbox" id="globalSelectCheckbox"></th>
                                     <th class="col-no" style="width: 50px;">No.</th>
-                                    <th>Settlement ID</th>
+                                    <th>Tanggal</th>
+                                    <th>ID Transaksi</th>
                                     <th>Merchant</th>
-                                    <th style="text-align: center;">Jumlah Transaksi</th>
-                                    <th>Total Nominal Settle (Rp)</th>
+                                    <th>Nominal QRIS (Rp)</th>
+                                    <th>Nominal Settle (Rp)</th>
                                     <th>Bank</th>
                                     <th>Tipe Settlement</th>
-                                    <th class="col-action" style="width: 200px; text-align: center;">Aksi</th>
+                                    <th>Status</th>
+                                    <th class="col-action" style="width: 160px; text-align: center;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="settleReconTableBody">
@@ -481,7 +483,7 @@
         </div>
     </div>
 
-    <script src="settle-recon.js?v=20260624-v13"></script>
+    <script src="settle-recon.js?v=20260624-v14"></script>
     <script src="page-guide.js?v=20260619-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {
