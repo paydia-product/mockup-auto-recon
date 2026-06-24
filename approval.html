@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="styles.css?v=20260623-v13">
 
 <script>
-if (localStorage.getItem('mock_version') !== 'v12') {
+if (localStorage.getItem('mock_version') !== 'v13') {
     localStorage.removeItem('paydia_recon_trx');
     localStorage.removeItem('paydia_disputes');
     localStorage.removeItem('paydia_logs');
@@ -21,7 +21,7 @@ if (localStorage.getItem('mock_version') !== 'v12') {
     localStorage.removeItem('paydia_approvals');
     localStorage.removeItem('paydia_mock_perms');
     localStorage.removeItem('paydia_status_overrides');
-    localStorage.setItem('mock_version', 'v12');
+    localStorage.setItem('mock_version', 'v13');
 }
 </script>
 </head>
@@ -55,14 +55,13 @@ if (localStorage.getItem('mock_version') !== 'v12') {
                 <i class="fas fa-store"></i>
                 <span>Merchant</span>
             </a>
-            <a href="#" class="nav-item has-submenu" id="nav-settlement">
+            <a href="settle-recon.html" class="nav-item" id="nav-settlement">
                 <i class="fas fa-file-invoice-dollar"></i>
                 <span>Settlement <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
-                <i class="fas fa-chevron-down submenu-arrow"></i>
             </a>
             <a href="approval.html" class="nav-item active" id="nav-approval">
                 <i class="fas fa-check-circle"></i>
-                <span>Approval</span>
+                <span>Approval <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span>
             </a>
             <a href="#" class="nav-item" id="nav-admin">
                 <i class="fas fa-user-shield"></i>
@@ -338,7 +337,7 @@ if (localStorage.getItem('mock_version') !== 'v12') {
     <!-- Overlay for mobile sidebar -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <script src="approval.js?v=20260623-v13"></script>
+    <script src="approval.js?v=20260624-v14"></script>
     <script src="page-guide.js?v=20260619-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {

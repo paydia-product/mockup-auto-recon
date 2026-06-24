@@ -292,16 +292,18 @@ function openConfirmationModal(item) {
         const targetIds = Array.isArray(item.txIds) && item.txIds.length ? item.txIds : [item.refId];
         const rows = targetIds.map(id => trxList.find(t => t.id == id)).filter(Boolean);
         const rcOf = t => (t.rc || t.rcSwitching || t.rcPaydia || '-');
+        const cellBase = 'padding:8px 12px;border-bottom:1px solid var(--border-color,#e5e7eb);white-space:nowrap;';
         const listRows = rows.map((t, i) => `
             <tr>
-                <td>${i + 1}</td>
-                <td>${t.date || '-'}</td>
-                <td>${t.refNo || '-'}</td>
-                <td style="text-align:right;">Rp ${formatNominal(t.nominal || 0)}</td>
-                <td>${rcOf(t)}</td>
-                <td>${t.switching || '-'}</td>
-                <td>${t.label || '-'}</td>
-            </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">-</td></tr>`;
+                <td style="${cellBase}">${i + 1}</td>
+                <td style="${cellBase}font-variant-numeric:tabular-nums;">${t.date || '-'}</td>
+                <td style="${cellBase}">${t.refNo || '-'}</td>
+                <td style="${cellBase}text-align:right;font-variant-numeric:tabular-nums;">Rp ${formatNominal(t.nominal || 0)}</td>
+                <td style="${cellBase}text-align:center;">${rcOf(t)}</td>
+                <td style="${cellBase}">${t.switching || '-'}</td>
+                <td style="${cellBase}">${t.label || '-'}</td>
+            </tr>`).join('') || `<tr><td colspan="7" style="${cellBase}text-align:center;color:var(--text-muted);">-</td></tr>`;
+        const headBase = 'padding:8px 12px;text-align:left;font-weight:600;border-bottom:2px solid var(--border-color,#e5e7eb);white-space:nowrap;';
 
         body.innerHTML = `
             <div class="modal-section">
@@ -312,17 +314,17 @@ function openConfirmationModal(item) {
                     <tr><td class="detail-label">MPAN</td><td class="detail-value">${item.mpan || '-'}</td></tr>
                     <tr><td class="detail-label">Total Nominal</td><td class="detail-value"><strong>Rp ${formatNominal(item.nominal)}</strong></td></tr>
                 </table>
-                <div style="overflow-x:auto; margin-top:10px;">
-                    <table class="modal-detail-table" style="font-size:0.78rem;">
+                <div style="overflow-x:auto; margin-top:12px;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
                         <thead>
-                            <tr style="background:var(--bg-subtle,#f5f5f7);">
-                                <th style="text-align:left;padding:6px;">No</th>
-                                <th style="text-align:left;padding:6px;">Tanggal Proses</th>
-                                <th style="text-align:left;padding:6px;">RRN</th>
-                                <th style="text-align:right;padding:6px;">Nominal Transaksi</th>
-                                <th style="text-align:left;padding:6px;">RC</th>
-                                <th style="text-align:left;padding:6px;">Switching</th>
-                                <th style="text-align:left;padding:6px;">Tipe Unmatch</th>
+                            <tr style="background:#f5f5f7;">
+                                <th style="${headBase}">No</th>
+                                <th style="${headBase}">Tanggal Proses</th>
+                                <th style="${headBase}">RRN</th>
+                                <th style="${headBase}text-align:right;">Nominal Transaksi</th>
+                                <th style="${headBase}text-align:center;">RC</th>
+                                <th style="${headBase}">Switching</th>
+                                <th style="${headBase}">Tipe Unmatch</th>
                             </tr>
                         </thead>
                         <tbody>${listRows}</tbody>
@@ -335,7 +337,6 @@ function openConfirmationModal(item) {
                 <table class="modal-detail-table">
                     <tr><td class="detail-label">Requester</td><td class="detail-value">${item.admin}</td></tr>
                     <tr><td class="detail-label">Tanggal Request</td><td class="detail-value">${item.tanggal || '-'}</td></tr>
-                    <tr><td class="detail-label">Tipe Unmatch</td><td class="detail-value">${rows[0] ? (rows[0].label || '-') : '-'}</td></tr>
                     <tr><td class="detail-label">Aksi</td><td class="detail-value"><span class="status-badge status-proses">${actionDesc}</span></td></tr>
                 </table>
             </div>

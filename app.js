@@ -9,12 +9,12 @@
 // ── Seed Transactions Database ──
 const rawTransactions = [
     // --- ACQUIRER MATCHED ---
-    { id: 'TX-ACQ-10001', refNo: 'REF-20260527-010', date: '2026-05-27 08:12:44', nominal: 150000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rcSwitching: '00', rcPaydia: null, switching: 'Rintis', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-10002', refNo: 'REF-20260527-011', date: '2026-05-27 08:35:19', nominal: 45000, merchantId: 'MID-88134', merchantName: 'Indomaret', rcSwitching: '00', rcPaydia: null, switching: 'Jalin', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-10003', refNo: 'REF-20260527-012', date: '2026-05-27 09:04:11', nominal: 1250000, merchantId: 'MID-88220', merchantName: 'Sushi Tei', rcSwitching: '00', rcPaydia: null, switching: 'Artajasa', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-10004', refNo: 'REF-20260527-013', date: '2026-05-27 10:14:02', nominal: 87000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rcSwitching: '00', rcPaydia: null, switching: 'Alto', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-10005', refNo: 'REF-20260527-014', date: '2026-05-27 11:22:58', nominal: 32000, merchantId: 'MID-88155', merchantName: 'Alfa Mart', rcSwitching: '00', rcPaydia: null, switching: 'Rintis', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-10006', refNo: 'REF-20260527-015', date: '2026-05-27 14:02:11', nominal: 105000, merchantId: 'MID-88301', merchantName: 'Starbucks', rcSwitching: '00', rcPaydia: null, switching: 'Jalin', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Crossborder', disputeRef: null },
+    { id: 'TX-ACQ-10001', refNo: 'REF-20260527-010', date: '2026-05-27 08:12:44', nominal: 150000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rcPaydia: '00', rcSwitching: '00', switching: 'Rintis', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-10002', refNo: 'REF-20260527-011', date: '2026-05-27 08:35:19', nominal: 45000, merchantId: 'MID-88134', merchantName: 'Indomaret', rcPaydia: '00', rcSwitching: '00', switching: 'Jalin', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-10003', refNo: 'REF-20260527-012', date: '2026-05-27 09:04:11', nominal: 1250000, merchantId: 'MID-88220', merchantName: 'Sushi Tei', rcPaydia: '00', rcSwitching: '00', switching: 'Artajasa', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-10004', refNo: 'REF-20260527-013', date: '2026-05-27 10:14:02', nominal: 87000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rcPaydia: '00', rcSwitching: '00', switching: 'Alto', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-10005', refNo: 'REF-20260527-014', date: '2026-05-27 11:22:58', nominal: 32000, merchantId: 'MID-88155', merchantName: 'Alfa Mart', rcPaydia: '00', rcSwitching: '00', switching: 'Rintis', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-10006', refNo: 'REF-20260527-015', date: '2026-05-27 14:02:11', nominal: 105000, merchantId: 'MID-88301', merchantName: 'Starbucks', rcPaydia: '00', rcSwitching: '00', switching: 'Jalin', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Crossborder', disputeRef: null },
     
     // --- ACQUIRER UNMATCHED ---
     { id: 'TX-ACQ-20001', refNo: 'REF-20260527-020', date: '2026-05-27 07:11:02', nominal: 75000, merchantId: 'MID-88134', merchantName: 'Indomaret', rcSwitching: '00', rcPaydia: null, switching: 'Jalin', statusRekon: 'Unmatched', label: 'Switching-Only RC00', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
@@ -92,8 +92,14 @@ const rawTransactions = [
     { id: 'TX-VAL-006', refNo: 'REF-20260522-206', date: '2026-05-22 15:50:00', nominal: 67000, merchantId: 'MID-77021', merchantName: 'Toko Validasi', rcPaydia: '00', rcSwitching: '05', nominalPaydia: 67000, nominalSwitching: 67000, switching: 'Rintis', statusRekon: 'Unmatched', label: 'Beda Status Transaksi', flaggingStatus: 'On-Hold', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
 
     // --- ACQUIRER DECLINED ---
-    { id: 'TX-ACQ-30001', refNo: 'REF-20260527-030', date: '2026-05-27 08:02:11', nominal: 11000, merchantId: 'MID-88134', merchantName: 'Indomaret', rc: '51', switching: 'Jalin', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
-    { id: 'TX-ACQ-30002', refNo: 'REF-20260527-031', date: '2026-05-27 11:45:00', nominal: 95000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rc: '05', switching: 'Rintis', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    // Decline = selain RC 00/68. Dua definisi: (a) Paydia failed + switching decline, (b) Paydia gaada + switching decline.
+    // (a) Paydia failed (rcPaydia != 00) + switching decline
+    { id: 'TX-ACQ-30001', refNo: 'REF-20260527-030', date: '2026-05-27 08:02:11', nominal: 11000, merchantId: 'MID-88134', merchantName: 'Indomaret', rc: '51', rcPaydia: '05', rcSwitching: '51', switching: 'Jalin', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-30002', refNo: 'REF-20260527-031', date: '2026-05-27 11:45:00', nominal: 95000, merchantId: 'MID-88129', merchantName: 'Kopi Kenangan', rc: '05', rcPaydia: '14', rcSwitching: '05', switching: 'Rintis', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-30003', refNo: 'REF-20260527-032', date: '2026-05-27 13:18:40', nominal: 240000, merchantId: 'MID-88220', merchantName: 'Sushi Tei', rc: '51', rcPaydia: '51', rcSwitching: '51', switching: 'Artajasa', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    // (b) Paydia gaada (rcPaydia null) + switching decline
+    { id: 'TX-ACQ-30004', refNo: 'REF-20260527-033', date: '2026-05-27 09:50:25', nominal: 58000, merchantId: 'MID-88301', merchantName: 'Starbucks', rc: '12', rcPaydia: null, rcSwitching: '12', switching: 'Alto', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
+    { id: 'TX-ACQ-30005', refNo: 'REF-20260527-034', date: '2026-05-27 15:12:07', nominal: 132000, merchantId: 'MID-88155', merchantName: 'Alfa Mart', rc: '54', rcPaydia: null, rcSwitching: '54', switching: 'Jalin', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Acquirer', skema: 'CPM', domestic: 'Domestic', disputeRef: null },
     
     // --- ISSUER MATCHED ---
     { id: 'TX-ISS-10001', refNo: 'REF-20260527-040', date: '2026-05-27 08:05:22', nominal: 24000, merchantId: 'MID-99002', merchantName: 'HokBen PIM', rcSwitching: '00', rcPaydia: null, switching: 'Jalin', statusRekon: 'Matched', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Issuer', skema: 'MPM', domestic: 'Domestic', disputeRef: null },
@@ -848,6 +854,7 @@ function syncFilterContext() {
 
 // Reset all reconcile filters + search to default (called on subtab switch and Clear All)
 function resetFilters() {
+    currentPage = 1;
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const sd = document.getElementById('filterStartDate'); if (sd) sd.value = todayStr;
@@ -1022,9 +1029,11 @@ function renderMatchRows(list, tbody) {
     else if (finalStatus === 'Rejected') { statusLabel = 'Ditolak'; statusClass = 'status-gagal'; }
     else { statusLabel = 'Belum Finalisasi'; statusClass = ''; }
 
-    list.forEach((t, idx) => {
+    const { pageItems, startIdx } = paginate(list);
+    pageItems.forEach((t, i) => {
+        const idx = startIdx + i;
         const tr = document.createElement('tr');
-        
+
         let rowStatusLabel = statusLabel;
         let rowStatusClass = statusClass;
         
@@ -1065,7 +1074,6 @@ function renderMatchRows(list, tbody) {
         `;
         tbody.appendChild(tr);
     });
-    updatePaginationInfo(list.length);
 }
 
 function renderUnmatchRows(list, tbody) {
@@ -1074,11 +1082,11 @@ function renderUnmatchRows(list, tbody) {
     if (bulkOn) list = list.filter(t => isUnmatchEligible(t, activeBulkAction));
     const checkTh = document.getElementById('acqUnmatchCheckTh');
     if (checkTh) checkTh.style.display = bulkOn ? '' : 'none';
-    visibleUnmatchedList = list;
     tbody.innerHTML = '';
-    updateBulkActionBar();
 
     if (list.length === 0) {
+        visibleUnmatchedList = [];
+        updateBulkActionBar();
         // If unmatched data exists but is filtered/searched out -> "No Data"; if genuinely empty -> populate prompt.
         const anyUnmatchedExists = transactions.some(t => t.tipe === 'Acquirer' && t.statusRekon === 'Unmatched');
         if (anyUnmatchedExists) {
@@ -1118,7 +1126,11 @@ function renderUnmatchRows(list, tbody) {
         return;
     }
 
-    list.forEach((t, idx) => {
+    const { pageItems, startIdx } = paginate(list);
+    visibleUnmatchedList = pageItems;
+    updateBulkActionBar();
+    pageItems.forEach((t, i) => {
+        const idx = startIdx + i;
         const tr = document.createElement('tr');
 
         let labelClass = '';
@@ -1169,7 +1181,6 @@ function renderUnmatchRows(list, tbody) {
         `;
         tbody.appendChild(tr);
     });
-    updatePaginationInfo(list.length);
 }
 
 function renderDeclineRows(list, tbody) {
@@ -1198,7 +1209,9 @@ function renderDeclineRows(list, tbody) {
         return;
     }
 
-    list.forEach((t, idx) => {
+    const { pageItems, startIdx } = paginate(list);
+    pageItems.forEach((t, i) => {
+        const idx = startIdx + i;
         const tr = document.createElement('tr');
         const nominalTotal = t.nominal;
         const nominalTip = Math.floor(t.nominal * 0.05);
@@ -1220,11 +1233,48 @@ function renderDeclineRows(list, tbody) {
         `;
         tbody.appendChild(tr);
     });
-    updatePaginationInfo(list.length);
 }
 
+// Slice a list to the current page; render pagination controls. Returns page slice + global offset.
+function paginate(list) {
+    const total = list.length;
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    const startIdx = (currentPage - 1) * perPage;
+    const pageItems = list.slice(startIdx, startIdx + perPage);
+    renderPaginationControls(total, totalPages, startIdx, pageItems.length);
+    return { pageItems, startIdx };
+}
+
+function renderPaginationControls(total, totalPages, startIdx, shown) {
+    const info = document.getElementById('paginationInfo');
+    if (info) info.textContent = total > 0 ? `${startIdx + 1} - ${startIdx + shown} of ${total}` : '0 - 0 of 0';
+    const container = document.getElementById('pagination');
+    if (!container) return;
+    container.querySelectorAll('.page-num').forEach(b => b.remove());
+    const nextBtn = document.getElementById('nextPage');
+    const maxBtns = 7;
+    let start = Math.max(1, currentPage - 3);
+    let end = Math.min(totalPages, start + maxBtns - 1);
+    start = Math.max(1, end - maxBtns + 1);
+    const frag = document.createDocumentFragment();
+    for (let p = start; p <= end; p++) {
+        const b = document.createElement('button');
+        b.className = 'page-btn page-num' + (p === currentPage ? ' active' : '');
+        b.textContent = p;
+        b.dataset.page = p;
+        frag.appendChild(b);
+    }
+    if (nextBtn) container.insertBefore(frag, nextBtn);
+    const prevBtn = document.getElementById('prevPage');
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+}
+
+// Empty-table helper: reset pagination display.
 function updatePaginationInfo(count) {
-    document.getElementById('paginationInfo').textContent = `1 - ${count} of ${count}`;
+    renderPaginationControls(count, 1, 0, count);
 }
 
 // ── Open Drill-down Modal ──
@@ -1712,6 +1762,7 @@ function bindEvents() {
     const btnApplyFilters = document.getElementById('btnApplyFilters');
     if (btnApplyFilters) {
         btnApplyFilters.addEventListener('click', () => {
+            currentPage = 1;
             renderActiveTableWithLoading();
             filterPanel.classList.remove('open');
             filterBtn.classList.remove('active');
@@ -1728,14 +1779,26 @@ function bindEvents() {
     }
 
     searchBtn.addEventListener('click', () => {
+        currentPage = 1;
         renderActiveTableWithLoading();
     });
 
     searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') renderActiveTableWithLoading();
+        if (e.key === 'Enter') { currentPage = 1; renderActiveTableWithLoading(); }
     });
     // Live search: filter as the user types (RRN / MID).
-    searchInput.addEventListener('input', () => renderTableData());
+    searchInput.addEventListener('input', () => { currentPage = 1; renderTableData(); });
+
+    // Pagination controls (prev / next / numbered)
+    const prevPageBtn = document.getElementById('prevPage');
+    const nextPageBtn = document.getElementById('nextPage');
+    const paginationEl = document.getElementById('pagination');
+    if (prevPageBtn) prevPageBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTableData(); } });
+    if (nextPageBtn) nextPageBtn.addEventListener('click', () => { currentPage++; renderTableData(); });
+    if (paginationEl) paginationEl.addEventListener('click', (e) => {
+        const b = e.target.closest('.page-num');
+        if (b) { currentPage = parseInt(b.dataset.page, 10); renderTableData(); }
+    });
 
     // Export Excel/CSV
     exportBtn.addEventListener('click', () => {
