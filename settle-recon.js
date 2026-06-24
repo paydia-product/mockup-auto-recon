@@ -128,7 +128,6 @@ function renderTableData() {
                     <span class="cell-text-sub">${g.merchantCode}</span>
                 </div>
             </td>
-            <td><span class="status-badge ${tipeBadge(g.tipeSettlement)}">${g.tipeSettlement}</span></td>
             <td style="text-align: center; font-variant-numeric: tabular-nums; font-weight: 600;">${g.items.length}</td>
             <td style="font-variant-numeric: tabular-nums; font-weight: 600;">Rp ${g.totalSettle.toLocaleString('id-ID', { minimumFractionDigits: 2 })}</td>
             <td>
@@ -137,6 +136,7 @@ function renderTableData() {
                     <span class="cell-text-sub">${g.bankAccount} - ${g.bankAccountName}</span>
                 </div>
             </td>
+            <td><span class="status-badge ${tipeBadge(g.tipeSettlement)}">${g.tipeSettlement}</span></td>
             <td class="col-action" style="text-align: center; white-space: nowrap;">
                 <a href="#" class="action-link btn-action-dropdown-trigger" data-id="${g.settlementId}" data-settled="${allSettled}" style="font-size: 0.82rem; font-weight: 600; text-decoration: none; color: var(--primary); padding: 6px 12px; border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 6px; background: rgba(99, 102, 241, 0.05); display: inline-block;">
                     Aksi <i class="fas fa-chevron-down" style="font-size:0.7rem; margin-left: 4px;"></i>
@@ -776,27 +776,11 @@ function downloadSegregasiCSV(data) {
             lines.push('');
             return;
         }
-        // Sort by rekening to group, then emit rows + a rekap (TOTAL) per rekening.
+        // Sort by rekening to group rows together. PRD: tanpa baris TOTAL SETTLEMENT per rekening.
         rows.sort((a, b) => String(a['Nomor Rekening'] || '').localeCompare(String(b['Nomor Rekening'] || '')));
-        let curRek = null, sumSettle = 0, sumPlus = 0, sumMinus = 0, curBank = '', curNama = '';
-        const flush = () => {
-            if (curRek !== null) {
-                lines.push(row(['', '', '', '', '', 'TOTAL SETTLEMENT', '', '', sumPlus, sumMinus, sumSettle, curBank, curRek, curNama]));
-            }
-        };
         rows.forEach(r => {
-            const rek = r['Nomor Rekening'] || '';
-            if (rek !== curRek) {
-                flush();
-                curRek = rek; sumSettle = 0; sumPlus = 0; sumMinus = 0;
-                curBank = r['Nama Bank'] || ''; curNama = r['Nama Pemilik Rekening'] || '';
-            }
             lines.push(row(bankCols.map(c => c === 'Nominal' ? (r['Nominal Awal'] || 0) : (r[c] !== undefined ? r[c] : ''))));
-            sumSettle += r['Nominal Settlement'] || 0;
-            sumPlus += r['Adjustment Chargeback (+)'] || 0;
-            sumMinus += r['Adjustment Chargeback (-)'] || 0;
         });
-        flush();
         lines.push('');
     });
 
@@ -959,64 +943,8 @@ window.showSettlementExcelModal = function(raw_data, mode) {
                 return rekA.localeCompare(rekB);
             });
 
-            let newTargetData = [];
-            let currentGroupKey = null;
-            let currentGroupSumSettle = 0;
-            let currentGroupSumCbPlus = 0;
-            let currentGroupSumCbMinus = 0;
-            let currentBank = "";
-            let currentRek = "";
-            let currentNamaRek = "";
-            let currentDate = "";
-
-            const pushSummaryRow = () => {
-                if (currentGroupKey !== null) {
-                    newTargetData.push({
-                        "Tanggal dan Jam Proses": currentDate,
-                        "Tanggal dan Jam Transaksi": "",
-                        "ID Transaksi": "",
-                        "RRN": "",
-                        "MID": "",
-                        "Nama Merchant": "TOTAL SETTLEMENT",
-                        "Nominal Awal": "",
-                        "Biaya Admin": "",
-                        "Adjustment Chargeback (+)": currentGroupSumCbPlus,
-                        "Adjustment Chargeback (-)": currentGroupSumCbMinus,
-                        "Nominal Settlement": currentGroupSumSettle,
-                        "Nama Bank": currentBank,
-                        "Nomor Rekening": currentRek,
-                        "Nama Pemilik Rekening": currentNamaRek,
-                        "isSummary": true
-                    });
-                }
-            };
-
-            targetData.forEach(r => {
-                let datePart = (r["Tanggal dan Jam Proses"] || "").split(" ")[0];
-                let rekBank = r["Nomor Rekening"] || "";
-                let groupKey = datePart + "|" + rekBank;
-
-                if (groupKey !== currentGroupKey) {
-                    pushSummaryRow();
-                    currentGroupKey = groupKey;
-                    currentGroupSumSettle = 0;
-                    currentGroupSumCbPlus = 0;
-                    currentGroupSumCbMinus = 0;
-                    currentBank = r["Nama Bank"] || "";
-                    currentRek = rekBank;
-                    currentNamaRek = r["Nama Pemilik Rekening"] || "";
-                    currentDate = datePart;
-                }
-
-                newTargetData.push(r);
-                // Nominal Settlement already = awal - admin + cb+ - cb- ; sum it directly
-                currentGroupSumSettle += r["Nominal Settlement"] || 0;
-                currentGroupSumCbPlus += r["Adjustment Chargeback (+)"] || 0;
-                currentGroupSumCbMinus += r["Adjustment Chargeback (-)"] || 0;
-            });
-            pushSummaryRow();
-
-            targetData = newTargetData;
+            // PRD: tidak perlu baris "TOTAL SETTLEMENT" per merchant/rekening di hasil export.
+            // Data tampil apa adanya (sudah tersortir per tanggal & rekening).
         }
         
         // render thead

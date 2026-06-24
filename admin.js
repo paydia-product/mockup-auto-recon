@@ -100,12 +100,12 @@ function renderPermSegments(filter = '') {
             const label = typeof p === 'string' ? p : p.label;
             const isNew = typeof p === 'object' && p.isNew;
             const id = `perm-${si}-${pi}`;
-            return `<label class="perm-item"><input type="checkbox" class="perm-chk" data-seg="${si}" id="${id}"> ${label}${isNew ? '<span class="perm-new-badge">PRD</span>' : ''}</label>`;
+            return `<label class="perm-item"><input type="checkbox" class="perm-chk" data-seg="${si}" id="${id}"> ${label}${isNew ? '<span class="perm-new-badge">Baru</span>' : ''}</label>`;
         }).join('');
         const seg_html = `
             <div class="perm-segment" data-seg="${si}">
                 <div class="perm-segment-head">
-                    <div><span class="perm-segment-title">${seg.name}</span><span class="perm-segment-count">(${seg.perms.length} permissions)</span>${seg.isNew ? '<span class="perm-new-badge">PRD BARU</span>' : ''}</div>
+                    <div><span class="perm-segment-title">${seg.name}</span><span class="perm-segment-count">(${seg.perms.length} permissions)</span>${seg.isNew ? '<span class="perm-new-badge">Baru</span>' : ''}</div>
                     <label class="perm-selectall"><input type="checkbox" class="perm-selectall-chk" data-seg="${si}"> Select All</label>
                 </div>
                 <div class="perm-grid">${items}</div>
