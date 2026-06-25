@@ -16,12 +16,16 @@
             title: 'Panduan Halaman Settle & Recon',
             items: [
                 {
-                    h: 'Export Data per Bank',
-                    b: `Klik tombol <b>Export Data per Bank</b> untuk membuat file segregasi settlement per bank. Sistem akan meminta <b>satu tanggal export</b> (praktiknya data di-export per hari), menampilkan progress, lalu membuka modal simulasi hasil export.<br><br>Modal simulasi memisahkan data per tab bank: <b>BCA, Mandiri, BRI, dan Lainnya</b>. Untuk bank di luar BCA/Mandiri/BRI dikenakan <b>biaya admin flat Rp6.500</b>. Setiap nomor rekening punya baris <b>TOTAL SETTLEMENT</b> = Nominal Awal − Biaya Admin + Adjustment Chargeback (+) − Adjustment Chargeback (−).`
+                    h: 'Tabel Settle & Recon (grouping per merchant)',
+                    b: `Data settlement ditampilkan <b>digrouping per merchant</b> — satu baris = satu group, dan tiap group punya <b>ID Transaksi (Settlement ID)</b> sendiri.<br><br>Kolom: No, Tanggal, <b>ID Transaksi</b>, Merchant, Nominal QRIS (Rp), Nominal Settle (Rp), Bank, <b>Tipe Settlement</b>, Status, Aksi. Nominal QRIS/Settle adalah <b>total seluruh transaksi</b> dalam group.<br><br><b>Tipe Settlement</b>: <b>Reguler Matched</b> (data matched hasil auto recon) atau <b>Tambahan Matched</b> (hasil Flag Settle manual dari tabel Unmatch).`
                 },
                 {
-                    h: 'Lihat Transaksi (modal List Transaksi)',
-                    b: `Pada kolom <b>Aksi</b> tiap baris, klik <b>Action → Lihat Transaksi</b> untuk membuka modal <b>List Transaksi</b> berisi rincian transaksi yang membentuk nominal settle merchant tersebut.<br><br>Total nominal settle pada tabel = jumlah seluruh nominal di modal, termasuk entri <b>chargeback</b> yang ditandai dengan <b>kategori sesuai tipe dispute</b> (Represent menambah; 1st/2nd Chargeback & Good Faith mengurangi settlement).`
+                    h: 'Lihat Transaksi, Settle & Batalkan',
+                    b: `Pada kolom <b>Aksi</b>, klik <b>Aksi → Lihat Transaksi</b> untuk membuka modal <b>List Transaksi</b> berisi rincian transaksi yang membentuk group settlement tersebut (Tanggal, ID Transaksi, Nominal QRIS, Nominal Settle, Bank, Status).<br><br>Aksi <b>Settle</b> / <b>Batalkan Settlement</b> berlaku ke <b>seluruh transaksi dalam group</b>. Bisa juga bulk: centang beberapa group lalu Settle/Batalkan sekaligus.`
+                },
+                {
+                    h: 'Export Segregasi per Bank',
+                    b: `Klik <b>Export Segregasi per Bank</b>. Wajib pilih <b>Tanggal</b> dan <b>Tipe Settlement</b> (Reguler / Tambahan Matched) — tombol Export baru aktif jika kedua field terisi.<br><br>Hasil dipisah per tab bank: <b>BCA, Mandiri, BRI, dan Lainnya</b> (di luar BCA/Mandiri/BRI kena <b>biaya admin flat Rp6.500</b> sekali per payout). Transaksi <b>merchant yang sama pada tanggal & rekening sama digabung jadi satu baris</b> dengan nominal ditotal.<br><br><b>Nominal Settlement = Nominal − Biaya Admin + Adj. Chargeback (+) − Adj. Chargeback (−)</b>.`
                 },
                 {
                     h: 'Export & Manual Recon',
@@ -72,6 +76,14 @@
                 {
                     h: 'Selama menunggu approval',
                     b: `Selama request masih <b>Pending</b>, status data di tabel asal tidak berubah. Jika operator mencoba mengirim aksi yang sama lagi, muncul peringatan <b>"data sudah direquest approval, mohon tunggu"</b>.`
+                },
+                {
+                    h: 'Grouping per merchant & detail request',
+                    b: `Request <b>bulk</b> dari tabel Unmatch <b>digrouping per merchant</b> — satu request berisi semua transaksi merchant tersebut. Modal detail menampilkan <b>Nama Merchant, MID, MPAN</b>, <b>daftar transaksi</b> (No, Tanggal Proses, RRN, Nominal, RC, Switching, Tipe Unmatch), dan <b>Request Detail</b> (Requester, Tanggal Request, Aksi).`
+                },
+                {
+                    h: 'Filter',
+                    b: `Klik <b>Filter</b> (panel muncul tepat di bawah tombol) untuk menyaring berdasarkan <b>Tipe Request</b> (mis. Proses Transaksi Mismatch, Finalize Reconcile) dan <b>Admin</b>. Klik <b>Apply Filters</b> untuk menerapkan, <b>Clear All</b> untuk reset.`
                 }
             ]
         },
@@ -80,11 +92,11 @@
             items: [
                 {
                     h: 'Statistic Card',
-                    b: `Kartu ringkasan menampilkan total transaksi, matched, unmatched, on-hold, dispute, dan nominal settlement. Angka mengikuti <b>filter tanggal & switching</b> yang aktif. Default filter: hari ini.`
+                    b: `Kartu ringkasan menampilkan total transaksi, matched, unmatched, on-hold, dispute, dan nominal settlement. Angka mengikuti <b>filter tanggal, switching, dan lokasi (Domestik/Crossborder)</b> yang aktif. Default filter: hari ini.`
                 },
                 {
                     h: 'Filter, Search, Pagination',
-                    b: `<b>Filter</b> tersedia per tabel (tanggal, switching, dan checklist multi-select: Status / RC / Tipe Unmatch untuk Unmatch; Status / Alasan Dispute untuk Dispute). <b>Search</b> by RRN / MID. <b>Pagination</b> default 10 baris/halaman. Jika hasil filter/search kosong → tampil <b>"No Data"</b>.`
+                    b: `<b>Filter</b> tersedia per tabel: tanggal, switching, lokasi (Domestik/Crossborder), dan checklist multi-select — untuk Unmatch: <b>Status / RC (00 / 68 / non-00-68) / Tipe Unmatch</b>; untuk Dispute: Status / Alasan Dispute.<br><br><b>Search</b> by <b>RRN / ID / MID / Nama Merchant</b>. <b>Pagination</b> default <b>50 baris/halaman</b>. Filter & search <b>otomatis kembali ke default saat pindah tab</b>. Jika hasil kosong → tampil <b>"No Data"</b>.`
                 },
                 {
                     h: 'Tabel Matched',
@@ -96,19 +108,19 @@
                 },
                 {
                     h: 'Tabel Unmatch — Flow Status',
-                    b: `Semua data masuk berstatus <b>On Hold</b>.<br><br>• <b>Paydia-Only / Beda Status</b> (transaksi sudah ada di DB): On Hold → <b>Flag Recon</b> → <b>Flag Settle</b>.<br>• <b>Switching-Only / Double RRN</b> (transaksi belum ada): On Hold → <b>Buat Transaksi</b> (perlu approval) → Transaksi Terbuat → <b>Flag Recon</b> → <b>Flag Settle</b>.<br>• Dari On Hold juga bisa <b>Tolak</b> (wajib isi catatan) → status <b>Ditolak</b>.<br><br>Flag Settle & Buat Transaksi memerlukan <b>approval</b>. Tiap status hanya menampilkan aksi yang relevan.`
+                    b: `Semua data masuk berstatus <b>On Hold</b>.<br><br>• <b>Paydia-Only / Beda Status</b> (transaksi sudah ada di DB): On Hold → <b>Flag Recon</b> → <b>Flag Settle</b>.<br>• <b>Switching-Only / Double RRN</b> (transaksi belum ada): On Hold → <b>Buat Transaksi</b> (perlu approval) → Transaksi Terbuat → <b>Flag Recon</b> → <b>Flag Settle</b>.<br>• Dari On Hold juga bisa <b>Tolak</b> (wajib isi catatan) → status <b>Ditolak</b>.<br><br><b>Buat Transaksi</b> & <b>Flag Settle</b> memerlukan <b>approval</b>. <b>Flag Recon</b> hanya bisa jika status transaksi di Paydia sudah <b>sukses</b> — jika belum, muncul peringatan untuk mengubah status dulu di halaman <b>Transaksi QRIS MPM</b>. Khusus Paydia-Only / Beda Status, <b>Tolak</b> baru bisa jika transaksi berstatus <b>gagal</b> (ubah status di QRIS MPM). Tiap status hanya menampilkan aksi yang relevan.`
                 },
                 {
                     h: 'Tabel Unmatch — Bulk Action & Catatan',
-                    b: `<b>Bulk action</b> via checklist: pilih banyak baris (hanya yang berstatus sama) lalu terapkan aksi sekaligus. <b>Lihat Catatan</b> tersedia di status apa pun untuk menambah/melihat catatan penanganan manual.`
+                    b: `<b>Bulk Action</b> bersifat <b>action-first</b>: klik tombol <b>Bulk Action</b> lalu pilih <b>satu</b> jenis aksi (Buat Transaksi / Flag Recon / Flag Settle / Tolak). Tabel <b>otomatis terfilter</b> hanya ke baris yang <b>eligible</b> untuk aksi itu, lalu muncul kotak checklist di kiri kolom No.<br><br>Pilih satu per satu atau <b>Select All</b> — maksimal <b>50 data</b> sekali waktu. Untuk <b>Flag Settle</b> & <b>Buat Transaksi</b>, request approval <b>digrouping per merchant</b> (1 request per merchant). <b>Lihat Catatan</b> tersedia di status apa pun untuk menambah/melihat catatan penanganan manual.`
                 },
                 {
                     h: 'Tabel Decline',
                     b: `Menampilkan transaksi RC decline untuk monitoring. Klik <b>RRN</b> untuk melihat detail transaksi. View & detail saja, tidak ada aksi flagging.`
                 },
                 {
-                    h: 'Tabel Dispute — View & Status',
-                    b: `Menampilkan data chargeback (1st/2nd chargeback, represent) dan good faith. Dispute otomatis diproses sistem dengan status <b>Done Deduct / Failed Deduct / Transaksi Tidak Ditemukan</b> — aksinya hanya <b>Lihat Catatan</b>.<br><br>Kode 30/50 (1st/2nd chargeback) mengurangi settlement (−), kode 40 (represent) menambah (+).`
+                    h: 'Tabel Dispute — View & Status (Fase Berikutnya)',
+                    b: `<i>Catatan: Tabel Dispute termasuk scope <b>Fase Berikutnya</b> — tampilan di sini masih pratinjau (ditandai ikon jam pasir).</i><br><br>Menampilkan data chargeback (1st/2nd chargeback, represent) dan good faith. Dispute otomatis diproses sistem dengan status <b>Done Deduct / Failed Deduct / Transaksi Tidak Ditemukan</b> — aksinya hanya <b>Lihat Catatan</b>.<br><br>Kode 30/50 (1st/2nd chargeback) mengurangi settlement (−), kode 40 (represent) menambah (+).`
                 },
                 {
                     h: 'Tabel Dispute — Good Faith Manual',
@@ -126,6 +138,10 @@
                 {
                     h: 'Transaksi hasil Buat Transaksi',
                     b: `Halaman ini menampilkan transaksi QRIS MPM, <b>termasuk transaksi baru</b> yang dibuat lewat aksi <b>Buat Transaksi</b> dari tabel <b>Unmatch</b> (Switching-Only / Double RRN) dan tabel <b>Dispute</b> (good faith).<br><br>Transaksi tersebut muncul di sini setelah request Buat Transaksi <b>disetujui</b> di halaman Approval, sehingga jejak datanya jelas.`
+                },
+                {
+                    h: 'Ubah Status Transaksi',
+                    b: `Untuk transaksi tipe <b>Beda Status Transaksi</b> dan <b>Paydia-Only Success</b>, tersedia aksi <b>Ubah Status Transaksi</b> (Sukses / Pending / Gagal).<br><br>Berguna untuk memenuhi syarat aksi di tabel Unmatch: <b>Flag Recon</b> butuh status <b>sukses</b>, sedangkan <b>Tolak</b> (Paydia-Only / Beda Status) butuh status <b>gagal</b>.`
                 }
             ]
         },
@@ -139,6 +155,10 @@
                 {
                     h: 'Isi catatan log',
                     b: `Tiap entri mencatat <b>email pelaku</b>, <b>aksi</b> yang dilakukan, dan waktunya — sehingga setiap perubahan data dapat ditelusuri.`
+                },
+                {
+                    h: 'Filter Log',
+                    b: `Klik <b>Filter</b> (panel muncul tepat di bawah tombol) untuk menyaring log. Bentuknya <b>checklist multi-select</b>: <b>Container</b> dan <b>Type</b> (jenis aktivitas recon: Flag Recon, Buat Transaksi, Flag Settle, Tolak, Edit Catatan, Ekspor Data Tabel, Ekspor Segregasi per Bank, Settle/Batalkan Settlement, Approval Flag Settle/Buat Transaksi, dll), plus <b>Tanggal</b>, <b>Detail</b>, dan <b>IP</b>. Klik <b>Apply Filters</b> untuk menerapkan, <b>Clear All</b> untuk reset.`
                 }
             ]
         }
