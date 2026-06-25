@@ -8,7 +8,8 @@
    =================================================== */
 (function () {
     // Pick guide content by filename (works regardless of query strings/hash).
-    const path = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    let path = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+    if (!path.includes('.')) path += '.html'; // clean-URL hosts strip the extension
 
     const GUIDES = {
         'settle-recon.html': {
@@ -25,6 +26,35 @@
                 {
                     h: 'Export & Manual Recon',
                     b: `Tombol <b>Export</b> menghasilkan simulasi data utama (tanpa segregasi bank). Tombol <b>Manual Recon</b> (existing) untuk menjalankan ulang proses recon dengan memilih file switching yang ingin diproses ulang.`
+                }
+            ]
+        },
+        'auto-settlement.html': {
+            title: 'Panduan Halaman Auto Settlement',
+            items: [
+                {
+                    h: 'Gate dari Auto Recon (wajib)',
+                    b: `Auto Settlement <b>hanya bisa berjalan jika Auto Recon untuk tanggal terpilih sudah selesai</b>. Jika belum, banner merah muncul dan seluruh aksi <b>disabled</b> — jalankan <b>Manual Recon</b> dulu di halaman <b>Settle &amp; Recon</b>. Setelah recon selesai, banner berubah hijau dan aksi aktif.`
+                },
+                {
+                    h: 'Segregasi otomatis per Bank',
+                    b: `Batch settlement dipisah otomatis per bank: <b>BCA, Mandiri, BRI, dan Lainnya</b>. Bank di luar BCA/Mandiri/BRI dikenakan <b>biaya admin flat Rp6.500</b>. Kartu ringkasan per bank menampilkan jumlah transaksi, total nominal, total admin, dan settlement bersih.`
+                },
+                {
+                    h: 'Adjustment Chargeback (+/−)',
+                    b: `Pilih satu baris lalu klik <b>Adjustment</b> untuk menambah chargeback (+) atau (−). <b>Total Settlement = Nominal Awal − Biaya Admin + Adj.(+) − Adj.(−)</b>. Adjustment ditandai <b>menunggu verifikasi Finance</b>.`
+                },
+                {
+                    h: 'Maker → Checker → Approver (no-skip)',
+                    b: `Alur persetujuan 3 lapis tanpa skip: <b>Submit (Maker)</b> → <b>Check (Checker)</b> → <b>Approve (Approver)</b>. Tombol Approve hanya aktif saat status <b>Checked</b>. Sebelum Approve wajib lolos <b>2FA/OTP</b> (simulasi device whitelist).`
+                },
+                {
+                    h: 'Master lookup No. Rekening',
+                    b: `Nomor rekening diverifikasi terhadap <b>master whitelist</b>. Baris dengan rekening di luar whitelist ditandai <b>merah</b> dan <b>tidak bisa di-Submit</b>.`
+                },
+                {
+                    h: 'Hold / Release, Disbursement & Cut-off',
+                    b: `Batch bisa di-<b>Hold</b> lalu <b>Release</b> kembali ke tahap sebelumnya. Setelah Approved, <b>Status Disbursement</b> berjalan Pending → Diproses → Selesai. Indikator <b>cut-off 14.00</b> menandakan jika lewat batas waktu → fallback manual. Tombol <b>Export Excel</b> menghasilkan file tersegregasi per bank.`
                 }
             ]
         },

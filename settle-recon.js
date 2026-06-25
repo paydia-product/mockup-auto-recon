@@ -674,9 +674,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnSubmitManualRecon) {
         btnSubmitManualRecon.addEventListener('click', () => {
             closeManualReconModal();
+            // Recon selesai → tandai gate untuk Auto Settlement (recon hari ini done).
+            function markReconDone() {
+                if (typeof showToast === 'function') showToast('Manual Recon Berhasil', 'Proses manual rekonsiliasi selesai.');
+                if (typeof writeLog === 'function') writeLog('manual-recon', 'email : dion@paydia.id\naction : Melakukan Manual Recon');
+                var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); };
+                var tgl = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+                localStorage.setItem('paydia_recon_done_' + tgl, JSON.stringify({ done: true, ts: Date.now(), matched: (typeof database !== 'undefined' ? database.length : 0) }));
+            }
             // Trigger retry auto recon logic reusing existing progress modal
             if (typeof doSimulateRerun === 'function') {
                 doSimulateRerun();
+                markReconDone();
             } else {
                 const progressOverlay = document.getElementById('progressOverlay');
                 const progressBarFill = document.getElementById('progressBarFill');
@@ -708,11 +717,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             setTimeout(() => {
                                 progressOverlay.classList.remove('show');
                                 document.body.style.overflow = 'auto';
-                                if (typeof showToast === 'function') showToast('Manual Recon Berhasil', 'Proses manual rekonsiliasi selesai.');
-                                if (typeof writeLog === 'function') writeLog('manual-recon', 'email : dion@paydia.id\naction : Melakukan Manual Recon');
+                                markReconDone();
                             }, 800);
                         }
                     }, 400);
+                } else {
+                    // No progress overlay on this page → complete immediately.
+                    markReconDone();
                 }
             }
         });
