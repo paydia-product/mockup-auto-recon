@@ -24,7 +24,8 @@ var activeTab = 'checker';
 var page = 1;
 var selected = new Set();
 var searchTerm = '';
-var bankFilter = '';
+var filters = null; // { start:'yyyy-mm-dd', end:'yyyy-mm-dd', banks:Set, big:bool }
+var BIG_THRESHOLD = 250000000;
 
 // ── helpers ──
 var rupiah = function (n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID', { minimumFractionDigits: 2 }); };
@@ -32,6 +33,8 @@ var esc = function (v) { v = String(v == null ? '' : v); return v.replace(/[&<>"
 var isOther = function (b) { return CORE_BANKS.indexOf(String(b).toUpperCase()) === -1; };
 var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpperCase().replace('MANDIRI', 'Mandiri'); };
 var todayProc = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
+var todayISO = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
+function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: new Set(), big: false }; }
 
 function loadItems() { try { items = JSON.parse(localStorage.getItem('paydia_as_items')) || {}; } catch (e) { items = {}; } }
 function saveItems() { localStorage.setItem('paydia_as_items', JSON.stringify(items)); }
@@ -44,11 +47,17 @@ function st(txId) {
 function loadPool() {
     var db = [];
     try { db = JSON.parse(localStorage.getItem('paydia_settlements')) || []; } catch (e) { db = []; }
-    pool = db.map(function (r) {
+    var iso = todayISO();
+    var disp = iso.split('-').reverse().join('-');
+    var pad = function (x) { return String(x).padStart(2, '0'); };
+    pool = db.map(function (r, i) {
+        // Tanggal Proses = tanggal settlement diproses (hari ini), beda dgn tanggal transaksi asli.
+        var procDisplay = disp + ' ' + pad(8 + Math.floor(i / 6)) + ':' + pad((i * 7) % 60) + ':00';
         return {
             txId: r.txId, tanggal: r.tanggal, merchantName: r.merchantName, mid: r.merchantCode,
             bankCode: r.bankCode, bankAccount: r.bankAccount, bankAccountName: r.bankAccountName,
-            nominalAwal: Number(r.nominalSettle) || 0, admin: isOther(r.bankCode) ? ADMIN_FEE_OTHER : 0
+            nominalAwal: Number(r.nominalSettle) || 0, admin: isOther(r.bankCode) ? ADMIN_FEE_OTHER : 0,
+            procISO: iso, procDisplay: procDisplay
         };
     });
     pool.forEach(function (r) { st(r.txId); }); // ensure state exists
@@ -60,10 +69,14 @@ function rowByTx(txId) { return pool.find(function (r) { return r.txId === txId;
 
 // ── filtering ──
 function tabRows(tab) {
+    var f = filters || defaultFilters();
     return pool.filter(function (r) {
         var s = st(r.txId);
         if (s.status !== tab) return false;
-        if (bankFilter && bankGroup(r.bankCode) !== bankFilter) return false;
+        if (f.start && r.procISO < f.start) return false;
+        if (f.end && r.procISO > f.end) return false;
+        if (f.banks && f.banks.size > 0 && !f.banks.has(bankGroup(r.bankCode))) return false;
+        if (f.big && r.nominalAwal <= BIG_THRESHOLD) return false;
         if (searchTerm) {
             var hay = (r.txId + ' ' + r.merchantName + ' ' + r.mid + ' ' + r.bankAccount + ' ' + r.bankAccountName).toLowerCase();
             if (hay.indexOf(searchTerm.toLowerCase()) === -1) return false;
@@ -134,7 +147,7 @@ function renderTable() {
         var c = '<tr>';
         if (hasCb) c += '<td style="text-align:center;"><input type="checkbox" class="as-cb" data-id="' + r.txId + '" ' + (selected.has(r.txId) ? 'checked' : '') + '></td>';
         c += '<td>' + no + '</td>';
-        c += '<td style="font-variant-numeric:tabular-nums;">' + esc(r.tanggal) + '</td>';
+        c += '<td style="font-variant-numeric:tabular-nums;">' + esc(r.procDisplay) + '</td>';
         c += '<td><a class="as-link" data-detail="trx" data-id="' + r.txId + '" style="font-family:monospace;font-size:0.8rem;">' + esc(r.txId.slice(0, 12)) + '…</a></td>';
         c += '<td><a class="as-link" data-detail="merchant" data-id="' + r.txId + '">' + esc(r.merchantName) + '</a><div style="font-size:0.72rem;color:var(--text-muted);">' + esc(r.mid) + '</div></td>';
         c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(r.nominalAwal) + '</td>';
@@ -169,15 +182,15 @@ function renderTable() {
     renderPager(rows.length);
 }
 
-function btn(act, id, icon, title, color) {
-    return '<button class="as-iact" data-act="' + act + '" data-id="' + id + '" title="' + title + '" style="background:none;border:none;cursor:pointer;color:' + color + ';font-size:0.95rem;padding:4px 6px;"><i class="fas ' + icon + '"></i></button>';
+// Kebab menu: text-only options, varies per tab.
+function actionMenuItems() {
+    if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle'], ['note', 'Lihat Catatan']];
+    if (activeTab === 'pending') return [['approve', 'Approve'], ['areject', 'Reject'], ['view', 'Lihat Catatan']];
+    if (activeTab === 'settle') return [['toreject', 'Ganti Status → Reject'], ['note', 'Lihat Catatan']];
+    return [['note', 'Lihat Catatan']]; // hold, reject tabs
 }
 function actionButtons(r) {
-    var id = r.txId;
-    if (activeTab === 'checker') return btn('hold', id, 'fa-pause', 'Hold', '#b45309') + btn('reject', id, 'fa-ban', 'Reject', '#dc2626') + btn('settle', id, 'fa-circle-check', 'Settle', '#16a34a') + btn('note', id, 'fa-note-sticky', 'Lihat/Edit Catatan', '#6366f1');
-    if (activeTab === 'pending') return btn('approve', id, 'fa-check', 'Approve', '#16a34a') + btn('areject', id, 'fa-xmark', 'Reject', '#dc2626') + btn('view', id, 'fa-eye', 'Lihat Catatan & Bukti', '#6366f1');
-    if (activeTab === 'settle') return btn('toreject', id, 'fa-rotate-left', 'Ganti Status → Reject', '#dc2626') + btn('note', id, 'fa-note-sticky', 'Lihat Catatan', '#6366f1');
-    return btn('note', id, 'fa-note-sticky', 'Lihat Catatan', '#6366f1'); // hold, reject
+    return '<button class="as-kebab" data-id="' + r.txId + '" title="Aksi" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:1.1rem;padding:4px 10px;"><i class="fas fa-ellipsis-vertical"></i></button>';
 }
 
 function renderPager(total) {
@@ -399,20 +412,58 @@ function openRejectByBank() {
     ]);
 }
 
-// ── export current tab ──
-function exportTab() {
-    var rows = tabRows(activeTab);
-    if (!rows.length) { showToast('Kosong', 'Tidak ada data untuk diexport.'); return; }
-    var cols = ['No', 'Tanggal Proses', 'ID Transaksi', 'MID', 'Merchant', 'Nominal Awal', 'Admin', 'Adj CB (+)', 'Adj CB (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Status'];
+// ── export current tab (progress bar → modal simulasi → download CSV nyata) ──
+var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Transaksi', 'MID', 'Merchant', 'Nominal Awal', 'Admin', 'Adj CB (+)', 'Adj CB (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Status'];
+
+function exportRowData(rows) {
+    return rows.map(function (r, i) {
+        var s = st(r.txId);
+        return [i + 1, r.procDisplay, r.txId, r.mid, r.merchantName, r.nominalAwal, r.admin, s.adjPlus || 0, s.adjMinus || 0, totalOf(r), r.bankCode, r.bankAccount, r.bankAccountName, STATUS_LABEL[s.status]];
+    });
+}
+
+function downloadCsv(data) {
     var e = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    var lines = ['Auto Settlement — Tab ' + STATUS_LABEL[activeTab], 'Generated By:,dion@paydia.id', '', cols.join(',')];
-    rows.forEach(function (r, i) { var s = st(r.txId); lines.push([i + 1, r.tanggal, r.txId, r.mid, r.merchantName, r.nominalAwal, r.admin, s.adjPlus || 0, s.adjMinus || 0, totalOf(r), r.bankCode, r.bankAccount, r.bankAccountName, STATUS_LABEL[s.status]].map(e).join(',')); });
+    var lines = ['Auto Settlement — Tab ' + STATUS_LABEL[activeTab], 'Generated By:,dion@paydia.id', '', EXPORT_COLS.join(',')];
+    data.forEach(function (row) { lines.push(row.map(e).join(',')); });
     var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = 'AutoSettlement_' + STATUS_LABEL[activeTab] + '.csv';
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     showToast('Export Berhasil', 'Tab ' + STATUS_LABEL[activeTab] + ' di-export.');
     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Export tab ' + STATUS_LABEL[activeTab]);
+}
+
+function showExportPreview(data) {
+    var head = '<tr>' + EXPORT_COLS.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
+    var fmt = function (c, v) { return (typeof v === 'number' && c >= 5 && c <= 9) ? rupiah(v) : esc(v); };
+    var body = data.map(function (row) { return '<tr>' + row.map(function (v, c) { return '<td>' + fmt(c, v) + '</td>'; }).join('') + '</tr>'; }).join('');
+    var html = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Simulasi hasil ekspor tab <b>' + STATUS_LABEL[activeTab] + '</b> — ' + data.length + ' baris.</p>' +
+        '<div style="max-height:360px;overflow:auto;"><table class="data-table" style="font-size:0.76rem;"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+    openModal('Simulasi Hasil Ekspor', html, [
+        { label: 'Tutup', onClick: closeModal },
+        { label: 'Download CSV', style: 'background:#10b981;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () { downloadCsv(data); closeModal(); } }
+    ]);
+}
+
+function exportTab() {
+    var rows = tabRows(activeTab);
+    if (!rows.length) { showToast('Kosong', 'Tidak ada data untuk diexport.'); return; }
+    var data = exportRowData(rows);
+    var ov = document.getElementById('asProgressOverlay');
+    var bar = document.getElementById('asProgressBar');
+    var txt = document.getElementById('asProgressText');
+    bar.style.width = '0%'; txt.textContent = 'Memproses ekspor… 0%';
+    ov.classList.add('show'); document.body.style.overflow = 'hidden';
+    var pct = 0;
+    var iv = setInterval(function () {
+        pct += Math.floor(Math.random() * 14) + 6; if (pct > 100) pct = 100;
+        bar.style.width = pct + '%'; txt.textContent = 'Memproses ekspor… ' + pct + '%';
+        if (pct >= 100) {
+            clearInterval(iv);
+            setTimeout(function () { ov.classList.remove('show'); document.body.style.overflow = 'auto'; showExportPreview(data); }, 350);
+        }
+    }, 180);
 }
 
 // ── toast + log ──
@@ -435,41 +486,102 @@ function writeLog(type, detail) {
     localStorage.setItem('paydia_logs', JSON.stringify(logs));
 }
 
+function runAction(act, r) {
+    if (act === 'hold') openHold(r);
+    else if (act === 'reject') openReject(r);
+    else if (act === 'settle') openSettle(r);
+    else if (act === 'note') openNote(r);
+    else if (act === 'view') openApproverView(r);
+    else if (act === 'approve') approverDecide(r, true);
+    else if (act === 'areject') approverDecide(r, false);
+    else if (act === 'toreject') { st(r.txId).status = 'reject'; saveItems(); render(); showToast('Status Diubah', r.merchantName + ' → Reject.'); writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ganti status ke Reject ' + r.merchantName); }
+}
+
+function closeKebab() { var m = document.getElementById('asKebabMenu'); m.style.display = 'none'; m.innerHTML = ''; }
+function openKebab(btn, r) {
+    var m = document.getElementById('asKebabMenu');
+    m.innerHTML = actionMenuItems().map(function (it) {
+        return '<button class="dropdown-item" data-act="' + it[0] + '" style="width:100%;text-align:left;">' + it[1] + '</button>';
+    }).join('');
+    m.style.display = 'block';
+    var rect = btn.getBoundingClientRect();
+    var mw = 190;
+    var left = Math.min(rect.right - mw, window.innerWidth - mw - 8);
+    m.style.left = Math.max(8, left) + 'px';
+    m.style.top = (rect.bottom + 4) + 'px';
+    m.querySelectorAll('.dropdown-item').forEach(function (b) {
+        b.addEventListener('click', function () { closeKebab(); runAction(b.dataset.act, r); });
+    });
+}
+
 // ── delegated row clicks ──
 function onTableClick(e) {
     var d = e.target.closest('[data-detail]');
     if (d) { var r = rowByTx(d.dataset.id); if (r) { d.dataset.detail === 'merchant' ? showMerchantDetail(r) : showTrxDetail(r); } return; }
-    var b = e.target.closest('.as-iact');
-    if (!b) return;
-    var r2 = rowByTx(b.dataset.id); if (!r2) return;
-    var act = b.dataset.act;
-    if (act === 'hold') openHold(r2);
-    else if (act === 'reject') openReject(r2);
-    else if (act === 'settle') openSettle(r2);
-    else if (act === 'note') openNote(r2);
-    else if (act === 'view') openApproverView(r2);
-    else if (act === 'approve') approverDecide(r2, true);
-    else if (act === 'areject') approverDecide(r2, false);
-    else if (act === 'toreject') { st(r2.txId).status = 'reject'; saveItems(); render(); showToast('Status Diubah', r2.merchantName + ' → Reject.'); writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ganti status ke Reject ' + r2.merchantName); }
+    var k = e.target.closest('.as-kebab');
+    if (k) { var r2 = rowByTx(k.dataset.id); if (r2) openKebab(k, r2); return; }
 }
 
 // ── init ──
+function syncFilterInputs() {
+    document.getElementById('asFilterStart').value = filters.start || '';
+    document.getElementById('asFilterEnd').value = filters.end || '';
+    document.getElementById('asFilterBig').checked = !!filters.big;
+    document.querySelectorAll('.as-fbank').forEach(function (cb) { cb.checked = filters.banks.has(cb.value); });
+}
+function applyFilterPanel() {
+    filters.start = document.getElementById('asFilterStart').value;
+    filters.end = document.getElementById('asFilterEnd').value;
+    filters.big = document.getElementById('asFilterBig').checked;
+    filters.banks = new Set(Array.from(document.querySelectorAll('.as-fbank:checked')).map(function (c) { return c.value; }));
+    page = 1; render();
+    document.getElementById('asFilterPanel').style.display = 'none';
+}
+function clearFilterPanel() { filters = defaultFilters(); syncFilterInputs(); page = 1; render(); }
+function resetForTab() {
+    filters = defaultFilters();
+    searchTerm = '';
+    var s = document.getElementById('asSearch'); if (s) s.value = '';
+    syncFilterInputs();
+    document.getElementById('asFilterPanel').style.display = 'none';
+}
+
 function bind() {
     document.querySelectorAll('.as-tab').forEach(function (t) {
-        t.addEventListener('click', function () { activeTab = t.dataset.tab === 'approver' ? 'pending' : t.dataset.tab; page = 1; selected.clear(); render(); });
+        t.addEventListener('click', function () {
+            activeTab = t.dataset.tab === 'approver' ? 'pending' : t.dataset.tab;
+            page = 1; selected.clear(); resetForTab(); render();
+        });
     });
     document.getElementById('asSearch').addEventListener('input', function () { searchTerm = this.value.trim(); page = 1; renderTable(); });
-    document.getElementById('asBankFilter').addEventListener('change', function () { bankFilter = this.value; page = 1; renderTable(); });
     document.getElementById('asExportBtn').addEventListener('click', exportTab);
     document.getElementById('asBulkSettle').addEventListener('click', openBulkSettle);
     document.getElementById('asTableBody').addEventListener('click', onTableClick);
     document.getElementById('asModalClose').addEventListener('click', closeModal);
     document.getElementById('asModal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+    // Filter panel
+    document.getElementById('asFilterBtn').addEventListener('click', function (e) {
+        e.stopPropagation();
+        var p = document.getElementById('asFilterPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('asFilterApply').addEventListener('click', applyFilterPanel);
+    document.getElementById('asFilterClear').addEventListener('click', clearFilterPanel);
+    document.getElementById('asFilterPanel').addEventListener('click', function (e) { e.stopPropagation(); });
+
+    // Close kebab / filter panel on outside click
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.as-kebab') && !e.target.closest('#asKebabMenu')) closeKebab();
+        if (!e.target.closest('#asFilterBtn') && !e.target.closest('#asFilterPanel')) document.getElementById('asFilterPanel').style.display = 'none';
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     loadItems();
     loadPool();
+    filters = defaultFilters();
     bind();
+    syncFilterInputs();
     render();
 });

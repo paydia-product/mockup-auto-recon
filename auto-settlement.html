@@ -172,27 +172,57 @@
                 <div style="padding: 24px;">
                     <!-- Stage tabs -->
                     <div class="as-tabs" id="asTabs">
-                        <button class="as-tab active" data-tab="checker"><i class="fas fa-user-check"></i> Checker <span class="as-tab-count" id="cnt-checker">0</span></button>
-                        <button class="as-tab" data-tab="approver"><i class="fas fa-shield-halved"></i> Approver <span class="as-tab-count" id="cnt-approver">0</span></button>
-                        <button class="as-tab" data-tab="hold"><i class="fas fa-pause"></i> Hold <span class="as-tab-count" id="cnt-hold">0</span></button>
-                        <button class="as-tab" data-tab="reject"><i class="fas fa-ban"></i> Reject <span class="as-tab-count" id="cnt-reject">0</span></button>
-                        <button class="as-tab" data-tab="settle"><i class="fas fa-circle-check"></i> Settle <span class="as-tab-count" id="cnt-settle">0</span></button>
+                        <button class="as-tab active" data-tab="checker">Checker <span class="as-tab-count" id="cnt-checker">0</span></button>
+                        <button class="as-tab" data-tab="approver">Approver <span class="as-tab-count" id="cnt-approver">0</span></button>
+                        <button class="as-tab" data-tab="hold">Hold <span class="as-tab-count" id="cnt-hold">0</span></button>
+                        <button class="as-tab" data-tab="reject">Reject <span class="as-tab-count" id="cnt-reject">0</span></button>
+                        <button class="as-tab" data-tab="settle">Settle <span class="as-tab-count" id="cnt-settle">0</span></button>
                     </div>
 
                     <!-- Toolbar -->
-                    <div class="as-toolbar2">
-                        <div class="as-search"><i class="fas fa-search"></i><input type="text" id="asSearch" placeholder="Cari ID transaksi / merchant / MID / no. rek…"></div>
-                        <select id="asBankFilter" class="as-filter-sel">
-                            <option value="">Semua Bank</option>
-                            <option value="BCA">BCA</option>
-                            <option value="Mandiri">Mandiri</option>
-                            <option value="BRI">BRI</option>
-                            <option value="Lainnya">Lainnya</option>
-                        </select>
+                    <div class="as-toolbar2" style="position:relative;">
+                        <button class="btn btn-filter" id="asFilterBtn" style="margin:0;"><i class="fas fa-filter"></i> Filter</button>
+                        <button class="btn btn-export" id="asExportBtn" style="margin:0;"><i class="far fa-file-excel"></i> Export</button>
                         <div class="as-toolbar-actions" id="asTabActions"></div>
-                        <button class="btn" id="asExportBtn" style="margin:0; background:#10b981; color:#fff; border-color:#10b981;">
-                            <i class="far fa-file-excel"></i> Export Tab
-                        </button>
+                        <div class="as-search" style="margin-left:auto;"><i class="fas fa-search"></i><input type="text" id="asSearch" placeholder="Cari ID transaksi / merchant / MID / no. rek…"></div>
+
+                        <!-- Filter popover -->
+                        <div class="filter-panel" id="asFilterPanel" style="top:50px; display:none;">
+                            <div class="filter-panel-header">
+                                <button class="btn-clear-all" type="button" id="asFilterClear">Clear All</button>
+                                <button class="btn-apply-filters" type="button" id="asFilterApply">Apply Filters</button>
+                            </div>
+                            <div class="filter-panel-content">
+                                <div class="filter-col-left">
+                                    <div class="filter-section">
+                                        <span class="filter-section-title">Date Range (Tanggal Proses)</span>
+                                        <div style="display:flex; gap:8px; align-items:center;">
+                                            <input type="date" id="asFilterStart" style="padding:8px; font-size:0.8rem; flex:1;">
+                                            <span style="font-size:0.75rem; color:var(--text-secondary);">to</span>
+                                            <input type="date" id="asFilterEnd" style="padding:8px; font-size:0.8rem; flex:1;">
+                                        </div>
+                                    </div>
+                                    <div class="filter-section" style="margin-top:16px;">
+                                        <span class="filter-section-title">Nominal</span>
+                                        <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                                            <input type="checkbox" id="asFilterBig"> Nominal &gt; Rp250.000.000
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="filter-col-divider"></div>
+                                <div class="filter-col-right">
+                                    <div class="filter-section">
+                                        <span class="filter-section-title">Bank</span>
+                                        <div id="asFilterBanks" style="display:flex; flex-direction:column; gap:8px;">
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fbank" value="BCA"> BCA</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fbank" value="Mandiri"> Mandiri</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fbank" value="BRI"> BRI</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fbank" value="Lainnya"> Bank Lainnya</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Bulk action bar (Checker only: bulk settle) -->
@@ -236,6 +266,21 @@
         </div>
     </div>
 
+    <!-- Export progress overlay -->
+    <div class="modal-overlay" id="asProgressOverlay">
+        <div class="modal" style="max-width:420px; width:90%;">
+            <div class="modal-body" style="padding:28px; text-align:center;">
+                <div style="font-weight:600; font-size:0.9rem; margin-bottom:14px;" id="asProgressText">Memproses ekspor… 0%</div>
+                <div style="height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
+                    <div id="asProgressBar" style="height:100%; width:0%; background:#10b981; transition:width .1s linear;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kebab action menu (positioned by JS) -->
+    <div id="asKebabMenu" class="dropdown-menu" style="display:none; position:fixed; z-index:3000;"></div>
+
     <!-- Disclaimer -->
     <div style="position: fixed; bottom: 16px; right: 16px; text-align: right; font-family: 'Inter', sans-serif; pointer-events: none; z-index: 10000;">
         <div style="display: inline-block; background: rgba(255, 255, 255, 0.9); padding: 6px 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05);">
@@ -244,7 +289,7 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260629-v2"></script>
+    <script src="auto-settlement.js?v=20260629-v3"></script>
     <script src="page-guide.js?v=20260629-v4"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
