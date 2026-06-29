@@ -26,6 +26,7 @@ var selected = new Set();
 var searchTerm = '';
 var filters = null; // { start:'yyyy-mm-dd', end:'yyyy-mm-dd', banks:Set, big:bool }
 var BIG_THRESHOLD = 250000000;
+var bulkMode = false; // checker tab: checklist hidden until "Bulk Action" diklik
 
 // ── helpers ──
 var rupiah = function (n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID', { minimumFractionDigits: 2 }); };
@@ -120,7 +121,7 @@ function renderTable() {
     var thead = document.getElementById('asThead');
     var tbody = document.getElementById('asTableBody');
     var cols = columnsFor(activeTab);
-    var hasCb = activeTab === 'checker';
+    var hasCb = activeTab === 'checker' && bulkMode;
     var headHtml = '<tr>';
     if (hasCb) headHtml += '<th style="width:38px;text-align:center;"><input type="checkbox" id="asSelectAll"></th>';
     cols.forEach(function (c, i) {
@@ -148,7 +149,7 @@ function renderTable() {
         if (hasCb) c += '<td style="text-align:center;"><input type="checkbox" class="as-cb" data-id="' + r.txId + '" ' + (selected.has(r.txId) ? 'checked' : '') + '></td>';
         c += '<td>' + no + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(r.procDisplay) + '</td>';
-        c += '<td><a class="as-link" data-detail="trx" data-id="' + r.txId + '" style="font-family:monospace;font-size:0.8rem;">' + esc(r.txId.slice(0, 12)) + '…</a></td>';
+        c += '<td style="min-width:160px;"><a class="as-link" data-detail="trx" data-id="' + r.txId + '" style="font-family:monospace;font-size:0.74rem;white-space:normal;word-break:break-all;">' + esc(r.txId) + '</a></td>';
         c += '<td><a class="as-link" data-detail="merchant" data-id="' + r.txId + '">' + esc(r.merchantName) + '</a><div style="font-size:0.72rem;color:var(--text-muted);">' + esc(r.mid) + '</div></td>';
         c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(r.nominalAwal) + '</td>';
         c += '<td style="text-align:right;">' + (r.admin ? rupiah(r.admin) : '-') + '</td>';
@@ -208,15 +209,21 @@ function renderPager(total) {
 
 function renderToolbarActions() {
     var box = document.getElementById('asTabActions');
-    if (activeTab === 'settle') box.innerHTML = '<button class="btn" id="asRejectByBank" style="margin:0;background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-building-columns"></i> Reject by Bank</button>';
-    else box.innerHTML = '';
-    var rbb = document.getElementById('asRejectByBank');
-    if (rbb) rbb.addEventListener('click', openRejectByBank);
+    box.innerHTML = '';
+    if (activeTab === 'checker') {
+        box.innerHTML = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Action' : 'Bulk Action') + '</button>';
+        document.getElementById('asBulkBtn').addEventListener('click', function () {
+            bulkMode = !bulkMode; if (!bulkMode) selected.clear(); render();
+        });
+    } else if (activeTab === 'settle') {
+        box.innerHTML = '<button class="btn" id="asRejectByBank" style="margin:0;background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-building-columns"></i> Reject by Bank</button>';
+        document.getElementById('asRejectByBank').addEventListener('click', openRejectByBank);
+    }
 }
 
 function renderBulkBar() {
     var bar = document.getElementById('asBulkBar');
-    if (activeTab !== 'checker' || selected.size === 0) { bar.style.display = 'none'; return; }
+    if (activeTab !== 'checker' || !bulkMode) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     document.getElementById('asBulkCount').textContent = selected.size;
 }
@@ -435,33 +442,34 @@ function downloadCsv(data) {
 }
 
 function showExportPreview(data) {
-    var head = '<tr>' + EXPORT_COLS.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
     var fmt = function (c, v) { return (typeof v === 'number' && c >= 5 && c <= 9) ? rupiah(v) : esc(v); };
-    var body = data.map(function (row) { return '<tr>' + row.map(function (v, c) { return '<td>' + fmt(c, v) + '</td>'; }).join('') + '</tr>'; }).join('');
-    var html = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Simulasi hasil ekspor tab <b>' + STATUS_LABEL[activeTab] + '</b> — ' + data.length + ' baris.</p>' +
-        '<div style="max-height:360px;overflow:auto;"><table class="data-table" style="font-size:0.76rem;"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
-    openModal('Simulasi Hasil Ekspor', html, [
-        { label: 'Tutup', onClick: closeModal },
-        { label: 'Download CSV', style: 'background:#10b981;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () { downloadCsv(data); closeModal(); } }
-    ]);
+    document.getElementById('asExportSub').innerHTML = 'Simulasi hasil ekspor tab <b>' + STATUS_LABEL[activeTab] + '</b> — ' + data.length + ' baris.';
+    document.getElementById('asExportHead').innerHTML = '<tr>' + EXPORT_COLS.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
+    document.getElementById('asExportBody').innerHTML = data.map(function (row) {
+        return '<tr>' + row.map(function (v, c) { return '<td>' + fmt(c, v) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    var dl = document.getElementById('asExportDownload');
+    dl.onclick = function () { downloadCsv(data); };
+    document.getElementById('asExportModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
 }
 
 function exportTab() {
     var rows = tabRows(activeTab);
     if (!rows.length) { showToast('Kosong', 'Tidak ada data untuk diexport.'); return; }
     var data = exportRowData(rows);
-    var ov = document.getElementById('asProgressOverlay');
+    var wrap = document.getElementById('asExportProgress');
     var bar = document.getElementById('asProgressBar');
     var txt = document.getElementById('asProgressText');
-    bar.style.width = '0%'; txt.textContent = 'Memproses ekspor… 0%';
-    ov.classList.add('show'); document.body.style.overflow = 'hidden';
+    bar.style.width = '0%'; txt.textContent = 'Memproses… 0%';
+    wrap.style.display = 'flex';
     var pct = 0;
     var iv = setInterval(function () {
         pct += Math.floor(Math.random() * 14) + 6; if (pct > 100) pct = 100;
-        bar.style.width = pct + '%'; txt.textContent = 'Memproses ekspor… ' + pct + '%';
+        bar.style.width = pct + '%'; txt.textContent = 'Memproses… ' + pct + '%';
         if (pct >= 100) {
             clearInterval(iv);
-            setTimeout(function () { ov.classList.remove('show'); document.body.style.overflow = 'auto'; showExportPreview(data); }, 350);
+            setTimeout(function () { wrap.style.display = 'none'; showExportPreview(data); }, 350);
         }
     }, 180);
 }
@@ -497,13 +505,14 @@ function runAction(act, r) {
     else if (act === 'toreject') { st(r.txId).status = 'reject'; saveItems(); render(); showToast('Status Diubah', r.merchantName + ' → Reject.'); writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ganti status ke Reject ' + r.merchantName); }
 }
 
-function closeKebab() { var m = document.getElementById('asKebabMenu'); m.style.display = 'none'; m.innerHTML = ''; }
+function closeKebab() { var m = document.getElementById('asKebabMenu'); m.classList.remove('show'); m.style.display = 'none'; m.innerHTML = ''; }
 function openKebab(btn, r) {
     var m = document.getElementById('asKebabMenu');
     m.innerHTML = actionMenuItems().map(function (it) {
         return '<button class="dropdown-item" data-act="' + it[0] + '" style="width:100%;text-align:left;">' + it[1] + '</button>';
     }).join('');
     m.style.display = 'block';
+    m.classList.add('show');
     var rect = btn.getBoundingClientRect();
     var mw = 190;
     var left = Math.min(rect.right - mw, window.innerWidth - mw - 8);
@@ -541,6 +550,7 @@ function clearFilterPanel() { filters = defaultFilters(); syncFilterInputs(); pa
 function resetForTab() {
     filters = defaultFilters();
     searchTerm = '';
+    bulkMode = false;
     var s = document.getElementById('asSearch'); if (s) s.value = '';
     syncFilterInputs();
     document.getElementById('asFilterPanel').style.display = 'none';
@@ -553,12 +563,17 @@ function bind() {
             page = 1; selected.clear(); resetForTab(); render();
         });
     });
-    document.getElementById('asSearch').addEventListener('input', function () { searchTerm = this.value.trim(); page = 1; renderTable(); });
+    function doSearch() { searchTerm = document.getElementById('asSearch').value.trim(); page = 1; renderTable(); }
+    document.getElementById('asSearchBtn').addEventListener('click', doSearch);
+    document.getElementById('asSearch').addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(); });
     document.getElementById('asExportBtn').addEventListener('click', exportTab);
     document.getElementById('asBulkSettle').addEventListener('click', openBulkSettle);
+    document.getElementById('asUnselectAll').addEventListener('click', function () { selected.clear(); render(); });
     document.getElementById('asTableBody').addEventListener('click', onTableClick);
     document.getElementById('asModalClose').addEventListener('click', closeModal);
     document.getElementById('asModal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+    document.getElementById('asExportClose').addEventListener('click', function () { document.getElementById('asExportModal').classList.remove('show'); document.body.style.overflow = 'auto'; });
+    document.getElementById('asExportModal').addEventListener('click', function (e) { if (e.target === this) { this.classList.remove('show'); document.body.style.overflow = 'auto'; } });
 
     // Filter panel
     document.getElementById('asFilterBtn').addEventListener('click', function (e) {
