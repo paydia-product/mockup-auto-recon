@@ -214,6 +214,16 @@
                                             <input type="checkbox" id="asFilterBig"> Nominal &gt; Rp250.000.000
                                         </label>
                                     </div>
+                                    <div class="filter-section" id="asFilterReqSection" style="margin-top:16px; display:none;">
+                                        <span class="filter-section-title">Request</span>
+                                        <select id="asFilterReq" style="padding:8px; font-size:0.8rem; width:100%; border:1px solid var(--border-color); border-radius:6px;">
+                                            <option value="">Semua Request</option>
+                                            <option value="hold">Hold</option>
+                                            <option value="holdpartial">Hold Partial</option>
+                                            <option value="reject">Reject</option>
+                                            <option value="settle">Settle</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="filter-col-divider"></div>
                                 <div class="filter-col-right">
@@ -316,7 +326,7 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260629-v4"></script>
+    <script src="auto-settlement.js?v=20260629-v5"></script>
     <script src="page-guide.js?v=20260629-v4"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {

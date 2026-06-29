@@ -35,7 +35,7 @@ var isOther = function (b) { return CORE_BANKS.indexOf(String(b).toUpperCase()) 
 var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpperCase().replace('MANDIRI', 'Mandiri'); };
 var todayProc = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 var todayISO = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
-function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: new Set(), big: false }; }
+function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: new Set(), big: false, req: '' }; }
 
 function loadItems() { try { items = JSON.parse(localStorage.getItem('paydia_as_items')) || {}; } catch (e) { items = {}; } }
 function saveItems() { localStorage.setItem('paydia_as_items', JSON.stringify(items)); }
@@ -78,6 +78,13 @@ function tabRows(tab) {
         if (f.end && r.procISO > f.end) return false;
         if (f.banks && f.banks.size > 0 && !f.banks.has(bankGroup(r.bankCode))) return false;
         if (f.big && r.nominalAwal <= BIG_THRESHOLD) return false;
+        if (tab === 'pending' && f.req) {
+            var rq = s.request || {};
+            if (f.req === 'hold' && !(rq.type === 'hold' && rq.scope !== 'partial')) return false;
+            if (f.req === 'holdpartial' && !(rq.type === 'hold' && rq.scope === 'partial')) return false;
+            if (f.req === 'reject' && rq.type !== 'reject') return false;
+            if (f.req === 'settle' && rq.type !== 'settle') return false;
+        }
         if (searchTerm) {
             var hay = (r.txId + ' ' + r.merchantName + ' ' + r.mid + ' ' + r.bankAccount + ' ' + r.bankAccountName).toLowerCase();
             if (hay.indexOf(searchTerm.toLowerCase()) === -1) return false;
@@ -172,12 +179,15 @@ function renderTable() {
     // wire checkboxes
     if (hasCb) {
         var all = document.getElementById('asSelectAll');
+        var syncHeader = function () { if (all) all.checked = slice.length > 0 && slice.every(function (r) { return selected.has(r.txId); }); };
+        syncHeader();
         if (all) all.addEventListener('change', function () {
-            slice.forEach(function (r) { this.checked ? selected.add(r.txId) : selected.delete(r.txId); }, all);
+            var on = all.checked;
+            slice.forEach(function (r) { on ? selected.add(r.txId) : selected.delete(r.txId); });
             render();
         });
         tbody.querySelectorAll('.as-cb').forEach(function (cb) {
-            cb.addEventListener('change', function () { cb.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id); renderBulkBar(); });
+            cb.addEventListener('change', function () { cb.checked ? selected.add(cb.dataset.id) : selected.delete(cb.dataset.id); syncHeader(); renderBulkBar(); });
         });
     }
     renderPager(rows.length);
@@ -185,12 +195,13 @@ function renderTable() {
 
 // Kebab menu: text-only options, varies per tab.
 function actionMenuItems() {
-    if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle'], ['note', 'Lihat Catatan']];
-    if (activeTab === 'pending') return [['approve', 'Approve'], ['areject', 'Reject'], ['view', 'Lihat Catatan']];
-    if (activeTab === 'settle') return [['toreject', 'Ganti Status → Reject'], ['note', 'Lihat Catatan']];
-    return [['note', 'Lihat Catatan']]; // hold, reject tabs
+    if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
+    if (activeTab === 'pending') return [['approve', 'Approve'], ['areject', 'Reject'], ['view', 'Lihat Detail Request']];
+    if (activeTab === 'settle') return [['toreject', 'Ganti Status → Reject']];
+    return []; // hold, reject tabs: no actions
 }
 function actionButtons(r) {
+    if (actionMenuItems().length === 0) return '<span style="color:var(--text-muted);">—</span>';
     return '<button class="as-kebab" data-id="' + r.txId + '" title="Aksi" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:1.1rem;padding:4px 10px;"><i class="fas fa-ellipsis-vertical"></i></button>';
 }
 
@@ -226,6 +237,7 @@ function renderBulkBar() {
     if (activeTab !== 'checker' || !bulkMode) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     document.getElementById('asBulkCount').textContent = selected.size;
+    document.getElementById('asUnselectAll').style.display = selected.size > 0 ? 'inline-flex' : 'none';
 }
 
 // ── generic modal ──
@@ -246,9 +258,6 @@ function openModal(title, bodyHTML, footer) {
     document.body.style.overflow = 'hidden';
 }
 function closeModal() { document.getElementById('asModal').classList.remove('show'); document.body.style.overflow = 'auto'; }
-
-var BTN_PRIMARY = 'background:var(--primary);color:#fff;border:none;padding:8px 16px;font-weight:600;';
-var BTN_CANCEL = '';
 
 // ── detail modals ──
 function showTrxDetail(r) {
@@ -272,36 +281,34 @@ function showMerchantDetail(r) {
     openModal('Detail Merchant', body, [{ label: 'Tutup', onClick: closeModal }]);
 }
 
-// ── note ──
-function openNote(r) {
-    var s = st(r.txId);
-    var editable = s.status === 'checker';
-    var body = '<div class="as-fld"><label>Catatan ' + esc(r.merchantName) + '</label>' +
-        '<textarea id="asNoteTxt" rows="4" ' + (editable ? '' : 'readonly') + ' placeholder="Belum ada catatan…">' + esc(s.note || '') + '</textarea></div>';
-    var footer = [{ label: 'Tutup', onClick: closeModal }];
-    if (editable) footer.push({ label: 'Simpan', style: BTN_PRIMARY, onClick: function () { s.note = document.getElementById('asNoteTxt').value.trim(); saveItems(); closeModal(); showToast('Catatan Disimpan', 'Catatan diperbarui.'); writeLog('auto-settlement', 'email : dion@paydia.id\naction : Edit catatan ' + r.merchantName); } });
-    openModal(editable ? 'Lihat / Edit Catatan' : 'Catatan', body, footer);
-}
-
 // ── checker actions ──
-function fileField(label, required) {
-    return '<div class="as-fld"><label>Upload Bukti' + (required ? ' <span style="color:#ef4444;">*</span>' : ' (opsional)') + '</label>' +
-        '<input type="file" id="asBukti" style="font-size:0.82rem;"></div>';
+function fileField(hint) {
+    return '<div class="as-fld"><label>Upload Bukti <span style="font-weight:400;color:var(--text-muted);">' + (hint || '(opsional)') + '</span></label>' +
+        '<input type="file" id="asBukti" accept=".pdf,.jpg,.jpeg,.png" style="font-size:0.82rem;"></div>';
 }
 function noteField(required) {
     return '<div class="as-fld"><label>Catatan' + (required ? ' <span style="color:#ef4444;">*</span>' : ' (opsional)') + '</label><textarea id="asReason" rows="3" placeholder="Tulis catatan…"></textarea></div>';
 }
-function buktiName() { var f = document.getElementById('asBukti'); return (f && f.files && f.files[0]) ? f.files[0].name : ''; }
+// Validate uploaded evidence: format (PDF/JPG/JPEG/PNG) + max 25MB; required if requiredMsg given.
+// Returns { name } on success, or null if invalid (toast already shown) so caller aborts.
+function validateBukti(requiredMsg) {
+    var f = document.getElementById('asBukti');
+    var file = f && f.files && f.files[0];
+    if (!file) { if (requiredMsg) { showToast('Bukti Wajib', requiredMsg); return null; } return { name: '' }; }
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext) === -1) { showToast('Format Salah', 'Format bukti harus PDF, JPG, JPEG, atau PNG.'); return null; }
+    if (file.size > 25 * 1024 * 1024) { showToast('File Terlalu Besar', 'Ukuran bukti maksimal 25 MB.'); return null; }
+    return { name: file.name };
+}
 
 function openHold(r) {
     var merch = pool.filter(function (x) { return x.mid === r.mid && st(x.txId).status === 'checker'; });
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Hold transaksi merchant <b>' + esc(r.merchantName) + '</b>.</p>' +
-        '<div class="as-fld"><label>Cakupan Hold</label>' +
+    var body = '<div class="as-fld"><label>Cakupan Hold</label>' +
         '<label style="font-weight:500;display:block;"><input type="radio" name="asHoldScope" value="all" checked> Hold Semua (' + merch.length + ' transaksi)</label>' +
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="partial"> Hold Partial (pilih MID)</label></div>' +
         '<div class="as-fld" id="asPartialWrap" style="display:none;"><label>Pilih transaksi yang dihold</label><div class="as-partial-list" id="asPartialList">' +
         merch.map(function (x) { return '<label><input type="checkbox" class="as-pp" value="' + x.txId + '" ' + (x.txId === r.txId ? 'checked' : '') + '> ' + esc(x.mid) + ' · ' + esc(x.tanggal) + ' · ' + rupiah(x.nominalAwal) + '</label>'; }).join('') +
-        '</div></div>' + noteField(true) + fileField('bukti', false);
+        '</div></div>' + noteField(true) + fileField('— maks 25 MB, format PDF/JPG/JPEG/PNG, wajib jika Hold Partial');
     openModal('Hold Settlement', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Ajukan Hold', style: 'background:#b45309;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () { submitHold(r, merch); } }
@@ -320,7 +327,9 @@ function submitHold(r, merch) {
         if (!picked.length) { showToast('Pilih MID', 'Pilih minimal satu transaksi untuk hold partial.'); return; }
         targets = picked;
     } else targets = merch.map(function (x) { return x.txId; });
-    var bukti = buktiName();
+    var bk = validateBukti(scope === 'partial' ? 'Upload bukti wajib untuk Hold Partial.' : null);
+    if (!bk) return;
+    var bukti = bk.name;
     targets.forEach(function (id) { var s = st(id); s.status = 'pending'; s.request = { type: 'hold', scope: scope, reason: reason, bukti: bukti, ts: todayProc() }; });
     saveItems(); closeModal(); render();
     showToast('Hold Diajukan', targets.length + ' transaksi menunggu approval Approver.');
@@ -328,13 +337,14 @@ function submitHold(r, merch) {
 }
 
 function openReject(r) {
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Reject settlement <b>' + esc(r.merchantName) + '</b>.</p>' + noteField(true) + fileField('bukti', false);
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Reject settlement <b>' + esc(r.merchantName) + '</b>.</p>' + noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Reject Settlement', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Ajukan Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var reason = document.getElementById('asReason').value.trim();
             if (!reason) { showToast('Catatan Wajib', 'Isi catatan reject.'); return; }
-            var s = st(r.txId); s.status = 'pending'; s.request = { type: 'reject', reason: reason, bukti: buktiName(), ts: todayProc() };
+            var bk = validateBukti(null); if (!bk) return;
+            var s = st(r.txId); s.status = 'pending'; s.request = { type: 'reject', reason: reason, bukti: bk.name, ts: todayProc() };
             saveItems(); closeModal(); render(); showToast('Reject Diajukan', 'Menunggu approval Approver.');
             writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Reject ' + r.merchantName);
         } }
@@ -342,12 +352,13 @@ function openReject(r) {
 }
 
 function openSettle(r) {
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Settle <b>' + esc(r.merchantName) + '</b> — ' + rupiah(totalOf(r)) + '.</p>' + channelField() + noteField(false) + fileField('bukti', false);
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Settle <b>' + esc(r.merchantName) + '</b> — ' + rupiah(totalOf(r)) + '.</p>' + channelField() + noteField(false) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Settle Transaksi', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Ajukan Settle', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var ch = document.getElementById('asChannel').value;
-            var s = st(r.txId); s.status = 'pending'; s.request = { type: 'settle', channel: ch, reason: document.getElementById('asReason').value.trim(), bukti: buktiName(), ts: todayProc() };
+            var bk = validateBukti(null); if (!bk) return;
+            var s = st(r.txId); s.status = 'pending'; s.request = { type: 'settle', channel: ch, reason: document.getElementById('asReason').value.trim(), bukti: bk.name, ts: todayProc() };
             saveItems(); closeModal(); render(); showToast('Settle Diajukan', 'Menunggu approval Approver.');
             writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Settle ' + r.merchantName + ' via ' + ch);
         } }
@@ -498,7 +509,6 @@ function runAction(act, r) {
     if (act === 'hold') openHold(r);
     else if (act === 'reject') openReject(r);
     else if (act === 'settle') openSettle(r);
-    else if (act === 'note') openNote(r);
     else if (act === 'view') openApproverView(r);
     else if (act === 'approve') approverDecide(r, true);
     else if (act === 'areject') approverDecide(r, false);
@@ -537,12 +547,15 @@ function syncFilterInputs() {
     document.getElementById('asFilterEnd').value = filters.end || '';
     document.getElementById('asFilterBig').checked = !!filters.big;
     document.querySelectorAll('.as-fbank').forEach(function (cb) { cb.checked = filters.banks.has(cb.value); });
+    document.getElementById('asFilterReq').value = filters.req || '';
+    document.getElementById('asFilterReqSection').style.display = (activeTab === 'pending') ? 'block' : 'none';
 }
 function applyFilterPanel() {
     filters.start = document.getElementById('asFilterStart').value;
     filters.end = document.getElementById('asFilterEnd').value;
     filters.big = document.getElementById('asFilterBig').checked;
     filters.banks = new Set(Array.from(document.querySelectorAll('.as-fbank:checked')).map(function (c) { return c.value; }));
+    filters.req = (activeTab === 'pending') ? document.getElementById('asFilterReq').value : '';
     page = 1; render();
     document.getElementById('asFilterPanel').style.display = 'none';
 }
