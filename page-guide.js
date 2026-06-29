@@ -37,28 +37,20 @@
             title: 'Panduan Halaman Auto Settlement',
             items: [
                 {
-                    h: 'Gate dari Auto Recon (wajib)',
-                    b: `Auto Settlement <b>hanya bisa berjalan jika Auto Recon untuk tanggal terpilih sudah selesai</b>. Jika belum, banner merah muncul dan seluruh aksi <b>disabled</b> — jalankan <b>Manual Recon</b> dulu di halaman <b>Settle &amp; Recon</b>. Setelah recon selesai, banner berubah hijau dan aksi aktif.`
+                    h: 'Alur Tab (Checker → Approver → hasil)',
+                    b: `Settlement dipisah per tahap lewat <b>tab</b>: <b>Checker</b> mengajukan aksi → <b>Approver</b> menyetujui/menolak → hasil masuk ke tab <b>Hold</b>, <b>Reject</b>, atau <b>Settle</b>. Tiap tab punya <b>pagination, filter (bank), search</b>, dan <b>Export Tab</b> sendiri.`
                 },
                 {
-                    h: 'Segregasi otomatis per Bank',
-                    b: `Batch settlement dipisah otomatis per bank: <b>BCA, Mandiri, BRI, dan Lainnya</b>. Bank di luar BCA/Mandiri/BRI dikenakan <b>biaya admin flat Rp6.500</b>. Kartu ringkasan per bank menampilkan jumlah transaksi, total nominal, total admin, dan settlement bersih.`
+                    h: 'Tab Checker',
+                    b: `Kolom lengkap per transaksi. Klik <b>ID Transaksi</b> untuk detail transaksi, klik <b>nama Merchant</b> untuk detail merchant. Aksi per baris: <b>Hold</b> (semua / partial pilih MID + catatan wajib + upload bukti opsional), <b>Reject</b> (catatan wajib + bukti opsional), <b>Settle</b> (pilih channel payment + catatan + bukti opsional), serta <b>Lihat/Edit Catatan</b>. <b>Bulk action</b> hanya <b>Bulk Settle</b> (pilih baris → pilih channel).`
                 },
                 {
-                    h: 'Adjustment Chargeback (+/−)',
-                    b: `Pilih satu baris lalu klik <b>Adjustment</b> untuk menambah chargeback (+) atau (−). <b>Total Settlement = Nominal Awal − Biaya Admin + Adj.(+) − Adj.(−)</b>. Adjustment ditandai <b>menunggu verifikasi Finance</b>.`
+                    h: 'Tab Approver',
+                    b: `Menampilkan request dari Checker (Hold/Reject/Settle). Approver bisa <b>Approve</b> atau <b>Reject</b> request, dan <b>Lihat</b> catatan + bukti. Approve memindahkan transaksi ke tab sesuai tipe; Reject mengembalikannya ke Checker.`
                 },
                 {
-                    h: 'Maker → Checker → Approver (no-skip)',
-                    b: `Alur persetujuan 3 lapis tanpa skip: <b>Submit (Maker)</b> → <b>Check (Checker)</b> → <b>Approve (Approver)</b>. Tombol Approve hanya aktif saat status <b>Checked</b>. Sebelum Approve wajib lolos <b>2FA/OTP</b> (simulasi device whitelist).`
-                },
-                {
-                    h: 'Master lookup No. Rekening',
-                    b: `Nomor rekening diverifikasi terhadap <b>master whitelist</b>. Baris dengan rekening di luar whitelist ditandai <b>merah</b> dan <b>tidak bisa di-Submit</b>.`
-                },
-                {
-                    h: 'Hold / Release, Disbursement & Cut-off',
-                    b: `Batch bisa di-<b>Hold</b> lalu <b>Release</b> kembali ke tahap sebelumnya. Setelah Approved, <b>Status Disbursement</b> berjalan Pending → Diproses → Selesai. Indikator <b>cut-off 14.00</b> menandakan jika lewat batas waktu → fallback manual. Tombol <b>Export Excel</b> menghasilkan file tersegregasi per bank.`
+                    h: 'Tab Hold / Reject / Settle',
+                    b: `Daftar hasil akhir. Semua punya pagination, filter, search, lihat catatan, view detail transaksi/merchant, dan export. Tab <b>Settle</b> punya aksi tambahan <b>Ganti Status → Reject</b> per baris dan <b>Reject by Bank</b> (pindahkan semua settle pada bank tertentu ke Reject).`
                 }
             ]
         },
