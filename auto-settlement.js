@@ -16,7 +16,7 @@ var PER_PAGE = 10;
 
 // Base columns shared by every tab (in order). Unit = settlement group (per norek).
 var BASE_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Admin',
-    'Adj. CB (+)', 'Adj. CB (−)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
+    'Adjustment Chargeback (+)', 'Adjustment Chargeback (−)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
 
 var STATUS_LABEL = { checker: 'Checker', pending: 'Approver', hold: 'Hold', reject: 'Reject', settle: 'Settle' };
 
@@ -283,10 +283,6 @@ function openModal(title, bodyHTML, footer, width) {
 function closeModal() { document.getElementById('asModal').classList.remove('show'); document.body.style.overflow = 'auto'; }
 
 // ── detail modal: ID Settlement ──
-function tipeBadge(t) {
-    var cls = t === 'Tambahan Matched' ? 'status-dikembalikan' : 'status-sukses';
-    return '<span class="status-badge ' + cls + '" style="font-size:0.66rem;">' + esc(t) + '</span>';
-}
 function showSettlementDetail(g) {
     var s = st(g.groupId);
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
@@ -294,15 +290,18 @@ function showSettlementDetail(g) {
         kv('Tanggal Proses', esc(g.procDisplay)) + kv('Bank', esc(g.bank)) +
         kv('Nomor Rekening', esc(g.norek)) + kv('Nama Pemilik Rekening', esc(g.namaRek)) +
         kv('Status', STATUS_LABEL[s.status] || s.status);
-    var listHead = '<tr><th>No</th><th>Tanggal</th><th>ID Transaksi</th><th>Merchant</th><th style="text-align:right;">Nominal Settle (Rp)</th><th style="text-align:right;">Adj. CB (+)</th><th style="text-align:right;">Adj. CB (−)</th><th>Bank</th><th>Tipe Settlement</th></tr>';
+    var colg = '<colgroup>' + ['4%', '11%', '16%', '15%', '11%', '11%', '11%', '7%', '14%'].map(function (w) { return '<col style="width:' + w + ';">'; }).join('') + '</colgroup>';
+    var tipeChip = function (t) { var cls = t === 'Tambahan Matched' ? 'status-dikembalikan' : 'status-sukses'; return '<span class="status-badge ' + cls + '" style="font-size:0.62rem;white-space:normal;display:inline-block;line-height:1.25;">' + esc(t) + '</span>'; };
+    var listHead = '<tr><th>No</th><th>Tanggal</th><th>ID Transaksi</th><th>Merchant</th><th style="text-align:right;">Nominal Settle (Rp)</th><th style="text-align:right;">Adjustment Chargeback (+)</th><th style="text-align:right;">Adjustment Chargeback (−)</th><th>Bank</th><th>Tipe Settlement</th></tr>';
+    var wb = ' style="word-break:break-word;overflow-wrap:anywhere;"';
     var listBody = g.txns.map(function (t, i) {
-        return '<tr><td>' + (i + 1) + '</td><td style="white-space:nowrap;">' + esc(t.tanggal) + '</td>' +
-            '<td style="font-family:monospace;font-size:0.72rem;white-space:nowrap;padding-right:14px;">' + esc(t.txId) + '</td>' +
-            '<td>' + esc(t.merchantName) + '<div style="font-size:0.7rem;color:var(--text-muted);">' + esc(t.mid) + '</div></td>' +
-            '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(t.nominalSettle) + '</td>' +
-            '<td style="text-align:right;color:#16a34a;">' + (t.adjPlus ? '+' + rupiah(t.adjPlus) : '-') + '</td>' +
-            '<td style="text-align:right;color:#dc2626;">' + (t.adjMinus ? '−' + rupiah(t.adjMinus) : '-') + '</td>' +
-            '<td>' + esc(t.bankCode) + '</td><td>' + tipeBadge(t.tipeSettlement) + '</td></tr>';
+        return '<tr><td' + wb + '>' + (i + 1) + '</td><td' + wb + '>' + esc(t.tanggal) + '</td>' +
+            '<td style="font-family:monospace;font-size:0.7rem;word-break:break-all;">' + esc(t.txId) + '</td>' +
+            '<td' + wb + '>' + esc(t.merchantName) + '<div style="font-size:0.7rem;color:var(--text-muted);">' + esc(t.mid) + '</div></td>' +
+            '<td style="text-align:right;font-variant-numeric:tabular-nums;word-break:break-word;">' + rupiah(t.nominalSettle) + '</td>' +
+            '<td style="text-align:right;color:#16a34a;word-break:break-word;">' + (t.adjPlus ? '+' + rupiah(t.adjPlus) : '-') + '</td>' +
+            '<td style="text-align:right;color:#dc2626;word-break:break-word;">' + (t.adjMinus ? '−' + rupiah(t.adjMinus) : '-') + '</td>' +
+            '<td' + wb + '>' + esc(t.bankCode) + '</td><td' + wb + '>' + tipeChip(t.tipeSettlement) + '</td></tr>';
     }).join('');
     var ringkas = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Ringkasan Settlement</div>' +
         kv('Nominal Awal', rupiah(g.nominalAwal)) + kv('Biaya Admin', g.admin ? '− ' + rupiah(g.admin) : rupiah(0)) +
@@ -311,7 +310,7 @@ function showSettlementDetail(g) {
         kv('Total Settle', '<b>' + rupiah(totalOf(g)) + '</b>');
     var body = fields + ringkas +
         '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:8px;">List Settlement <span style="font-weight:400;color:var(--text-muted);font-size:0.78rem;">(' + g.txns.length + ' transaksi)</span></div>' +
-        '<div style="overflow:auto;max-height:300px;"><table class="data-table" style="font-size:0.8rem;"><thead>' + listHead + '</thead><tbody>' + listBody + '</tbody></table></div>';
+        '<div style="overflow-y:auto;overflow-x:hidden;max-height:300px;"><table class="data-table" style="table-layout:fixed;width:100%;font-size:0.74rem;">' + colg + '<thead>' + listHead + '</thead><tbody>' + listBody + '</tbody></table></div>';
     openModal('Detail ID Settlement', body, [{ label: 'Tutup', onClick: closeModal }], '880px');
 }
 
@@ -462,7 +461,7 @@ function openRejectByBank() {
 }
 
 // ── export current tab ──
-var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adj CB (+)', 'Adj CB (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Status'];
+var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Status'];
 
 function exportRowData(rows) {
     return rows.map(function (g, i) {

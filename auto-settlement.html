@@ -66,6 +66,10 @@
         .as-partial-list { max-height: 180px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px; padding:8px; }
         .as-partial-list label { display:flex; align-items:center; gap:8px; padding:5px 0; font-weight:500; font-size:0.82rem; }
         .as-req-badge { font-size: 0.66rem; font-weight: 700; border-radius: 4px; padding: 2px 7px; }
+        /* Tabel muat tanpa scroll samping: konten panjang membungkus, bukan meluber. */
+        #asTable td, #asTable th { word-break: break-word; overflow-wrap: anywhere; }
+        #asExportTable td, #asExportTable th { word-break: break-word; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
+        #asTable { width: 100%; }
     </style>
 
 <script src="boot.js?v=20260624-v14"></script>
@@ -165,11 +169,7 @@
                 <span class="breadcrumb-current">Auto Settlement</span>
             </nav>
 
-            <h1 class="page-title">Auto Settlement
-                <span class="as-marker"><i class="fas fa-money-bill-transfer"></i> AUTO SETTLEMENT
-                    <span class="as-marker-sub">— bukan Auto Recon</span>
-                </span>
-            </h1>
+            <h1 class="page-title">Auto Settlement</h1>
 
             <div class="card">
                 <div style="padding: 24px;">
@@ -305,8 +305,8 @@
             </div>
             <div class="modal-body" style="padding:0;">
                 <div id="asExportSub" style="padding:12px 18px; font-size:0.82rem; color:var(--text-secondary);"></div>
-                <div style="overflow:auto; max-height:440px;">
-                    <table class="data-table" id="asExportTable" style="white-space:nowrap;">
+                <div style="overflow-y:auto; overflow-x:hidden; max-height:440px;">
+                    <table class="data-table" id="asExportTable" style="table-layout:fixed; width:100%; font-size:0.74rem;">
                         <thead id="asExportHead"></thead>
                         <tbody id="asExportBody"></tbody>
                     </table>
@@ -326,7 +326,7 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260629-v7"></script>
+    <script src="auto-settlement.js?v=20260629-v8"></script>
     <script src="page-guide.js?v=20260629-v4"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
