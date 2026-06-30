@@ -66,16 +66,19 @@ function loadPool() {
             nominalSettle: Number(r.nominalSettle) || 0, tipeSettlement: r.tipeSettlement || 'Reguler Matched',
             adjPlus: 0, adjMinus: 0 };
     });
-    // Demo: 3 merchant berbeda dgn NOREK sama → tergroup jadi 1 entry; ada adj chargeback +/-.
-    src.push({ txId: 'TX-ACQ-30001', tanggal: '24-06-2026 09:40:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 220000, tipeSettlement: 'Reguler Matched', adjPlus: 25000, adjMinus: 0 });
-    src.push({ txId: 'TX-ACQ-30002', tanggal: '24-06-2026 09:41:00', merchantName: 'Janji Jiwa', mid: 'MID-77002', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 185000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 15000 });
-    src.push({ txId: 'TX-ACQ-30003', tanggal: '24-06-2026 09:42:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 97500, tipeSettlement: 'Tambahan Matched', adjPlus: 10000, adjMinus: 5000 });
+    // Demo: 3 merchant berbeda dgn NOREK sama → tergroup jadi 1 entry.
+    // Settlement Matched HANYA punya nominal settle (tanpa adj chargeback).
+    src.push({ txId: 'TX-ACQ-30001', tanggal: '24-06-2026 09:40:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 220000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
+    src.push({ txId: 'TX-ACQ-30002', tanggal: '24-06-2026 09:41:00', merchantName: 'Janji Jiwa', mid: 'MID-77002', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 185000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
+    src.push({ txId: 'TX-ACQ-30003', tanggal: '24-06-2026 09:42:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 97500, tipeSettlement: 'Tambahan Matched', adjPlus: 0, adjMinus: 0 });
     // Demo: entry dengan total settle > Rp250 juta (uji filter Nominal > 250jt).
     src.push({ txId: 'TX-ACQ-30010', tanggal: '24-06-2026 10:00:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 280000000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
-    src.push({ txId: 'TX-ACQ-30011', tanggal: '24-06-2026 10:05:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 12500000, tipeSettlement: 'Tambahan Matched', adjPlus: 1500000, adjMinus: 750000 });
-    // Demo chargeback/dispute: transaksi dispute dipisah dari yang normal (tipe Dispute).
-    src.push({ txId: 'TX-ACQ-30004', tanggal: '24-06-2026 09:45:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 30000, tipeSettlement: 'Reguler Dispute', adjPlus: 0, adjMinus: 30000 });
-    src.push({ txId: 'TX-ACQ-30005', tanggal: '24-06-2026 09:46:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 18000, tipeSettlement: 'Tambahan Dispute', adjPlus: 18000, adjMinus: 0 });
+    src.push({ txId: 'TX-ACQ-30011', tanggal: '24-06-2026 10:05:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 12500000, tipeSettlement: 'Tambahan Matched', adjPlus: 0, adjMinus: 0 });
+    // Demo chargeback/dispute: settlement Dispute terpisah dari Matched; valuenya di adj chargeback (nominal settle 0).
+    src.push({ txId: 'TX-ACQ-30004', tanggal: '24-06-2026 09:45:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 0, tipeSettlement: 'Reguler Dispute', adjPlus: 0, adjMinus: 30000 });
+    src.push({ txId: 'TX-ACQ-30005', tanggal: '24-06-2026 09:46:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 0, tipeSettlement: 'Tambahan Dispute', adjPlus: 18000, adjMinus: 0 });
+    // Dispute pada group Firman (norek 3847075823) agar contoh dispute tersebar.
+    src.push({ txId: 'TX-ACQ-30006', tanggal: '24-06-2026 09:50:00', merchantName: 'Firman Zain', mid: '240327001000000', bankCode: 'BCA', bankAccount: '3847075823', bankAccountName: 'Putri Padmasari', nominalSettle: 0, tipeSettlement: 'Reguler Dispute', adjPlus: 0, adjMinus: 12000 });
     // Demo: bank tujuan non-core (OCBC = Lainnya) dgn total settle < Rp10.000 → auto-hold.
     src.push({ txId: 'TX-ACQ-30020', tanggal: '24-06-2026 10:10:00', merchantName: 'Kios Pulsa Andi', mid: 'MID-99001', bankCode: 'OCBC', bankAccount: '6600055554444', bankAccountName: 'Andi Saputra', nominalSettle: 8500, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
     pool = src.map(function (r, i) {
@@ -265,10 +268,10 @@ function renderTable() {
 
 function actionMenuItems() {
     if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
-    // Hold/Reject/Settle: data masih bisa dipindahkan antar status.
-    if (activeTab === 'hold') return [['move:reject', 'Pindahkan → Reject'], ['move:settle', 'Pindahkan → Settle']];
-    if (activeTab === 'reject') return [['move:hold', 'Pindahkan → Hold'], ['move:settle', 'Pindahkan → Settle']];
-    if (activeTab === 'settle') return [['move:hold', 'Pindahkan → Hold'], ['move:reject', 'Pindahkan → Reject']];
+    // Hold/Reject/Settle: pindah status harus lewat approval (mengajukan request → tab Approver).
+    if (activeTab === 'hold') return [['reject', 'Pindahkan → Reject'], ['settle', 'Pindahkan → Settle']];
+    if (activeTab === 'reject') return [['hold', 'Pindahkan → Hold'], ['settle', 'Pindahkan → Settle']];
+    if (activeTab === 'settle') return [['hold', 'Pindahkan → Hold'], ['reject', 'Pindahkan → Reject']];
     return [];
 }
 function actionButtons(g) {
@@ -366,7 +369,7 @@ function detailBodyHTML(g) {
         return '<tr><td' + wb + '>' + (i + 1) + '</td>' +
             '<td' + wb + '>' + esc(m.merchant) + '<div style="font-size:0.7rem;color:var(--text-muted);">' + esc(m.mid) + '</div></td>' +
             '<td style="text-align:center;">' + m.count + '</td>' +
-            '<td style="text-align:right;font-variant-numeric:tabular-nums;word-break:break-word;">' + num(m.total) + '</td>' +
+            '<td style="text-align:right;font-variant-numeric:tabular-nums;word-break:break-word;">' + (m.total ? num(m.total) : '-') + '</td>' +
             '<td style="text-align:right;color:#16a34a;word-break:break-word;">' + (m.adjPlus ? '+' + num(m.adjPlus) : '-') + '</td>' +
             '<td style="text-align:right;color:#dc2626;word-break:break-word;">' + (m.adjMinus ? '−' + num(m.adjMinus) : '-') + '</td>' +
             '<td' + wb + '>' + bankFull + '</td><td' + wb + '>' + tipeChip(m.tipe) + '</td></tr>';
@@ -533,8 +536,9 @@ function approverDecide(g, approve) {
         showToast('Request Disetujui', g.groupId + ' → ' + (rq.type || '').toUpperCase() + '.');
         writeLog('auto-settlement', 'email : dion@paydia.id\naction : Approve ' + (rq.type || '') + ' ' + g.groupId);
     } else {
-        s.status = 'checker'; s.request = null;
-        showToast('Request Ditolak', g.groupId + ' dikembalikan ke Checker.');
+        var back = rq.prevStatus || 'checker';
+        s.status = back; s.request = null;
+        showToast('Request Ditolak', g.groupId + ' dikembalikan ke ' + (STATUS_LABEL[back] || back) + '.');
         writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject request ' + g.groupId);
     }
     saveItems(); render();
@@ -543,31 +547,30 @@ function approverDecide(g, approve) {
 // ── settle tab: reject by bank ──
 function openRejectByBank() {
     var banks = ['BCA', 'Mandiri', 'BRI', 'Lainnya'];
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Pindahkan seluruh entry <b>Settle</b> pada bank terpilih ke status <b>Reject</b>.</p>' +
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Ajukan reject seluruh entry <b>Settle</b> pada bank terpilih (perlu approval Approver).</p>' +
         '<div class="as-fld"><label>Bank</label><select id="asRbbBank">' + banks.map(function (b) {
             var n = groups.filter(function (g) { return st(g.groupId).status === 'settle' && bankGroup(g.bank) === b; }).length;
             return '<option value="' + b + '">' + b + ' (' + n + ' entry)</option>';
         }).join('') + '</select></div>';
     openModal('Reject by Bank', body, [
         { label: 'Batal', onClick: closeModal },
-        { label: 'Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+        { label: 'Ajukan Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var b = document.getElementById('asRbbBank').value;
             var targets = groups.filter(function (g) { return st(g.groupId).status === 'settle' && bankGroup(g.bank) === b; });
             if (!targets.length) { showToast('Kosong', 'Tidak ada entry settle untuk bank ' + b + '.'); return; }
-            targets.forEach(function (g) { st(g.groupId).status = 'reject'; });
-            saveItems(); closeModal(); render(); showToast('Status Diubah', targets.length + ' entry ' + b + ' → Reject.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject by Bank ' + b + ' (' + targets.length + ' entry)');
+            targets.forEach(function (g) { var s = st(g.groupId); var prev = s.status; s.status = 'pending'; s.request = { type: 'reject', prevStatus: prev, reason: 'Reject by Bank ' + b, bukti: '', ts: todayProc() }; });
+            saveItems(); closeModal(); render(); showToast('Reject Diajukan', targets.length + ' entry ' + b + ' menunggu approval.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Reject by Bank ' + b + ' (' + targets.length + ' entry)');
         } }
     ]);
 }
 
 // ── export current tab ──
-var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Status'];
+var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
 
 function exportRowData(rows) {
     return rows.map(function (g, i) {
-        var s = st(g.groupId);
-        return [i + 1, g.procDisplay, g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek, STATUS_LABEL[s.status]];
+        return [i + 1, g.procDisplay, g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek];
     });
 }
 function downloadCsv(data) {
@@ -633,12 +636,6 @@ function runAction(act, g) {
     if (act === 'hold') openHold(g);
     else if (act === 'reject') openReject(g);
     else if (act === 'settle') openSettle(g);
-    else if (act.indexOf('move:') === 0) {
-        var to = act.split(':')[1];
-        st(g.groupId).status = to; saveItems(); render();
-        showToast('Status Dipindahkan', g.groupId + ' → ' + (STATUS_LABEL[to] || to) + '.');
-        writeLog('auto-settlement', 'email : dion@paydia.id\naction : Pindahkan status ke ' + (STATUS_LABEL[to] || to) + ' ' + g.groupId);
-    }
 }
 
 function closeKebab() { var m = document.getElementById('asKebabMenu'); m.classList.remove('show'); m.style.display = 'none'; m.innerHTML = ''; }
