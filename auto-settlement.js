@@ -73,6 +73,9 @@ function loadPool() {
     // Demo: entry dengan total settle > Rp250 juta (uji filter Nominal > 250jt).
     src.push({ txId: 'TX-ACQ-30010', tanggal: '24-06-2026 10:00:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 280000000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
     src.push({ txId: 'TX-ACQ-30011', tanggal: '24-06-2026 10:05:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 12500000, tipeSettlement: 'Tambahan Matched', adjPlus: 1500000, adjMinus: 750000 });
+    // Demo chargeback/dispute: transaksi dispute dipisah dari yang normal (tipe Dispute).
+    src.push({ txId: 'TX-ACQ-30004', tanggal: '24-06-2026 09:45:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 30000, tipeSettlement: 'Reguler Dispute', adjPlus: 0, adjMinus: 30000 });
+    src.push({ txId: 'TX-ACQ-30005', tanggal: '24-06-2026 09:46:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 18000, tipeSettlement: 'Tambahan Dispute', adjPlus: 18000, adjMinus: 0 });
     // Demo: bank tujuan non-core (OCBC = Lainnya) dgn total settle < Rp10.000 → auto-hold.
     src.push({ txId: 'TX-ACQ-30020', tanggal: '24-06-2026 10:10:00', merchantName: 'Kios Pulsa Andi', mid: 'MID-99001', bankCode: 'OCBC', bankAccount: '6600055554444', bankAccountName: 'Andi Saputra', nominalSettle: 8500, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
     pool = src.map(function (r, i) {
@@ -119,6 +122,18 @@ function midSummary(g) {
     g.txns.forEach(function (t) {
         if (!map[t.mid]) map[t.mid] = { mid: t.mid, merchant: t.merchantName, count: 0, total: 0, adjPlus: 0, adjMinus: 0, bankCode: t.bankCode, tipe: t.tipeSettlement };
         var m = map[t.mid];
+        m.count++; m.total += t.nominalSettle; m.adjPlus += (t.adjPlus || 0); m.adjMinus += (t.adjMinus || 0);
+    });
+    return Object.keys(map).map(function (k) { return map[k]; });
+}
+
+// Ringkas per MID + Tipe Settlement — transaksi dispute/chargeback dipisah dari yang normal.
+function midTipeSummary(g) {
+    var map = {};
+    g.txns.forEach(function (t) {
+        var key = t.mid + '||' + t.tipeSettlement;
+        if (!map[key]) map[key] = { mid: t.mid, merchant: t.merchantName, tipe: t.tipeSettlement, count: 0, total: 0, adjPlus: 0, adjMinus: 0 };
+        var m = map[key];
         m.count++; m.total += t.nominalSettle; m.adjPlus += (t.adjPlus || 0); m.adjMinus += (t.adjMinus || 0);
     });
     return Object.keys(map).map(function (k) { return map[k]; });
@@ -250,7 +265,10 @@ function renderTable() {
 
 function actionMenuItems() {
     if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
-    if (activeTab === 'settle') return [['toreject', 'Ganti Status → Reject']];
+    // Hold/Reject/Settle: data masih bisa dipindahkan antar status.
+    if (activeTab === 'hold') return [['move:reject', 'Pindahkan → Reject'], ['move:settle', 'Pindahkan → Settle']];
+    if (activeTab === 'reject') return [['move:hold', 'Pindahkan → Hold'], ['move:settle', 'Pindahkan → Settle']];
+    if (activeTab === 'settle') return [['move:hold', 'Pindahkan → Hold'], ['move:reject', 'Pindahkan → Reject']];
     return [];
 }
 function actionButtons(g) {
@@ -317,16 +335,24 @@ function openModal(title, bodyHTML, footer, width) {
 }
 function closeModal() { document.getElementById('asModal').classList.remove('show'); document.body.style.overflow = 'auto'; }
 
+// Bukti viewer popup (layer di atas modal). Mock: tampilkan sample-bukti.png.
+function openBukti(name) {
+    document.getElementById('asBuktiName').textContent = name || '';
+    document.getElementById('asBuktiOverlay').classList.add('show');
+}
+function closeBukti() { document.getElementById('asBuktiOverlay').classList.remove('show'); }
+
 // ── detail modal: ID Settlement ──
-function showSettlementDetail(g) {
-    var s = st(g.groupId);
+function tipeChip(t) {
+    var cls = t.indexOf('Dispute') >= 0 ? (t.indexOf('Tambahan') >= 0 ? 'status-notes' : 'status-proses') : (t.indexOf('Tambahan') >= 0 ? 'status-dikembalikan' : 'status-sukses');
+    return '<span class="status-badge ' + cls + '" style="font-size:0.62rem;white-space:normal;display:inline-block;line-height:1.25;">' + esc(t) + '</span>';
+}
+function detailBodyHTML(g) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
     var fields = kv('ID Settlement', '<span style="font-family:monospace;">' + esc(g.groupId) + '</span>') +
         kv('Tanggal Proses', esc(g.procDisplay)) + kv('Bank', esc(g.bank)) +
-        kv('Nomor Rekening', esc(g.norek)) + kv('Nama Pemilik Rekening', esc(g.namaRek)) +
-        kv('Status', STATUS_LABEL[s.status] || s.status);
+        kv('Nomor Rekening', esc(g.norek)) + kv('Nama Pemilik Rekening', esc(g.namaRek));
     var colg = '<colgroup>' + ['5%', '20%', '10%', '13%', '13%', '13%', '16%', '10%'].map(function (w) { return '<col style="width:' + w + ';">'; }).join('') + '</colgroup>';
-    var tipeChip = function (t) { var cls = t === 'Tambahan Matched' ? 'status-dikembalikan' : 'status-sukses'; return '<span class="status-badge ' + cls + '" style="font-size:0.62rem;white-space:normal;display:inline-block;line-height:1.25;">' + esc(t) + '</span>'; };
     var thS = 'padding:8px 6px;word-break:keep-all;white-space:normal;';
     var thR = thS + 'text-align:right;';
     var thC = thS + 'text-align:center;';
@@ -335,7 +361,8 @@ function showSettlementDetail(g) {
         '<th style="' + thS + '">Bank</th><th style="' + thS + '">Tipe Settlement</th></tr>';
     var wb = ' style="word-break:break-word;overflow-wrap:anywhere;"';
     var bankFull = esc(g.bank) + ' - ' + esc(g.norek) + ' - ' + esc(g.namaRek);
-    var listBody = midSummary(g).map(function (m, i) {
+    var lines = midTipeSummary(g);
+    var listBody = lines.map(function (m, i) {
         return '<tr><td' + wb + '>' + (i + 1) + '</td>' +
             '<td' + wb + '>' + esc(m.merchant) + '<div style="font-size:0.7rem;color:var(--text-muted);">' + esc(m.mid) + '</div></td>' +
             '<td style="text-align:center;">' + m.count + '</td>' +
@@ -349,10 +376,12 @@ function showSettlementDetail(g) {
         kv('Adjustment Chargeback (+)', g.adjPlus ? '<span style="color:#16a34a;">+ ' + rupiah(g.adjPlus) + '</span>' : '-') +
         kv('Adjustment Chargeback (−)', g.adjMinus ? '<span style="color:#dc2626;">− ' + rupiah(g.adjMinus) + '</span>' : '-') +
         kv('Total Settle', '<b>' + rupiah(totalOf(g)) + '</b>');
-    var body = fields + ringkas +
-        '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:8px;">List Settlement <span style="font-weight:400;color:var(--text-muted);font-size:0.78rem;">(' + midSummary(g).length + ' MID · ' + g.txns.length + ' transaksi)</span></div>' +
+    return fields + ringkas +
+        '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:8px;">List Settlement <span style="font-weight:400;color:var(--text-muted);font-size:0.78rem;">(' + lines.length + ' entry · ' + g.txns.length + ' transaksi)</span></div>' +
         '<div style="overflow-y:auto;overflow-x:hidden;max-height:300px;"><table class="data-table" style="table-layout:fixed;width:100%;font-size:0.74rem;">' + colg + '<thead>' + listHead + '</thead><tbody>' + listBody + '</tbody></table></div>';
-    openModal('Detail ID Settlement', body, [{ label: 'Tutup', onClick: closeModal }], '880px');
+}
+function showSettlementDetail(g) {
+    openModal('Detail ID Settlement', detailBodyHTML(g), [{ label: 'Tutup', onClick: closeModal }], '880px');
 }
 
 // ── action modal helpers ──
@@ -415,8 +444,8 @@ function submitHold(g) {
     }
     var bk = validateBukti(scope === 'partial' ? 'Upload bukti wajib untuk Hold Partial.' : null);
     if (!bk) return;
-    var s = st(g.groupId); s.status = 'pending';
-    s.request = { type: 'hold', scope: scope, partialMids: picked, reason: reason, bukti: bk.name, ts: todayProc() };
+    var s = st(g.groupId); var prev = s.status; s.status = 'pending';
+    s.request = { type: 'hold', scope: scope, partialMids: picked, prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
     saveItems(); closeModal(); render();
     showToast('Hold Diajukan', g.groupId + ' menunggu approval Approver.');
     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Hold (' + scope + ') ' + g.groupId);
@@ -430,7 +459,7 @@ function openReject(g) {
             var reason = document.getElementById('asReason').value.trim();
             if (!reason) { showToast('Catatan Wajib', 'Isi catatan reject.'); return; }
             var bk = validateBukti(null); if (!bk) return;
-            var s = st(g.groupId); s.status = 'pending'; s.request = { type: 'reject', reason: reason, bukti: bk.name, ts: todayProc() };
+            var s = st(g.groupId); var prev = s.status; s.status = 'pending'; s.request = { type: 'reject', prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
             saveItems(); closeModal(); render(); showToast('Reject Diajukan', 'Menunggu approval Approver.');
             writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Reject ' + g.groupId);
         } }
@@ -444,7 +473,7 @@ function openSettle(g) {
         { label: 'Ajukan Settle', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var tf = validateTransfer(); if (!tf) return;
             var bk = validateBukti(null); if (!bk) return;
-            var s = st(g.groupId); s.status = 'pending'; s.request = { type: 'settle', channel: tf.channel, metode: tf.metode, reason: document.getElementById('asReason').value.trim(), bukti: bk.name, ts: todayProc() };
+            var s = st(g.groupId); var prev = s.status; s.status = 'pending'; s.request = { type: 'settle', channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: document.getElementById('asReason').value.trim(), bukti: bk.name, ts: todayProc() };
             saveItems(); closeModal(); render(); showToast('Settle Diajukan', 'Menunggu approval Approver.');
             writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Settle ' + g.groupId + ' via ' + tf.channel + ' / ' + tf.metode);
         } }
@@ -459,7 +488,7 @@ function openBulkSettle() {
         { label: 'Ajukan Settle', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var tf = validateTransfer(); if (!tf) return;
             var ids = Array.from(selected);
-            ids.forEach(function (id) { var s = st(id); s.status = 'pending'; s.request = { type: 'settle', channel: tf.channel, metode: tf.metode, reason: '', bukti: '', ts: todayProc() }; });
+            ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'settle', channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: '', bukti: '', ts: todayProc() }; });
             selected.clear(); saveItems(); closeModal(); render(); showToast('Bulk Settle Diajukan', ids.length + ' entry menunggu approval.');
             writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Settle ' + ids.length + ' entry via ' + tf.channel + ' / ' + tf.metode);
         } }
@@ -471,17 +500,22 @@ function openApproverModal(g) {
     var s = st(g.groupId); var rq = s.request || {};
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
     var reqLabel = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');
-    var body = kv('ID Settlement', esc(g.groupId)) + kv('Nama Pemilik Rekening', esc(g.namaRek)) +
+    var buktiVal = rq.bukti
+        ? esc(rq.bukti) + ' <button type="button" id="asBuktiBtn" class="btn" style="margin-left:8px;padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;">Lihat</button>'
+        : '<span style="color:var(--text-muted);">tidak ada</span>';
+    var reqSection = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Detail Request</div>' +
         kv('Tipe Request', esc(reqLabel)) +
         (rq.type === 'hold' && rq.scope === 'partial' && rq.partialMids ? kv('MID Dihold', esc(rq.partialMids.join(', '))) : '') +
-        (rq.channel ? kv('Channel Payment', esc(rq.channel)) : '') +
-        (rq.metode ? kv('Metode Transfer', esc(rq.metode)) : '') +
-        kv('Catatan', esc(rq.reason || '-')) + kv('Bukti', rq.bukti ? esc(rq.bukti) : '<span style="color:var(--text-muted);">tidak ada</span>') + kv('Diajukan', esc(rq.ts || '-'));
-    openModal('Detail Request', body, [
+        kv('Status Sebelumnya', esc(STATUS_LABEL[rq.prevStatus] || 'Checker')) +
+        kv('Channel Payment', esc(rq.channel || '-')) + kv('Metode Transfer', esc(rq.metode || '-')) +
+        kv('Catatan', esc(rq.reason || '-')) + kv('Bukti', buktiVal) + kv('Waktu Diajukan', esc(rq.ts || '-'));
+    openModal('Detail Request', detailBodyHTML(g) + reqSection, [
         { label: 'Cancel', onClick: closeModal },
         { label: 'Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () { confirmApprover(g, false); } },
         { label: 'Approve', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () { confirmApprover(g, true); } }
-    ]);
+    ], '880px');
+    var bb = document.getElementById('asBuktiBtn');
+    if (bb) bb.addEventListener('click', function () { openBukti(rq.bukti); });
 }
 function confirmApprover(g, approve) {
     var verb = approve ? 'menyetujui' : 'menolak';
@@ -599,7 +633,12 @@ function runAction(act, g) {
     if (act === 'hold') openHold(g);
     else if (act === 'reject') openReject(g);
     else if (act === 'settle') openSettle(g);
-    else if (act === 'toreject') { st(g.groupId).status = 'reject'; saveItems(); render(); showToast('Status Diubah', g.groupId + ' → Reject.'); writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ganti status ke Reject ' + g.groupId); }
+    else if (act.indexOf('move:') === 0) {
+        var to = act.split(':')[1];
+        st(g.groupId).status = to; saveItems(); render();
+        showToast('Status Dipindahkan', g.groupId + ' → ' + (STATUS_LABEL[to] || to) + '.');
+        writeLog('auto-settlement', 'email : dion@paydia.id\naction : Pindahkan status ke ' + (STATUS_LABEL[to] || to) + ' ' + g.groupId);
+    }
 }
 
 function closeKebab() { var m = document.getElementById('asKebabMenu'); m.classList.remove('show'); m.style.display = 'none'; m.innerHTML = ''; }
@@ -667,6 +706,8 @@ function bind() {
     document.getElementById('asTableBody').addEventListener('click', onTableClick);
     document.getElementById('asModalClose').addEventListener('click', closeModal);
     document.getElementById('asModal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+    document.getElementById('asBuktiClose').addEventListener('click', closeBukti);
+    document.getElementById('asBuktiOverlay').addEventListener('click', function (e) { if (e.target === this) closeBukti(); });
     document.getElementById('asExportClose').addEventListener('click', function () { document.getElementById('asExportModal').classList.remove('show'); document.body.style.overflow = 'auto'; });
     document.getElementById('asExportModal').addEventListener('click', function (e) { if (e.target === this) { this.classList.remove('show'); document.body.style.overflow = 'auto'; } });
 
