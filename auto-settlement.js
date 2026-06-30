@@ -33,6 +33,9 @@ var bulkMode = false;
 
 // ── helpers ──
 var rupiah = function (n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID', { minimumFractionDigits: 2 }); };
+var num = function (n) { return (Number(n) || 0).toLocaleString('id-ID', { minimumFractionDigits: 2 }); }; // tanpa "Rp" untuk sel tabel
+var AUTO_HOLD_MIN = 10000;
+var SCOPE_LABEL = { all: 'Hold Semua', partial: 'Hold Partial', min: 'Hold Dibawah Min. Transaksi' };
 var esc = function (v) { v = String(v == null ? '' : v); return v.replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
 var isOther = function (b) { return CORE_BANKS.indexOf(String(b).toUpperCase()) === -1; };
 var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpperCase().replace('MANDIRI', 'Mandiri'); };
@@ -67,6 +70,8 @@ function loadPool() {
     // Demo: entry dengan total settle > Rp250 juta (uji filter Nominal > 250jt).
     src.push({ txId: 'TX-ACQ-30010', tanggal: '24-06-2026 10:00:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 280000000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
     src.push({ txId: 'TX-ACQ-30011', tanggal: '24-06-2026 10:05:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 12500000, tipeSettlement: 'Tambahan Matched', adjPlus: 1500000, adjMinus: 750000 });
+    // Demo: bank tujuan non-core (OCBC = Lainnya) dgn total settle < Rp10.000 → auto-hold.
+    src.push({ txId: 'TX-ACQ-30020', tanggal: '24-06-2026 10:10:00', merchantName: 'Kios Pulsa Andi', mid: 'MID-99001', bankCode: 'OCBC', bankAccount: '6600055554444', bankAccountName: 'Andi Saputra', nominalSettle: 8500, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
     pool = src.map(function (r, i) {
         r.procISO = iso;
         r.procDisplay = disp + ' ' + pad(8 + Math.floor(i / 6)) + ':' + pad((i * 7) % 60) + ':00';
@@ -91,7 +96,14 @@ function buildGroups() {
         map[key].adjMinus += (t.adjMinus || 0);
     });
     groups = Object.keys(map).map(function (k) { return map[k]; });
-    groups.forEach(function (g) { st(g.groupId); });
+    groups.forEach(function (g) {
+        var s = st(g.groupId);
+        // Auto-hold: total settle < Rp10.000 untuk bank tujuan bukan BCA/Mandiri/BRI.
+        if (s.status === 'checker' && !s.request && isOther(g.bank) && totalOf(g) < AUTO_HOLD_MIN) {
+            s.status = 'hold';
+            s.request = { type: 'hold', scope: 'min', reason: 'Auto hold: total settle < Rp10.000 (bank tujuan non-BCA/Mandiri/BRI)', bukti: '', ts: todayProc(), auto: true };
+        }
+    });
     saveItems();
 }
 
@@ -146,7 +158,7 @@ function renderTabsActive() {
 }
 function uiTab() { return activeTab === 'pending' ? 'approver' : activeTab; }
 
-function columnsFor(tab) { var cols = BASE_COLS.slice(); if (tab === 'pending') cols.push('Request'); return cols; }
+function columnsFor(tab) { var cols = BASE_COLS.slice(); if (tab === 'pending') cols.push('Request'); if (tab === 'hold') cols.push('Alasan'); return cols; }
 
 function renderTable() {
     var thead = document.getElementById('asThead');
@@ -181,11 +193,11 @@ function renderTable() {
         c += '<td>' + no + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.procDisplay) + '</td>';
         c += '<td style="min-width:150px;"><a class="as-link" data-detail="settle" data-id="' + g.groupId + '" style="font-family:monospace;font-size:0.78rem;white-space:normal;word-break:break-all;">' + esc(g.groupId) + '</a><div style="font-size:0.7rem;color:var(--text-muted);">' + g.txns.length + ' transaksi</div></td>';
-        c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(g.nominalAwal) + '</td>';
-        c += '<td style="text-align:right;">' + (g.admin ? rupiah(g.admin) : '-') + '</td>';
-        c += '<td style="text-align:right;color:#16a34a;">' + (g.adjPlus ? '+' + rupiah(g.adjPlus) : '-') + '</td>';
-        c += '<td style="text-align:right;color:#dc2626;">' + (g.adjMinus ? '−' + rupiah(g.adjMinus) : '-') + '</td>';
-        c += '<td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">' + rupiah(totalOf(g)) + '</td>';
+        c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(g.nominalAwal) + '</td>';
+        c += '<td style="text-align:right;">' + (g.admin ? num(g.admin) : '-') + '</td>';
+        c += '<td style="text-align:right;color:#16a34a;">' + (g.adjPlus ? '+' + num(g.adjPlus) : '-') + '</td>';
+        c += '<td style="text-align:right;color:#dc2626;">' + (g.adjMinus ? '−' + num(g.adjMinus) : '-') + '</td>';
+        c += '<td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">' + num(totalOf(g)) + '</td>';
         c += '<td>' + esc(g.bank) + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>';
         c += '<td>' + esc(g.namaRek) + '</td>';
@@ -193,6 +205,10 @@ function renderTable() {
             var rq = s.request || {};
             var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : '#b45309');
             c += '<td><span class="as-req-badge" style="background:' + col + '22;color:' + col + ';">' + (rq.type ? rq.type.toUpperCase() : '-') + '</span></td>';
+        }
+        if (activeTab === 'hold') {
+            var hr = s.request || {};
+            c += '<td>' + esc(SCOPE_LABEL[hr.scope] || '-') + '</td>';
         }
         c += '<td style="text-align:center;white-space:nowrap;">' + actionButtons(g) + '</td>';
         c += '</tr>';
@@ -290,23 +306,27 @@ function showSettlementDetail(g) {
         kv('Tanggal Proses', esc(g.procDisplay)) + kv('Bank', esc(g.bank)) +
         kv('Nomor Rekening', esc(g.norek)) + kv('Nama Pemilik Rekening', esc(g.namaRek)) +
         kv('Status', STATUS_LABEL[s.status] || s.status);
-    var colg = '<colgroup>' + ['4%', '11%', '16%', '15%', '11%', '11%', '11%', '7%', '14%'].map(function (w) { return '<col style="width:' + w + ';">'; }).join('') + '</colgroup>';
+    var colg = '<colgroup>' + ['5%', '10%', '14%', '13%', '10%', '13%', '13%', '7%', '15%'].map(function (w) { return '<col style="width:' + w + ';">'; }).join('') + '</colgroup>';
     var tipeChip = function (t) { var cls = t === 'Tambahan Matched' ? 'status-dikembalikan' : 'status-sukses'; return '<span class="status-badge ' + cls + '" style="font-size:0.62rem;white-space:normal;display:inline-block;line-height:1.25;">' + esc(t) + '</span>'; };
-    var listHead = '<tr><th>No</th><th>Tanggal</th><th>ID Transaksi</th><th>Merchant</th><th style="text-align:right;">Nominal Settle (Rp)</th><th style="text-align:right;">Adjustment Chargeback (+)</th><th style="text-align:right;">Adjustment Chargeback (−)</th><th>Bank</th><th>Tipe Settlement</th></tr>';
+    var thS = 'padding:8px 6px;word-break:keep-all;white-space:normal;';
+    var thR = thS + 'text-align:right;';
+    var listHead = '<tr><th style="' + thS + '">No</th><th style="' + thS + '">Tanggal</th><th style="' + thS + '">ID Transaksi</th><th style="' + thS + '">Merchant</th>' +
+        '<th style="' + thR + '">Nominal Settle (Rp)</th><th style="' + thR + '">Adjustment Chargeback (+)</th><th style="' + thR + '">Adjustment Chargeback (−)</th>' +
+        '<th style="' + thS + '">Bank</th><th style="' + thS + '">Tipe Settlement</th></tr>';
     var wb = ' style="word-break:break-word;overflow-wrap:anywhere;"';
     var listBody = g.txns.map(function (t, i) {
         return '<tr><td' + wb + '>' + (i + 1) + '</td><td' + wb + '>' + esc(t.tanggal) + '</td>' +
             '<td style="font-family:monospace;font-size:0.7rem;word-break:break-all;">' + esc(t.txId) + '</td>' +
             '<td' + wb + '>' + esc(t.merchantName) + '<div style="font-size:0.7rem;color:var(--text-muted);">' + esc(t.mid) + '</div></td>' +
-            '<td style="text-align:right;font-variant-numeric:tabular-nums;word-break:break-word;">' + rupiah(t.nominalSettle) + '</td>' +
-            '<td style="text-align:right;color:#16a34a;word-break:break-word;">' + (t.adjPlus ? '+' + rupiah(t.adjPlus) : '-') + '</td>' +
-            '<td style="text-align:right;color:#dc2626;word-break:break-word;">' + (t.adjMinus ? '−' + rupiah(t.adjMinus) : '-') + '</td>' +
+            '<td style="text-align:right;font-variant-numeric:tabular-nums;word-break:break-word;">' + num(t.nominalSettle) + '</td>' +
+            '<td style="text-align:right;color:#16a34a;word-break:break-word;">' + (t.adjPlus ? '+' + num(t.adjPlus) : '-') + '</td>' +
+            '<td style="text-align:right;color:#dc2626;word-break:break-word;">' + (t.adjMinus ? '−' + num(t.adjMinus) : '-') + '</td>' +
             '<td' + wb + '>' + esc(t.bankCode) + '</td><td' + wb + '>' + tipeChip(t.tipeSettlement) + '</td></tr>';
     }).join('');
     var ringkas = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Ringkasan Settlement</div>' +
-        kv('Nominal Awal', rupiah(g.nominalAwal)) + kv('Biaya Admin', g.admin ? '− ' + rupiah(g.admin) : rupiah(0)) +
-        kv('Adjustment Chargeback (+)', '<span style="color:#16a34a;">+ ' + rupiah(g.adjPlus) + '</span>') +
-        kv('Adjustment Chargeback (−)', '<span style="color:#dc2626;">− ' + rupiah(g.adjMinus) + '</span>') +
+        kv('Nominal Awal', rupiah(g.nominalAwal)) + kv('Biaya Admin', g.admin ? '− ' + rupiah(g.admin) : '-') +
+        kv('Adjustment Chargeback (+)', g.adjPlus ? '<span style="color:#16a34a;">+ ' + rupiah(g.adjPlus) + '</span>' : '-') +
+        kv('Adjustment Chargeback (−)', g.adjMinus ? '<span style="color:#dc2626;">− ' + rupiah(g.adjMinus) + '</span>' : '-') +
         kv('Total Settle', '<b>' + rupiah(totalOf(g)) + '</b>');
     var body = fields + ringkas +
         '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:8px;">List Settlement <span style="font-weight:400;color:var(--text-muted);font-size:0.78rem;">(' + g.txns.length + ' transaksi)</span></div>' +
@@ -338,8 +358,9 @@ function channelField() {
 // ── checker actions (operate on the settlement GROUP) ──
 function openHold(g) {
     var body = '<div class="as-fld"><label>Cakupan Hold</label>' +
-        '<label style="font-weight:500;display:block;"><input type="radio" name="asHoldScope" value="all" checked> Hold Semua (' + g.txns.length + ' transaksi)</label>' +
-        '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="partial"> Hold Partial (pilih MID)</label></div>' +
+        '<label style="font-weight:500;display:block;"><input type="radio" name="asHoldScope" value="all" checked> Hold Semua</label>' +
+        '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="partial"> Hold Partial (pilih MID)</label>' +
+        '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="min"> Hold Dibawah Min. Transaksi <span style="font-weight:400;color:var(--text-muted);">(hold seluruh settlement norek ini)</span></label></div>' +
         '<div class="as-fld" id="asPartialWrap" style="display:none;"><label>Pilih transaksi yang dihold</label><div class="as-partial-list" id="asPartialList">' +
         g.txns.map(function (t, i) { return '<label><input type="checkbox" class="as-pp" value="' + t.txId + '" ' + (i === 0 ? 'checked' : '') + '> ' + esc(t.merchantName) + ' · ' + esc(t.mid) + ' · ' + rupiah(t.nominalSettle) + '</label>'; }).join('') +
         '</div></div>' + noteField(true) + fileField('— maks 25 MB, format PDF/JPG/JPEG/PNG, wajib jika Hold Partial');
@@ -481,7 +502,7 @@ function downloadCsv(data) {
     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Export tab ' + STATUS_LABEL[activeTab]);
 }
 function showExportPreview(data) {
-    var fmt = function (c, v) { return (typeof v === 'number' && c >= 3 && c <= 7) ? rupiah(v) : esc(v); };
+    var fmt = function (c, v) { return (typeof v === 'number' && c >= 3 && c <= 7) ? num(v) : esc(v); };
     document.getElementById('asExportSub').innerHTML = 'Simulasi hasil ekspor tab <b>' + STATUS_LABEL[activeTab] + '</b> — ' + data.length + ' baris.';
     document.getElementById('asExportHead').innerHTML = '<tr>' + EXPORT_COLS.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
     document.getElementById('asExportBody').innerHTML = data.map(function (row) {
