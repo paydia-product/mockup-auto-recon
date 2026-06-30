@@ -213,6 +213,9 @@
                                         <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
                                             <input type="checkbox" id="asFilterBig"> Nominal &gt; Rp250.000.000
                                         </label>
+                                        <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer; margin-top:8px;">
+                                            <input type="checkbox" id="asFilterSmall"> Nominal &lt; Rp10.000
+                                        </label>
                                     </div>
                                     <div class="filter-section" id="asFilterReqSection" style="margin-top:16px; display:none;">
                                         <span class="filter-section-title">Request</span>
@@ -220,6 +223,7 @@
                                             <option value="">Semua Request</option>
                                             <option value="hold">Hold</option>
                                             <option value="holdpartial">Hold Partial</option>
+                                            <option value="holdmin">Hold Dibawah Min. Transaksi</option>
                                             <option value="reject">Reject</option>
                                             <option value="settle">Settle</option>
                                         </select>
@@ -326,7 +330,7 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260629-v9"></script>
+    <script src="auto-settlement.js?v=20260629-v10"></script>
     <script src="page-guide.js?v=20260629-v4"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
