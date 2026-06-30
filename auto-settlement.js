@@ -198,7 +198,7 @@ function renderTable() {
     var thead = document.getElementById('asThead');
     var tbody = document.getElementById('asTableBody');
     var cols = columnsFor(activeTab);
-    var hasCb = activeTab === 'checker' && bulkMode;
+    var hasCb = (activeTab === 'checker' || activeTab === 'hold' || activeTab === 'reject' || activeTab === 'settle') && bulkMode;
     var headHtml = '<tr>';
     if (hasCb) headHtml += '<th style="width:38px;text-align:center;"><input type="checkbox" id="asSelectAll"></th>';
     cols.forEach(function (c) {
@@ -268,21 +268,18 @@ function renderTable() {
 
 function actionMenuItems() {
     if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
-    // Hold/Reject/Settle: pindah status harus lewat approval (mengajukan request → tab Approver).
-    if (activeTab === 'hold') return [['reject', 'Reject'], ['settle', 'Settle']];
-    if (activeTab === 'reject') return [['hold', 'Hold'], ['settle', 'Settle']];
-    if (activeTab === 'settle') return [['hold', 'Hold'], ['reject', 'Reject']];
+    // Hold/Reject/Settle: pindah status harus lewat approval; Lihat Catatan masuk kebab.
+    if (activeTab === 'hold') return [['reject', 'Reject'], ['settle', 'Settle'], ['catatan', 'Lihat Catatan']];
+    if (activeTab === 'reject') return [['hold', 'Hold'], ['settle', 'Settle'], ['catatan', 'Lihat Catatan']];
+    if (activeTab === 'settle') return [['hold', 'Hold'], ['reject', 'Reject'], ['catatan', 'Lihat Catatan']];
     return [];
 }
 function actionButtons(g) {
     if (activeTab === 'pending') {
         return '<button class="as-approval-btn btn" data-id="' + g.groupId + '" style="margin:0;background:var(--primary);color:#fff;border:none;font-size:0.78rem;font-weight:600;padding:6px 14px;">Approval</button>';
     }
-    var noteBtn = (activeTab === 'hold' || activeTab === 'reject' || activeTab === 'settle')
-        ? '<button class="as-note-btn btn" data-id="' + g.groupId + '" style="margin:0 4px 0 0;font-size:0.74rem;padding:5px 9px;background:#475569;color:#fff;border:none;font-weight:500;">Lihat Catatan</button>'
-        : '';
-    if (actionMenuItems().length === 0) return noteBtn || '<span style="color:var(--text-muted);">—</span>';
-    return noteBtn + '<button class="as-kebab" data-id="' + g.groupId + '" title="Aksi" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:1.1rem;padding:4px 10px;"><i class="fas fa-ellipsis-vertical"></i></button>';
+    if (actionMenuItems().length === 0) return '<span style="color:var(--text-muted);">—</span>';
+    return '<button class="as-kebab" data-id="' + g.groupId + '" title="Aksi" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:1.1rem;padding:4px 10px;"><i class="fas fa-ellipsis-vertical"></i></button>';
 }
 
 function renderPager(total) {
@@ -301,18 +298,21 @@ function renderPager(total) {
 function renderToolbarActions() {
     var box = document.getElementById('asTabActions');
     box.innerHTML = '';
-    if (activeTab === 'checker') {
-        box.innerHTML = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Action' : 'Bulk Action') + '</button>';
+    var bulkBtn = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Settle' : 'Bulk Settle') + '</button>';
+    if (activeTab === 'checker' || activeTab === 'hold' || activeTab === 'reject') {
+        box.innerHTML = bulkBtn;
         document.getElementById('asBulkBtn').addEventListener('click', function () { bulkMode = !bulkMode; if (!bulkMode) selected.clear(); render(); });
     } else if (activeTab === 'settle') {
-        box.innerHTML = '<button class="btn" id="asRejectByBank" style="margin:0;background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-building-columns"></i> Reject by Bank</button>';
+        box.innerHTML = bulkBtn + ' <button class="btn" id="asRejectByBank" style="margin:0 0 0 8px;background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-building-columns"></i> Reject by Bank</button>';
+        document.getElementById('asBulkBtn').addEventListener('click', function () { bulkMode = !bulkMode; if (!bulkMode) selected.clear(); render(); });
         document.getElementById('asRejectByBank').addEventListener('click', openRejectByBank);
     }
 }
 
 function renderBulkBar() {
     var bar = document.getElementById('asBulkBar');
-    if (activeTab !== 'checker' || !bulkMode) { bar.style.display = 'none'; return; }
+    var bulkTabs = ['checker', 'hold', 'reject', 'settle'];
+    if (bulkTabs.indexOf(activeTab) === -1 || !bulkMode) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     document.getElementById('asBulkCount').textContent = selected.size;
     // Bulk Settle & Unselect All hanya tampil kalau ada yang dichecklist.
@@ -653,6 +653,7 @@ function runAction(act, g) {
     if (act === 'hold') openHold(g);
     else if (act === 'reject') openReject(g);
     else if (act === 'settle') openSettle(g);
+    else if (act === 'catatan') openCatatanModal(g);
 }
 
 function closeKebab() { var m = document.getElementById('asKebabMenu'); m.classList.remove('show'); m.style.display = 'none'; m.innerHTML = ''; }
@@ -690,8 +691,6 @@ function onTableClick(e) {
     if (d) { var g = groupById(d.dataset.id); if (g) showSettlementDetail(g); return; }
     var ap = e.target.closest('.as-approval-btn');
     if (ap) { var g3 = groupById(ap.dataset.id); if (g3) openApproverModal(g3); return; }
-    var nb = e.target.closest('.as-note-btn');
-    if (nb) { var g4 = groupById(nb.dataset.id); if (g4) openCatatanModal(g4); return; }
     var k = e.target.closest('.as-kebab');
     if (k) { var g2 = groupById(k.dataset.id); if (g2) openKebab(k, g2); return; }
 }
