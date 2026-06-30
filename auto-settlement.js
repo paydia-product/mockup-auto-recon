@@ -10,7 +10,8 @@
 
 var CORE_BANKS = ['BCA', 'BRI', 'MANDIRI'];
 var ADMIN_FEE_OTHER = 6500;
-var CHANNELS = ['BI-FAST', 'SKN', 'RTGS', 'Internal Transfer'];
+// Channel payment = bank yang dipakai sebagai metode transfer (bukan BI-FAST/SKN/RTGS).
+var CHANNELS = ['BCA', 'BRI', 'Mandiri', 'NOBU', 'AGI', 'OCBC'];
 var PER_PAGE = 10;
 
 // Base columns shared by every tab (in order). Unit = settlement group (per norek).
@@ -56,12 +57,16 @@ function loadPool() {
     var src = db.map(function (r) {
         return { txId: r.txId, tanggal: r.tanggal, merchantName: r.merchantName, mid: r.merchantCode,
             bankCode: r.bankCode, bankAccount: r.bankAccount, bankAccountName: r.bankAccountName,
-            nominalSettle: Number(r.nominalSettle) || 0, tipeSettlement: r.tipeSettlement || 'Reguler Matched' };
+            nominalSettle: Number(r.nominalSettle) || 0, tipeSettlement: r.tipeSettlement || 'Reguler Matched',
+            adjPlus: 0, adjMinus: 0 };
     });
-    // Demo: 3 merchant berbeda dgn NOREK sama → harus tergroup jadi 1 entry settlement.
-    src.push({ txId: 'TX-ACQ-30001', tanggal: '24-06-2026 09:40:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 220000, tipeSettlement: 'Reguler Matched' });
-    src.push({ txId: 'TX-ACQ-30002', tanggal: '24-06-2026 09:41:00', merchantName: 'Janji Jiwa', mid: 'MID-77002', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 185000, tipeSettlement: 'Reguler Matched' });
-    src.push({ txId: 'TX-ACQ-30003', tanggal: '24-06-2026 09:42:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 97500, tipeSettlement: 'Tambahan Matched' });
+    // Demo: 3 merchant berbeda dgn NOREK sama → tergroup jadi 1 entry; ada adj chargeback +/-.
+    src.push({ txId: 'TX-ACQ-30001', tanggal: '24-06-2026 09:40:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 220000, tipeSettlement: 'Reguler Matched', adjPlus: 25000, adjMinus: 0 });
+    src.push({ txId: 'TX-ACQ-30002', tanggal: '24-06-2026 09:41:00', merchantName: 'Janji Jiwa', mid: 'MID-77002', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 185000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 15000 });
+    src.push({ txId: 'TX-ACQ-30003', tanggal: '24-06-2026 09:42:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 97500, tipeSettlement: 'Tambahan Matched', adjPlus: 10000, adjMinus: 5000 });
+    // Demo: entry dengan total settle > Rp250 juta (uji filter Nominal > 250jt).
+    src.push({ txId: 'TX-ACQ-30010', tanggal: '24-06-2026 10:00:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 280000000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
+    src.push({ txId: 'TX-ACQ-30011', tanggal: '24-06-2026 10:05:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 12500000, tipeSettlement: 'Tambahan Matched', adjPlus: 1500000, adjMinus: 750000 });
     pool = src.map(function (r, i) {
         r.procISO = iso;
         r.procDisplay = disp + ' ' + pad(8 + Math.floor(i / 6)) + ':' + pad((i * 7) % 60) + ':00';
@@ -77,18 +82,20 @@ function buildGroups() {
         var key = t.bankAccount;
         if (!map[key]) {
             map[key] = { groupId: 'STL-' + key, norek: key, bank: t.bankCode, namaRek: t.bankAccountName,
-                procISO: t.procISO, procDisplay: t.procDisplay, txns: [], nominalAwal: 0,
+                procISO: t.procISO, procDisplay: t.procDisplay, txns: [], nominalAwal: 0, adjPlus: 0, adjMinus: 0,
                 admin: isOther(t.bankCode) ? ADMIN_FEE_OTHER : 0 };
         }
         map[key].txns.push(t);
         map[key].nominalAwal += t.nominalSettle;
+        map[key].adjPlus += (t.adjPlus || 0);
+        map[key].adjMinus += (t.adjMinus || 0);
     });
     groups = Object.keys(map).map(function (k) { return map[k]; });
     groups.forEach(function (g) { st(g.groupId); });
     saveItems();
 }
 
-function totalOf(g) { var s = st(g.groupId); return g.nominalAwal - g.admin + (s.adjPlus || 0) - (s.adjMinus || 0); }
+function totalOf(g) { return g.nominalAwal - g.admin + (g.adjPlus || 0) - (g.adjMinus || 0); }
 function groupById(id) { return groups.find(function (g) { return g.groupId === id; }); }
 
 // ── filtering ──
@@ -176,8 +183,8 @@ function renderTable() {
         c += '<td style="min-width:150px;"><a class="as-link" data-detail="settle" data-id="' + g.groupId + '" style="font-family:monospace;font-size:0.78rem;white-space:normal;word-break:break-all;">' + esc(g.groupId) + '</a><div style="font-size:0.7rem;color:var(--text-muted);">' + g.txns.length + ' transaksi</div></td>';
         c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(g.nominalAwal) + '</td>';
         c += '<td style="text-align:right;">' + (g.admin ? rupiah(g.admin) : '-') + '</td>';
-        c += '<td style="text-align:right;color:#16a34a;">' + (s.adjPlus ? '+' + rupiah(s.adjPlus) : '-') + '</td>';
-        c += '<td style="text-align:right;color:#dc2626;">' + (s.adjMinus ? '−' + rupiah(s.adjMinus) : '-') + '</td>';
+        c += '<td style="text-align:right;color:#16a34a;">' + (g.adjPlus ? '+' + rupiah(g.adjPlus) : '-') + '</td>';
+        c += '<td style="text-align:right;color:#dc2626;">' + (g.adjMinus ? '−' + rupiah(g.adjMinus) : '-') + '</td>';
         c += '<td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">' + rupiah(totalOf(g)) + '</td>';
         c += '<td>' + esc(g.bank) + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>';
@@ -287,15 +294,22 @@ function showSettlementDetail(g) {
         kv('Tanggal Proses', esc(g.procDisplay)) + kv('Bank', esc(g.bank)) +
         kv('Nomor Rekening', esc(g.norek)) + kv('Nama Pemilik Rekening', esc(g.namaRek)) +
         kv('Status', STATUS_LABEL[s.status] || s.status);
-    var listHead = '<tr><th>No</th><th>Tanggal</th><th>ID Transaksi</th><th>Merchant</th><th style="text-align:right;">Nominal Settle (Rp)</th><th>Bank</th><th>Tipe Settlement</th></tr>';
+    var listHead = '<tr><th>No</th><th>Tanggal</th><th>ID Transaksi</th><th>Merchant</th><th style="text-align:right;">Nominal Settle (Rp)</th><th style="text-align:right;">Adj. CB (+)</th><th style="text-align:right;">Adj. CB (−)</th><th>Bank</th><th>Tipe Settlement</th></tr>';
     var listBody = g.txns.map(function (t, i) {
         return '<tr><td>' + (i + 1) + '</td><td style="white-space:nowrap;">' + esc(t.tanggal) + '</td>' +
-            '<td style="font-family:monospace;font-size:0.72rem;word-break:break-all;">' + esc(t.txId) + '</td>' +
+            '<td style="font-family:monospace;font-size:0.72rem;white-space:nowrap;padding-right:14px;">' + esc(t.txId) + '</td>' +
             '<td>' + esc(t.merchantName) + '<div style="font-size:0.7rem;color:var(--text-muted);">' + esc(t.mid) + '</div></td>' +
             '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(t.nominalSettle) + '</td>' +
+            '<td style="text-align:right;color:#16a34a;">' + (t.adjPlus ? '+' + rupiah(t.adjPlus) : '-') + '</td>' +
+            '<td style="text-align:right;color:#dc2626;">' + (t.adjMinus ? '−' + rupiah(t.adjMinus) : '-') + '</td>' +
             '<td>' + esc(t.bankCode) + '</td><td>' + tipeBadge(t.tipeSettlement) + '</td></tr>';
     }).join('');
-    var body = fields +
+    var ringkas = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Ringkasan Settlement</div>' +
+        kv('Nominal Awal', rupiah(g.nominalAwal)) + kv('Biaya Admin', g.admin ? '− ' + rupiah(g.admin) : rupiah(0)) +
+        kv('Adjustment Chargeback (+)', '<span style="color:#16a34a;">+ ' + rupiah(g.adjPlus) + '</span>') +
+        kv('Adjustment Chargeback (−)', '<span style="color:#dc2626;">− ' + rupiah(g.adjMinus) + '</span>') +
+        kv('Total Settle', '<b>' + rupiah(totalOf(g)) + '</b>');
+    var body = fields + ringkas +
         '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:8px;">List Settlement <span style="font-weight:400;color:var(--text-muted);font-size:0.78rem;">(' + g.txns.length + ' transaksi)</span></div>' +
         '<div style="overflow:auto;max-height:300px;"><table class="data-table" style="font-size:0.8rem;"><thead>' + listHead + '</thead><tbody>' + listBody + '</tbody></table></div>';
     openModal('Detail ID Settlement', body, [{ label: 'Tutup', onClick: closeModal }], '880px');
@@ -453,7 +467,7 @@ var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Adm
 function exportRowData(rows) {
     return rows.map(function (g, i) {
         var s = st(g.groupId);
-        return [i + 1, g.procDisplay, g.groupId, g.nominalAwal, g.admin, s.adjPlus || 0, s.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek, STATUS_LABEL[s.status]];
+        return [i + 1, g.procDisplay, g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek, STATUS_LABEL[s.status]];
     });
 }
 function downloadCsv(data) {
