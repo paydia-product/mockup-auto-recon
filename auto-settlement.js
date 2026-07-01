@@ -538,9 +538,18 @@ function validateTransfer() {
     return { channel: ch, metode: mt };
 }
 
+// Info data terpilih untuk modal aksi single (tanpa ID Settlement).
+function selInfo(g) {
+    var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
+    return '<div style="margin-bottom:14px;">' +
+        kv('Bank', esc(g.bank)) + kv('Nomor Rekening', esc(g.norek)) +
+        kv('Nama Pemilik Rekening', esc(g.namaRek)) + kv('Nominal Settle', '<b>' + rupiah(totalOf(g)) + '</b>') +
+        '</div>';
+}
+
 // ── checker actions (operate on the settlement GROUP) ──
 function openHold(g) {
-    var body = '<div class="as-fld"><label>Cakupan Hold</label>' +
+    var body = selInfo(g) + '<div class="as-fld"><label>Cakupan Hold</label>' +
         '<label style="font-weight:500;display:block;"><input type="radio" name="asHoldScope" value="all" checked> Hold Semua</label>' +
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="partial"> Hold Partial (pilih MID)</label>' +
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="min"> Hold Dibawah Min. Transaksi <span style="font-weight:400;color:var(--text-muted);">(hold seluruh settlement norek ini)</span></label></div>' +
@@ -586,7 +595,7 @@ function submitHold(g) {
 }
 
 function openReject(g) {
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Reject settlement <b>' + esc(g.groupId) + '</b> (' + esc(g.namaRek) + ').</p>' + noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
+    var body = selInfo(g) + noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Reject Settlement', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Ajukan Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
@@ -601,7 +610,7 @@ function openReject(g) {
 }
 
 function openSettle(g) {
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Settle <b>' + esc(g.groupId) + '</b> — ' + rupiah(totalOf(g)) + '.</p>' +
+    var body = selInfo(g) +
         metodeSettlementField() + channelField() + metodeField() + noteField(false) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Settle Transaksi', body, [
         { label: 'Batal', onClick: closeModal },
@@ -753,7 +762,7 @@ function openRejectByBank() {
 
 // ── settle tab: per-row Reject by Bank (Manual only) ──
 function openRejectByBankItem(g) {
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Tandai settlement <b>' + esc(g.groupId) + '</b> (' + esc(g.namaRek) + ') sebagai Reject by Bank.</p>' +
+    var body = selInfo(g) +
         '<p style="font-size:0.82rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank tanpa pengiriman uang.</p>' +
         noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Reject by Bank', body, [
