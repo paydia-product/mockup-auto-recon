@@ -132,20 +132,13 @@ function seedRows() {
 }
 
 function loadPool() {
-    var db = [];
-    try { db = JSON.parse(localStorage.getItem('paydia_settlements')) || []; } catch (e) { db = []; }
     var iso = todayISO();
     var disp = iso.split('-').reverse().join('-');
     var pad = function (x) { return String(x).padStart(2, '0'); };
-    var src = db.map(function (r) {
-        return { txId: r.txId, tanggal: r.tanggal, merchantName: r.merchantName, mid: r.merchantCode,
-            bankCode: r.bankCode, bankAccount: r.bankAccount, bankAccountName: r.bankAccountName,
-            nominalSettle: Number(r.nominalSettle) || 0, tipeSettlement: r.tipeSettlement || 'Reguler Matched',
-            adjPlus: 0, adjMinus: 0 };
-    });
-    // Seed 20 settlement (kondisi beragam) + normalisasi: semua mengikuti aturan grouping
-    // per norek, biaya admin bank Lainnya, auto-hold < Rp10.000, dan adjustment dispute.
-    Array.prototype.push.apply(src, seedRows());
+    // Auto Settlement pakai 20 seed bersih (bukan data settle-recon) agar full-flow
+    // testing tidak tertutup data lain; semua mengikuti aturan grouping per norek,
+    // biaya admin bank Lainnya, auto-hold < Rp10.000, dan adjustment dispute.
+    var src = seedRows();
     pool = src.map(function (r, i) {
         r.procISO = iso;
         r.procDisplay = disp + ' ' + pad(8 + Math.floor(i / 6)) + ':' + pad((i * 7) % 60) + ':00';
@@ -326,7 +319,7 @@ function renderTable() {
         if (hasCb) c += '<td style="text-align:center;"><input type="checkbox" class="as-cb" data-id="' + g.groupId + '" ' + (selected.has(g.groupId) ? 'checked' : '') + '></td>';
         c += '<td>' + no + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.procDisplay) + '</td>';
-        c += '<td style="min-width:150px;"><a class="as-link" data-detail="settle" data-id="' + g.groupId + '" style="font-family:monospace;font-size:0.78rem;white-space:normal;word-break:break-all;">' + esc(g.groupId) + '</a><div style="font-size:0.7rem;color:var(--text-muted);">' + g.txns.length + ' transaksi</div></td>';
+        c += '<td style="min-width:150px;"><a class="as-link" data-detail="settle" data-id="' + g.groupId + '" style="font-family:monospace;font-size:0.78rem;white-space:normal;word-break:break-all;">' + esc(g.groupId) + '</a></td>';
         c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(g.nominalAwal) + '</td>';
         c += '<td style="text-align:right;">' + (g.admin ? num(g.admin) : '-') + '</td>';
         c += '<td style="text-align:right;color:#16a34a;">' + (g.adjPlus ? '+' + num(g.adjPlus) : '-') + '</td>';
@@ -477,15 +470,14 @@ function detailBodyHTML(g) {
     var fields = kv('ID Settlement', '<span style="font-family:monospace;">' + esc(g.groupId) + '</span>') +
         kv('Tanggal Proses', esc(g.procDisplay)) + kv('Bank', esc(g.bank)) +
         kv('Nomor Rekening', esc(g.norek)) + kv('Nama Pemilik Rekening', esc(g.namaRek));
-    var colg = '<colgroup>' + ['5%', '20%', '10%', '13%', '13%', '13%', '16%', '10%'].map(function (w) { return '<col style="width:' + w + ';">'; }).join('') + '</colgroup>';
+    var colg = '<colgroup>' + ['6%', '26%', '12%', '16%', '16%', '14%', '10%'].map(function (w) { return '<col style="width:' + w + ';">'; }).join('') + '</colgroup>';
     var thS = 'padding:8px 6px;word-break:keep-all;white-space:normal;';
     var thR = thS + 'text-align:right;';
     var thC = thS + 'text-align:center;';
     var listHead = '<tr><th style="' + thS + '">No</th><th style="' + thS + '">Merchant</th><th style="' + thC + '">Jumlah Transaksi</th>' +
         '<th style="' + thR + '">Nominal Settle (Rp)</th><th style="' + thR + '">Adjustment Chargeback (+)</th><th style="' + thR + '">Adjustment Chargeback (−)</th>' +
-        '<th style="' + thS + '">Bank</th><th style="' + thS + '">Tipe Settlement</th></tr>';
+        '<th style="' + thS + '">Tipe Settlement</th></tr>';
     var wb = ' style="word-break:break-word;overflow-wrap:anywhere;"';
-    var bankFull = esc(g.bank) + ' - ' + esc(g.norek) + ' - ' + esc(g.namaRek);
     var lines = midTipeSummary(g);
     var listBody = lines.map(function (m, i) {
         return '<tr><td' + wb + '>' + (i + 1) + '</td>' +
@@ -494,7 +486,7 @@ function detailBodyHTML(g) {
             '<td style="text-align:right;font-variant-numeric:tabular-nums;word-break:break-word;">' + (m.total ? num(m.total) : '-') + '</td>' +
             '<td style="text-align:right;color:#16a34a;word-break:break-word;">' + (m.adjPlus ? '+' + num(m.adjPlus) : '-') + '</td>' +
             '<td style="text-align:right;color:#dc2626;word-break:break-word;">' + (m.adjMinus ? '−' + num(m.adjMinus) : '-') + '</td>' +
-            '<td' + wb + '>' + bankFull + '</td><td' + wb + '>' + tipeChip(m.tipe) + '</td></tr>';
+            '<td' + wb + '>' + tipeChip(m.tipe) + '</td></tr>';
     }).join('');
     var ringkas = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Ringkasan Settlement</div>' +
         kv('Nominal Awal', rupiah(g.nominalAwal)) + kv('Biaya Admin', g.admin ? '− ' + rupiah(g.admin) : '-') +
@@ -720,9 +712,10 @@ function approverDecide(g, approve) {
     if (approve) {
         s.status = rq.type;
         if (rq.type === 'settle') {
-            s.settleStatus = 'pending';
             s.metodeSettlement = rq.metodeSettlement || 'Otomatis';
             s.channel = rq.channel || '';
+            // Manual = tidak kirim ke bank, langsung Sukses. Otomatis = Pending (menunggu respons bank).
+            s.settleStatus = (s.metodeSettlement === 'Manual') ? 'success' : 'pending';
         }
         s.approvedTs = todayProc();
         s.approvedBy = 'dion@paydia.id';
@@ -761,15 +754,20 @@ function openRejectByBank() {
 // ── settle tab: per-row Reject by Bank (Manual only) ──
 function openRejectByBankItem(g) {
     var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Tandai settlement <b>' + esc(g.groupId) + '</b> (' + esc(g.namaRek) + ') sebagai Reject by Bank.</p>' +
-        '<p style="font-size:0.82rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank tanpa pengiriman uang.</p>';
+        '<p style="font-size:0.82rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank tanpa pengiriman uang.</p>' +
+        noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Reject by Bank', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Konfirmasi', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+            var reason = document.getElementById('asReason').value.trim();
+            if (!reason) { showToast('Catatan Wajib', 'Isi catatan Reject by Bank.'); return; }
+            var bk = validateBukti(null); if (!bk) return;
             var s = st(g.groupId);
             s.settleStatus = 'rejectbybank';
+            if (s.request) { s.request.reason = reason; if (bk.name) s.request.bukti = bk.name; }
             saveItems(); closeModal(); render();
             showToast('Reject by Bank', g.groupId + ' ditandai Reject by Bank.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject by Bank item ' + g.groupId);
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject by Bank item ' + g.groupId + '\ncatatan : ' + reason + (bk.name ? '\nbukti : ' + bk.name : ''));
         } }
     ]);
 }
@@ -843,8 +841,10 @@ function openDetailModal(g) {
         kv('Waktu Diajukan', esc(rq.ts || '-')) +
         kv('Waktu Disetujui', esc(s.approvedTs || '-')) +
         kv('Disetujui Oleh', esc(s.approvedBy || '-')) +
-        expandSection('REQUEST DATA', '<span style="font-family:monospace;font-size:0.9rem;">&lt;&gt;</span> ', mockReqJson(g), false) +
-        expandSection('RESPONSE DATA', '<span style="font-family:monospace;font-size:0.9rem;">{}</span> ', mockResJson(g), true);
+        // Metode Manual tidak mengirim apa pun ke luar → tanpa segmen Request/Response.
+        (s.metodeSettlement === 'Manual' ? '' :
+            expandSection('REQUEST DATA', '<span style="font-family:monospace;font-size:0.9rem;">&lt;&gt;</span> ', mockReqJson(g), false) +
+            expandSection('RESPONSE DATA', '<span style="font-family:monospace;font-size:0.9rem;">{}</span> ', mockResJson(g), true));
     openModal('Lihat Detail', body, [{ label: 'Tutup', onClick: closeModal }]);
     setupExpanders(document.getElementById('asModalBody'));
     var bb = document.getElementById('asBuktiBtn');
@@ -1188,7 +1188,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-01-seed20';
+    var SEED_VER = '2026-07-01-seed20-clean';
     if (localStorage.getItem('paydia_as_seedver') !== SEED_VER) {
         localStorage.removeItem('paydia_as_items');
         localStorage.removeItem('paydia_as_splits');
