@@ -42,7 +42,7 @@
                 },
                 {
                     h: 'Alur Tab (Checker → Approver → hasil)',
-                    b: `Settlement dipisah per tahap lewat <b>tab</b>: <b>Checker</b> mengajukan aksi → <b>Approver</b> menyetujui/menolak → hasil masuk ke tab <b>Hold</b>, <b>Reject</b>, atau <b>Settle</b>. Tiap tab punya <b>pagination, filter, search (ID Settlement / Nama Pemilik Rekening)</b>, dan <b>Export</b>.<br><br><b>Auto-hold</b>: settlement dengan Total Settle <b>&lt; Rp10.000</b> pada bank tujuan <b>Lainnya</b> otomatis masuk tab <b>Hold</b> tanpa perlu diajukan.`
+                    b: `Settlement dipisah per tahap lewat <b>tab</b>: <b>Checker</b> mengajukan aksi → <b>Approver</b> menyetujui/menolak → hasil masuk ke tab <b>Hold</b>, <b>Reject</b>, atau <b>Settle</b>. Tiap tab punya <b>pagination</b> dan <b>search (ID Settlement / Nama Pemilik Rekening)</b>. <b>Export</b> tersedia di semua tab <b>kecuali Approver</b>.<br><br><b>Filter</b> mencakup Date Range, Nominal (&gt; Rp250 juta / &lt; Rp10.000), dan <b>Bank Tujuan</b>; khusus <b>Settle</b> ada filter <b>Status</b>, <b>Metode Settlement</b>, dan <b>Channel Payment</b>; khusus <b>Approver</b> ada filter <b>Request</b>.<br><br><b>Auto-hold</b>: settlement dengan Total Settle <b>&lt; Rp10.000</b> pada bank tujuan <b>Lainnya</b> otomatis masuk tab <b>Hold</b> tanpa perlu diajukan.`
                 },
                 {
                     h: 'Tab Checker — aksi',
@@ -55,6 +55,10 @@
                 {
                     h: 'Tab Approver',
                     b: `Menampilkan request dari Checker (Hold / Hold Partial / Hold Min. / Reject / Settle). Approver bisa <b>Approve</b> atau <b>Reject</b> request, dan <b>Lihat</b> catatan + bukti. Approve memindahkan settlement ke tab sesuai tipe; Reject mengembalikannya ke status sebelumnya. Tab Approver <b>tidak punya Export</b>.`
+                },
+                {
+                    h: 'Tab Hold & Reject — aksi',
+                    b: `Daftar hasil <b>Hold</b> / <b>Reject</b>. Aksi per baris (kebab): dari <b>Hold</b> bisa ajukan <b>Reject</b> atau <b>Settle</b>; dari <b>Reject</b> bisa ajukan <b>Hold</b> atau <b>Settle</b> — semuanya lewat Approver lagi. Plus <b>Lihat Catatan</b> (catatan, bukti, Waktu Diajukan/Disetujui, <b>Disetujui Oleh</b>).<br><br>Di modal Catatan & Bukti: tab <b>Hold</b> menampilkan field <b>Alasan</b>; tab <b>Reject</b> tanpa field tipe request.`
                 },
                 {
                     h: 'Tab Settle — status & simulasi',
