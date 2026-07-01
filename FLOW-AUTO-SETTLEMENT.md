@@ -6,6 +6,59 @@ Aksi yang tercakup: Auto-hold, Hold (Semua / Partial / Dibawah Min), Reject, Set
 
 ---
 
+## 0. Flowchart Ringkas — Satu Chart End-to-End
+
+Ringkasan seluruh fitur Auto Settlement dalam satu diagram: dari data masuk, tahap Checker → Approver, hasil Hold / Settle / Reject, siklus status Settle, hingga Retry, Reject by Bank, dan Export.
+
+```mermaid
+flowchart TD
+    A([Settlement masuk]) --> B{"Bank Lainnya dan Total kurang dari Rp10.000?"}
+    B -->|Ya| HOLD[[Tab Hold]]
+    B -->|Tidak| CHK[[Tab Checker]]
+
+    CHK --> ACT{Aksi Checker}
+    ACT -->|Lihat Detail| DET[Lihat Detail ID Settlement]
+    ACT -->|Hold Semua / Partial / Min| AH[Ajukan Hold]
+    ACT -->|Reject| AR[Ajukan Reject]
+    ACT -->|Settle / Bulk Settle| AS[Ajukan Settle - Metode, Channel, Transfer]
+    DET --> Z([End])
+
+    AH --> APV[[Tab Approver]]
+    AR --> APV
+    AS --> APV
+
+    APV --> DEC{Keputusan Approver}
+    DEC -->|Reject request| CHK
+    DEC -->|Approve Hold| HOLD
+    DEC -->|Approve Reject| REJ[[Tab Reject]]
+    DEC -->|Approve Settle| SET[[Tab Settle]]
+
+    HOLD -->|Aksi: Reject / Settle| APV
+    REJ -->|Aksi: Hold / Settle| APV
+
+    SET --> MET{Metode Settlement}
+    MET -->|Manual| PEND[Status Pending - catat saja]
+    MET -->|Otomatis| BANK[Kirim ke Bank]
+    BANK --> RESP{Respons Bank}
+    RESP -->|Sukses| SUC[Status Success]
+    RESP -->|Gagal sistem| FAIL[Status Fail]
+    RESP -->|Ditolak| RBB[Status Reject by Bank]
+
+    PEND --> RbB{Reject by Bank - Manual saja}
+    RbB -->|Ya| RBB
+    RbB -->|Tidak| EXP[Export / Export Segregasi]
+    FAIL --> RTR{Retry Settlement - Otomatis}
+    RTR -->|Ya| BANK
+    RTR -->|Tidak| EXP
+    SUC --> EXP
+    RBB --> EXP
+    EXP --> Z
+```
+
+> Tombol Export tersedia di tab Checker/Hold/Reject/Settle; Export Segregasi khusus tab Settle. Detail validasi tiap aksi ada di diagram berikutnya.
+
+---
+
 ## 1. Flowchart — Alur High-Level End-to-End
 
 ```mermaid
