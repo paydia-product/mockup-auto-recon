@@ -38,7 +38,7 @@
                         <i class="fas fa-handshake"></i><span>Settle &amp; Recon</span><span class="sidebar-badge-dot"></span>
                     </a>
                     <a href="auto-settlement.html" class="submenu-item" id="nav-auto-settlement">
-                        <i class="fas fa-money-bill-transfer"></i><span>Auto Settlement</span><span class="sidebar-badge-dot"></span>
+                        <i class="fas fa-money-bill-transfer"></i><span>Auto Settlement QRIS</span><span class="sidebar-badge-dot"></span>
                     </a>
                 </div>
             </div>
