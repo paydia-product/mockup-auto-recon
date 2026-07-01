@@ -53,6 +53,12 @@ function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: 
 function loadItems() { try { items = JSON.parse(localStorage.getItem('paydia_as_items')) || {}; } catch (e) { items = {}; } }
 function saveItems() { localStorage.setItem('paydia_as_items', JSON.stringify(items)); }
 
+// Splits = settlement pecahan hasil Hold Partial. Tiap split = subset MID dari 1 norek
+// yang dicarve-out jadi settlement terpisah. Base group berisi sisa MID.
+var splits = [];
+function loadSplits() { try { splits = JSON.parse(localStorage.getItem('paydia_as_splits')) || []; } catch (e) { splits = []; } }
+function saveSplits() { localStorage.setItem('paydia_as_splits', JSON.stringify(splits)); }
+
 function st(id) {
     if (!items[id]) items[id] = { status: 'checker', adjPlus: 0, adjMinus: 0, note: '', request: null, channel: '', bukti: '', settleStatus: null, approvedTs: null, approvedBy: null, metodeSettlement: null };
     return items[id];
@@ -92,22 +98,33 @@ function loadPool() {
     buildGroups();
 }
 
+// Bangun 1 group settlement dari sekumpulan transaksi.
+function makeGroup(id, norek, txns) {
+    var g = { groupId: id, norek: norek, bank: txns[0].bankCode, namaRek: txns[0].bankAccountName,
+        procISO: txns[0].procISO, procDisplay: txns[0].procDisplay, txns: txns, nominalAwal: 0, adjPlus: 0, adjMinus: 0,
+        admin: isOther(txns[0].bankCode) ? ADMIN_FEE_OTHER : 0 };
+    txns.forEach(function (t) { g.nominalAwal += t.nominalSettle; g.adjPlus += (t.adjPlus || 0); g.adjMinus += (t.adjMinus || 0); });
+    return g;
+}
+
 // Group transaksi per NOMOR REKENING → 1 entry settlement.
+// Hold Partial memecah sebagian MID jadi settlement terpisah (splits).
 function buildGroups() {
-    var map = {};
-    pool.forEach(function (t) {
-        var key = t.bankAccount;
-        if (!map[key]) {
-            map[key] = { groupId: 'STL-' + key, norek: key, bank: t.bankCode, namaRek: t.bankAccountName,
-                procISO: t.procISO, procDisplay: t.procDisplay, txns: [], nominalAwal: 0, adjPlus: 0, adjMinus: 0,
-                admin: isOther(t.bankCode) ? ADMIN_FEE_OTHER : 0 };
-        }
-        map[key].txns.push(t);
-        map[key].nominalAwal += t.nominalSettle;
-        map[key].adjPlus += (t.adjPlus || 0);
-        map[key].adjMinus += (t.adjMinus || 0);
+    var byNorek = {};
+    pool.forEach(function (t) { (byNorek[t.bankAccount] = byNorek[t.bankAccount] || []).push(t); });
+    groups = [];
+    Object.keys(byNorek).forEach(function (norek) {
+        var txns = byNorek[norek];
+        var mySplits = splits.filter(function (s) { return s.norek === norek; });
+        var heldMids = {};
+        mySplits.forEach(function (sp) {
+            var stx = txns.filter(function (t) { return sp.mids.indexOf(t.mid) >= 0; });
+            if (stx.length) { groups.push(makeGroup(sp.id, norek, stx)); }
+            sp.mids.forEach(function (m) { heldMids[m] = true; });
+        });
+        var baseTx = txns.filter(function (t) { return !heldMids[t.mid]; });
+        if (baseTx.length) { groups.push(makeGroup('STL-' + norek, norek, baseTx)); }
     });
-    groups = Object.keys(map).map(function (k) { return map[k]; });
     groups.forEach(function (g) {
         var s = st(g.groupId);
         // Auto-hold: total settle < Rp10.000 untuk bank tujuan bukan BCA/Mandiri/BRI.
@@ -369,11 +386,13 @@ function renderToolbarActions() {
         box.innerHTML = '<label style="display:inline-flex;align-items:center;gap:8px;font-size:0.8rem;font-weight:600;color:var(--text-secondary);">Simulasi Status:' +
             '<select id="asSimSelect" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;font-size:0.8rem;font-weight:600;background:var(--card-bg);color:var(--text-primary);">' +
             simOpts.map(function (o) { return '<option value="' + o[0] + '"' + (simMode === (o[0] || null) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
-            '</select></label>';
+            '</select></label>' +
+            '<button class="btn" id="asRetryBtn" title="Retry Settlement dengan Metode Settlement Otomatis dan berstatus Gagal" style="margin:0 0 0 8px;background:#0ea5e9;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-rotate-right"></i> Retry Settlement</button>';
         document.getElementById('asSimSelect').addEventListener('change', function () {
             simMode = this.value || null;
             render();
         });
+        document.getElementById('asRetryBtn').addEventListener('click', openRetry);
     }
 }
 
@@ -522,6 +541,18 @@ function submitHold(g) {
     }
     var bk = validateBukti(scope === 'partial' ? 'Upload bukti wajib untuk Hold Partial.' : null);
     if (!bk) return;
+    if (scope === 'partial') {
+        // Pecah: MID yang dihold jadi settlement baru terpisah; sisa MID tetap di Checker.
+        var seq = splits.filter(function (x) { return x.norek === g.norek; }).length + 1;
+        var splitId = 'STL-' + g.norek + '-P' + seq;
+        splits.push({ id: splitId, norek: g.norek, mids: picked, createdTs: todayProc() });
+        items[splitId] = { status: 'pending', adjPlus: 0, adjMinus: 0, note: '', channel: '', bukti: '', settleStatus: null, approvedTs: null, approvedBy: null, metodeSettlement: null,
+            request: { type: 'hold', scope: 'partial', partialMids: picked, prevStatus: 'checker', reason: reason, bukti: bk.name, ts: todayProc() } };
+        saveSplits(); buildGroups(); closeModal(); render();
+        showToast('Hold Partial Diajukan', 'Dibuat settlement baru ' + splitId + ' (' + picked.length + ' MID) menunggu approval. Sisa MID tetap di Checker.');
+        writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Hold Partial (' + picked.join(', ') + ') dari ' + g.groupId + ' → settlement baru ' + splitId);
+        return;
+    }
     var s = st(g.groupId); var prev = s.status; s.status = 'pending';
     s.request = { type: 'hold', scope: scope, partialMids: picked, prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
     saveItems(); closeModal(); render();
@@ -576,15 +607,46 @@ function openSettle(g) {
 
 function openBulkSettle() {
     if (selected.size === 0) { showToast('Tidak Ada Pilihan', 'Pilih minimal satu baris.'); return; }
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk settle <b>' + selected.size + '</b> entry terpilih.</p>' + channelField() + metodeField();
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk settle <b>' + selected.size + '</b> entry terpilih.</p>' + metodeSettlementField() + channelField() + metodeField();
     openModal('Bulk Settle', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Ajukan Settle', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+            var ms = document.getElementById('asMetodeSettle').value;
+            if (!ms) { showToast('Metode Wajib', 'Pilih Metode Settlement.'); return; }
             var tf = validateTransfer(); if (!tf) return;
             var ids = Array.from(selected);
-            ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'settle', channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: '', bukti: '', ts: todayProc() }; });
+            ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: '', bukti: '', ts: todayProc() }; });
             selected.clear(); saveItems(); closeModal(); render(); showToast('Bulk Settle Diajukan', ids.length + ' entry menunggu approval.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Settle ' + ids.length + ' entry via ' + tf.channel + ' / ' + tf.metode);
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Settle ' + ids.length + ' entry [' + ms + '] via ' + tf.channel + ' / ' + tf.metode);
+        } }
+    ]);
+    // Note inline metode settlement (sama seperti settle single).
+    var sel = document.getElementById('asMetodeSettle');
+    var note = document.getElementById('asMetodeSettleNote');
+    if (sel && note) {
+        sel.addEventListener('change', function () {
+            if (this.value === 'Manual') { note.textContent = 'Sistem hanya mencatat settlement, tidak mengirim uang ke bank.'; note.style.cssText += 'display:block;background:#fef3c7;color:#92400e;'; }
+            else if (this.value === 'Otomatis') { note.textContent = 'Sistem mencatat settlement dan mengirim uang ke bank secara otomatis.'; note.style.cssText += 'display:block;background:#d1fae5;color:#065f46;'; }
+            else { note.style.display = 'none'; }
+        });
+    }
+}
+
+// ── settle tab: Retry Settlement (Otomatis + Gagal) ──
+function openRetry() {
+    var body = '<div class="as-fld"><label>Tanggal Retry <span style="color:#ef4444;">*</span></label>' +
+        '<input type="date" id="asRetryDate" value="' + todayISO() + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;"></div>' +
+        '<p style="font-size:0.8rem;padding:8px 12px;background:#e0f2fe;color:#075985;border-radius:6px;margin:0;"><i class="fas fa-info-circle"></i> Retry Settlement untuk data dengan Metode Settlement <b>Otomatis</b> dan berstatus <b>Gagal</b> — mengirim ulang data ke bank.</p>';
+    openModal('Retry Settlement', body, [
+        { label: 'Batal', onClick: closeModal },
+        { label: 'Retry', style: 'background:#0ea5e9;color:#fff;border:none;padding:8px 20px;font-weight:600;', onClick: function () {
+            var d = document.getElementById('asRetryDate').value;
+            if (!d) { showToast('Tanggal Wajib', 'Pilih Tanggal Retry.'); return; }
+            var targets = groups.filter(function (g) { var s = st(g.groupId); return s.status === 'settle' && s.metodeSettlement === 'Otomatis' && s.settleStatus === 'fail'; });
+            targets.forEach(function (g) { st(g.groupId).settleStatus = 'pending'; });
+            saveItems(); closeModal(); render();
+            showToast('Retry Settlement', targets.length + ' transaksi gagal dikirim ulang ke bank.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Retry Settlement (Metode Otomatis, status Gagal) tanggal ' + d.split('-').reverse().join('-') + ' — ' + targets.length + ' transaksi dikirim ulang ke bank');
         } }
     ]);
 }
@@ -1094,6 +1156,7 @@ function bind() {
 document.addEventListener('DOMContentLoaded', function () {
     var firstLoad = !localStorage.getItem('paydia_as_items');
     loadItems();
+    loadSplits();
     loadPool();
     if (firstLoad) seedDemoSettle();
     filters = defaultFilters();

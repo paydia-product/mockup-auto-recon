@@ -40,7 +40,10 @@ const permSegments = [
         ]
     },
     { name: 'Settlement Rekon', perms: ['Export', 'Inquiry', 'Read', 'Update', { label: 'Export per Bank', isNew: true }] },
-    { name: 'Reconcile QRIS Acquirer', isNew: true, perms: ['Card Statistic', 'View Match', 'View Unmatch', 'Action Unmatch', 'Export', 'View Decline'] }
+    { name: 'Reconcile QRIS Acquirer', isNew: true, perms: ['Card Statistic', 'View Match', 'View Unmatch', 'Action Unmatch', 'Export', 'View Decline'] },
+    { name: 'Auto Settlement QRIS Checker', isNew: true, perms: ['Read', 'Export', 'Hold', 'Reject', 'Settle'] },
+    { name: 'Auto Settlement QRIS Approver', isNew: true, perms: ['Read', 'Approval'] },
+    { name: 'Auto Settlement QRIS Result', isNew: true, perms: ['Read', 'Export', 'Export Segregasi', 'Hold', 'Settle', 'Reject', 'Retry Settle'] }
 ];
 
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');

@@ -23,6 +23,12 @@ const seedLogs = [
     { id: 95005, tanggal: '30-06-2026 09:16:20', container: 'paydia-auto-settlement', type: 'request-settle', detail: 'email : dion@paydia.id\naction : Mengajukan request approval Settle STL-024701001749308\nchannel payment : Mandiri\nmetode transfer : BI-Fast\ncatatan : Settlement reguler harian\nbukti : bukti-settle-024701001749308.jpg', ip: '125.161.77.69' },
     { id: 95006, tanggal: '30-06-2026 10:02:05', container: 'paydia-auto-settlement', type: 'approve-approval', detail: 'email : approver@paydia.id\naction : Menyetujui (Approve) request Settle STL-024701001749308 — status sebelumnya Checker', ip: '125.161.77.69' },
     { id: 95007, tanggal: '30-06-2026 10:05:48', container: 'paydia-auto-settlement', type: 'reject-approval', detail: 'email : approver@paydia.id\naction : Menolak (Reject) request Hold STL-3847075823 — dikembalikan ke status sebelumnya (Checker)', ip: '125.161.77.69' },
+    { id: 95008, tanggal: '30-06-2026 10:12:03', container: 'paydia-auto-settlement', type: 'bulk-settle', detail: 'email : dion@paydia.id\naction : Bulk Settle 3 entry [Otomatis] via BCA / BI-Fast', ip: '125.161.77.69' },
+    { id: 95009, tanggal: '30-06-2026 10:20:41', container: 'paydia-auto-settlement', type: 'reject-by-bank', detail: 'email : dion@paydia.id\naction : Menandai settlement STL-7100099887766 sebagai Reject by Bank (Metode Manual)', ip: '125.161.77.69' },
+    { id: 95010, tanggal: '30-06-2026 10:28:15', container: 'paydia-auto-settlement', type: 'export-settle', detail: 'email : dion@paydia.id\naction : Export tab Settle', ip: '125.161.77.69' },
+    { id: 95011, tanggal: '30-06-2026 10:33:52', container: 'paydia-auto-settlement', type: 'export-segregasi', detail: 'email : dion@paydia.id\naction : Export Segregasi per Bank (30-06-2026)', ip: '125.161.77.69' },
+    { id: 95012, tanggal: '30-06-2026 10:41:09', container: 'paydia-auto-settlement', type: 'retry-settlement', detail: 'email : dion@paydia.id\naction : Retry Settlement (Metode Otomatis, status Gagal) tanggal 30-06-2026 — 2 transaksi dikirim ulang ke bank', ip: '125.161.77.69' },
+    { id: 95013, tanggal: '30-06-2026 10:48:37', container: 'paydia-auto-settlement', type: 'request-hold-partial-split', detail: 'email : dion@paydia.id\naction : Ajukan Hold Partial (MID-77001, MID-77002) dari STL-8800123456789 → settlement baru STL-8800123456789-P1', ip: '125.161.77.69' },
     { id: 9145, tanggal: '28-05-2026 15:01:39', container: 'paydia-account', type: 'merchant-login', detail: 'email : incarnata.maria@pt-mfa.com\nuser.type : merchant', ip: '36.75.6.222' },
     { id: 9144, tanggal: '28-05-2026 15:00:31', container: 'paydia-account', type: 'merchant-login', detail: 'email : incarnata.maria@pt-mfa.com\nuser.type : merchant', ip: '36.75.6.222' },
     { id: 9143, tanggal: '28-05-2026 14:57:42', container: 'paydia-account-admin', type: 'admin-login', detail: 'email : kenny@paydia.id\nuser.type : admin', ip: '125.161.77.69' },
@@ -195,7 +201,21 @@ const typeAliases = {
     're-run-matching': 'Re-run Reconcile',
     'flagging-control': 'Flagging',
     'Flagging Control': 'Flagging',
-    'telegram-alert': 'Telegram Alert'
+    'telegram-alert': 'Telegram Alert',
+    // Auto Settlement
+    'request-hold': 'Ajukan Hold',
+    'request-hold-partial': 'Ajukan Hold Partial',
+    'request-hold-partial-split': 'Ajukan Hold Partial',
+    'request-hold-min': 'Ajukan Hold Min. Transaksi',
+    'request-reject': 'Ajukan Reject',
+    'request-settle': 'Ajukan Settle',
+    'approve-approval': 'Approve Request',
+    'reject-approval': 'Reject Request',
+    'bulk-settle': 'Bulk Settle',
+    'reject-by-bank': 'Reject by Bank',
+    'export-settle': 'Ekspor Data Tabel',
+    'export-segregasi': 'Ekspor Segregasi per Bank',
+    'retry-settlement': 'Retry Settlement'
 };
 
 function migrateLogTypes(list) {
@@ -219,13 +239,13 @@ function initDatabase() {
             logs = migrateLogTypes(parsed);
             // merge in any seed entries not yet present
             const existingIds = new Set(logs.map(l => l.id));
-            const newEntries = seedLogs.filter(s => !existingIds.has(s.id));
+            const newEntries = migrateLogTypes(seedLogs.filter(s => !existingIds.has(s.id)));
             if (newEntries.length > 0) {
                 logs = [...newEntries, ...logs];
             }
             localStorage.setItem('paydia_logs', JSON.stringify(logs));
         } else {
-            logs = [...seedLogs];
+            logs = migrateLogTypes(seedLogs);
             localStorage.setItem('paydia_logs', JSON.stringify(logs));
         }
     } else {
