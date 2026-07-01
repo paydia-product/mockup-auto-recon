@@ -186,6 +186,7 @@
                     <div class="as-toolbar2" style="position:relative;">
                         <button class="btn btn-filter" id="asFilterBtn" style="margin:0;"><i class="fas fa-filter"></i> Filter</button>
                         <button class="btn btn-export" id="asExportBtn" style="margin:0;"><i class="far fa-file-excel"></i> Export</button>
+                        <button class="btn btn-export" id="asExportSegBtn" style="margin:0;"><i class="far fa-file-excel"></i> Export Segregasi</button>
                         <div class="as-toolbar-actions" id="asTabActions"></div>
                         <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
                             <input type="text" id="asSearch" class="as-search-input" placeholder="Cari ID Settlement / Nama Pemilik Rekening">
@@ -232,7 +233,7 @@
                                 <div class="filter-col-divider"></div>
                                 <div class="filter-col-right">
                                     <div class="filter-section">
-                                        <span class="filter-section-title">Bank</span>
+                                        <span class="filter-section-title">Bank Tujuan</span>
                                         <div id="asFilterBanks" style="display:flex; flex-direction:column; gap:8px;">
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fbank" value="BCA"> BCA</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fbank" value="Mandiri"> Mandiri</label>
@@ -248,6 +249,18 @@
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="fail"> Fail</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="rejectbybank"> Reject by Bank</label>
                                         </div>
+                                    </div>
+                                    <div class="filter-section" id="asFilterChannelSection" style="margin-top:16px; display:none;">
+                                        <span class="filter-section-title">Channel Payment</span>
+                                        <select id="asFilterChannel" style="padding:8px; font-size:0.8rem; width:100%; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg);">
+                                            <option value="">Semua Channel</option>
+                                            <option value="BCA">BCA</option>
+                                            <option value="BRI">BRI</option>
+                                            <option value="Mandiri">Mandiri</option>
+                                            <option value="NOBU">NOBU</option>
+                                            <option value="AGI">AGI</option>
+                                            <option value="OCBC">OCBC</option>
+                                        </select>
                                     </div>
                                     <div class="filter-section" id="asFilterMetodeSection" style="margin-top:16px; display:none;">
                                         <span class="filter-section-title">Metode Settlement</span>
@@ -361,7 +374,7 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260701-v16"></script>
+    <script src="auto-settlement.js?v=20260701-v17"></script>
     <script src="page-guide.js?v=20260629-v4"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
