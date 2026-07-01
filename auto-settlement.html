@@ -240,6 +240,23 @@
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fbank" value="Lainnya"> Bank Lainnya</label>
                                         </div>
                                     </div>
+                                    <div class="filter-section" id="asFilterSettleStatus" style="margin-top:16px; display:none;">
+                                        <span class="filter-section-title">Status</span>
+                                        <div style="display:flex; flex-direction:column; gap:8px;">
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="pending"> Pending</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="success"> Success</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="fail"> Fail</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="rejectbybank"> Reject by Bank</label>
+                                        </div>
+                                    </div>
+                                    <div class="filter-section" id="asFilterMetodeSection" style="margin-top:16px; display:none;">
+                                        <span class="filter-section-title">Metode Settlement</span>
+                                        <select id="asFilterMetode" style="padding:8px; font-size:0.8rem; width:100%; border:1px solid var(--border-color); border-radius:6px; background:var(--card-bg);">
+                                            <option value="">Semua Metode</option>
+                                            <option value="Manual">Manual</option>
+                                            <option value="Otomatis">Otomatis</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -344,7 +361,7 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260630-v15"></script>
+    <script src="auto-settlement.js?v=20260701-v16"></script>
     <script src="page-guide.js?v=20260629-v4"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
