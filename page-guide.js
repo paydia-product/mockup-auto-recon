@@ -37,20 +37,36 @@
             title: 'Panduan Halaman Auto Settlement',
             items: [
                 {
-                    h: 'Alur Tab (Checker → Approver → hasil)',
-                    b: `Settlement dipisah per tahap lewat <b>tab</b>: <b>Checker</b> mengajukan aksi → <b>Approver</b> menyetujui/menolak → hasil masuk ke tab <b>Hold</b>, <b>Reject</b>, atau <b>Settle</b>. Tiap tab punya <b>pagination, filter (bank), search</b>, dan <b>Export Tab</b> sendiri.`
+                    h: 'Unit data = settlement per Nomor Rekening',
+                    b: `Satu baris = satu <b>settlement group per nomor rekening</b>. Transaksi dari <b>beberapa MID berbeda dengan norek tujuan sama</b> otomatis digabung jadi satu entry (rincian per MID ada di modal <b>Detail ID Settlement → List Settlement</b>).<br><br><b>Total Settle = Nominal Awal − Biaya Admin + Adj. Chargeback (+) − Adj. Chargeback (−)</b>. Bank tujuan <b>di luar BCA/Mandiri/BRI</b> (Lainnya) dikenai <b>biaya admin flat Rp6.500</b> per payout.`
                 },
                 {
-                    h: 'Tab Checker',
-                    b: `Kolom lengkap per transaksi. Klik <b>ID Transaksi</b> untuk detail transaksi, klik <b>nama Merchant</b> untuk detail merchant. Aksi per baris: <b>Hold</b> (semua / partial pilih MID + catatan wajib + upload bukti opsional), <b>Reject</b> (catatan wajib + bukti opsional), <b>Settle</b> (pilih channel payment + catatan + bukti opsional), serta <b>Lihat/Edit Catatan</b>. <b>Bulk action</b> hanya <b>Bulk Settle</b> (pilih baris → pilih channel).`
+                    h: 'Alur Tab (Checker → Approver → hasil)',
+                    b: `Settlement dipisah per tahap lewat <b>tab</b>: <b>Checker</b> mengajukan aksi → <b>Approver</b> menyetujui/menolak → hasil masuk ke tab <b>Hold</b>, <b>Reject</b>, atau <b>Settle</b>. Tiap tab punya <b>pagination, filter, search (ID Settlement / Nama Pemilik Rekening)</b>, dan <b>Export</b>.<br><br><b>Auto-hold</b>: settlement dengan Total Settle <b>&lt; Rp10.000</b> pada bank tujuan <b>Lainnya</b> otomatis masuk tab <b>Hold</b> tanpa perlu diajukan.`
+                },
+                {
+                    h: 'Tab Checker — aksi',
+                    b: `Aksi per baris (kebab): <b>Hold</b>, <b>Reject</b>, <b>Settle</b>.<br><br>• <b>Hold</b>: cakupan <b>Hold Semua</b> / <b>Hold Partial (pilih MID)</b> / <b>Hold Dibawah Min. Transaksi</b>. Catatan wajib; bukti wajib untuk Hold Partial.<br>• <b>Reject</b>: catatan wajib, bukti opsional.<br>• <b>Settle</b>: pilih <b>Metode Settlement</b> (Manual = hanya catat, tidak kirim uang / Otomatis = catat + kirim uang ke bank), <b>Channel Payment</b>, <b>Metode Transfer</b>; catatan & bukti opsional.<br><br><b>Bulk Settle</b>: aktifkan mode bulk, centang baris → wajib pilih <b>Metode Settlement</b> + Channel + Metode Transfer.`
+                },
+                {
+                    h: 'Hold Partial memecah settlement',
+                    b: `Saat <b>Hold Partial</b>, MID yang dipilih <b>dipecah menjadi settlement baru terpisah</b> (ID <code>…-P1</code>, <code>-P2</code>, dst) yang diajukan ke Approver, sedangkan <b>MID sisanya tetap di Checker</b> sebagai settlement tersendiri.<br><br>Contoh: 1 norek berisi 4 MID, Hold Partial 2 MID → terbentuk 1 settlement baru berisi 2 MID (menunggu approval), dan settlement lama menyisakan 2 MID di Checker.`
                 },
                 {
                     h: 'Tab Approver',
-                    b: `Menampilkan request dari Checker (Hold/Reject/Settle). Approver bisa <b>Approve</b> atau <b>Reject</b> request, dan <b>Lihat</b> catatan + bukti. Approve memindahkan transaksi ke tab sesuai tipe; Reject mengembalikannya ke Checker.`
+                    b: `Menampilkan request dari Checker (Hold / Hold Partial / Hold Min. / Reject / Settle). Approver bisa <b>Approve</b> atau <b>Reject</b> request, dan <b>Lihat</b> catatan + bukti. Approve memindahkan settlement ke tab sesuai tipe; Reject mengembalikannya ke status sebelumnya. Tab Approver <b>tidak punya Export</b>.`
                 },
                 {
-                    h: 'Tab Hold / Reject / Settle',
-                    b: `Daftar hasil akhir. Semua punya pagination, filter, search, lihat catatan, view detail transaksi/merchant, dan export. Tab <b>Settle</b> punya aksi tambahan <b>Ganti Status → Reject</b> per baris dan <b>Reject by Bank</b> (pindahkan semua settle pada bank tertentu ke Reject).`
+                    h: 'Tab Settle — status & simulasi',
+                    b: `Kolom tambahan: <b>Channel Payment</b>, <b>Metode Settlement</b>, <b>Status</b>. Status: <b>Pending</b> (response bank masih kosong), <b>Success</b>, <b>Fail</b> (gagal sistem — timeout / server bank), <b>Reject by Bank</b> (norek tidak terdaftar / dibekukan).<br><br>Dropdown <b>Simulasi Status</b> untuk mencoba tampilan tiap status. <b>Lihat Detail</b> menampilkan Request/Response data, Channel Payment, Metode Transfer, Waktu Diajukan/Disetujui, dan <b>Disetujui Oleh</b>. <b>Reject by Bank</b> per baris hanya untuk item Metode <b>Manual</b>.`
+                },
+                {
+                    h: 'Retry Settlement',
+                    b: `Tombol <b>Retry Settlement</b> (tab Settle) mengirim ulang ke bank data dengan <b>Metode Settlement Otomatis</b> yang berstatus <b>Gagal</b>. Wajib pilih <b>Tanggal</b> retry.`
+                },
+                {
+                    h: 'Export & Export Segregasi',
+                    b: `<b>Export</b> (per tab): kolom mengikuti tab aktif — tab Settle menyertakan Channel Payment, Metode Transfer, Metode Settlement, Waktu Diajukan/Disetujui, Disetujui Oleh, Catatan. Sheet lebar bisa di-scroll ke samping.<br><br><b>Export Segregasi</b> (khusus tab Settle): pilih <b>Tanggal</b>, hanya memuat data <b>Metode Settlement Manual</b>. Hasil dipisah <b>per channel payment</b> (tabel A–K) dalam satu sheet, plus segmen <b>Grand Total</b> (Adm / Hold / Released HOLD) setelah tabel K.`
                 }
             ]
         },
@@ -142,15 +158,44 @@
             items: [
                 {
                     h: 'Apa yang dicatat',
-                    b: `Audit Log mencatat <b>setiap aktivitas yang mengubah state</b> atau menghasilkan sesuatu dari sistem: Flag Recon, Flag Settle, Buat Transaksi, Tolak, edit catatan, settle/batalkan settlement, export, approve/reject, dan lainnya.`
+                    b: `Audit Log mencatat <b>setiap aktivitas yang mengubah state</b> atau menghasilkan sesuatu dari sistem. Log mencakup aktivitas dari beberapa modul — antara lain <b>Auto Recon</b> dan <b>Auto Settlement</b> — yang bisa dibedakan lewat kolom <b>Container</b> dan <b>Type</b>.`
                 },
                 {
                     h: 'Isi catatan log',
-                    b: `Tiap entri mencatat <b>email pelaku</b>, <b>aksi</b> yang dilakukan, dan waktunya — sehingga setiap perubahan data dapat ditelusuri.`
+                    b: `Tiap entri mencatat <b>email pelaku</b>, <b>aksi</b> yang dilakukan, waktunya, dan <b>IP</b> — sehingga setiap perubahan data dapat ditelusuri.`
+                },
+                {
+                    h: 'Aktivitas Auto Recon (Reconcile / Settle & Recon)',
+                    b: `Container <b>paydia-reconcile</b>, <b>paydia-settle-recon</b>, <b>paydia-trx-mpm</b>. Type yang dicatat: <b>Flag Recon</b>, <b>Flag Settle</b>, <b>Buat Transaksi</b>, <b>Tolak</b>, <b>Edit Catatan</b>, <b>Ekspor Data Tabel</b>, <b>Ekspor Segregasi per Bank</b>, <b>Settle Settlement</b> / <b>Batalkan Settlement</b>, <b>Tambah Dispute Good Faith</b>, <b>Batalkan Transaksi MPM</b>, <b>Approval Flag Settle</b> / <b>Approval Buat Transaksi</b>.`
+                },
+                {
+                    h: 'Aktivitas Auto Settlement',
+                    b: `Container <b>paydia-auto-settlement</b>. Type yang dicatat: <b>Ajukan Hold</b> / <b>Ajukan Hold Partial</b> / <b>Ajukan Hold Min. Transaksi</b>, <b>Ajukan Reject</b>, <b>Ajukan Settle</b>, <b>Bulk Settle</b>, <b>Approve Request</b> / <b>Reject Request</b> (oleh Approver), <b>Reject by Bank</b>, <b>Retry Settlement</b>, <b>Ekspor Data Tabel</b>, dan <b>Ekspor Segregasi per Bank</b>.`
                 },
                 {
                     h: 'Filter Log',
-                    b: `Klik <b>Filter</b> (panel muncul tepat di bawah tombol) untuk menyaring log. Bentuknya <b>checklist multi-select</b>: <b>Container</b> dan <b>Type</b> (jenis aktivitas recon: Flag Recon, Buat Transaksi, Flag Settle, Tolak, Edit Catatan, Ekspor Data Tabel, Ekspor Segregasi per Bank, Settle/Batalkan Settlement, Approval Flag Settle/Buat Transaksi, dll), plus <b>Tanggal</b>, <b>Detail</b>, dan <b>IP</b>. Klik <b>Apply Filters</b> untuk menerapkan, <b>Clear All</b> untuk reset.`
+                    b: `Klik <b>Filter</b> (panel muncul tepat di bawah tombol). Bentuknya <b>checklist multi-select</b>: <b>Container</b> (mis. paydia-reconcile vs paydia-auto-settlement) dan <b>Type</b>, plus <b>Tanggal</b>, <b>Detail</b>, dan <b>IP</b>. Klik <b>Apply Filters</b> untuk menerapkan, <b>Clear All</b> untuk reset.`
+                }
+            ]
+        },
+        'admin.html': {
+            title: 'Panduan Halaman Admin',
+            items: [
+                {
+                    h: 'Daftar Admin & Status',
+                    b: `Menampilkan daftar admin dengan <b>email, nama, dan status</b> (Active / Suspend / Archive). Gunakan <b>Tambah Admin</b> untuk membuat admin baru, atau <b>Edit</b> per baris untuk mengubah data & permission.`
+                },
+                {
+                    h: 'Manage Permissions (per segmen)',
+                    b: `Di modal Add / Edit, permission dikelompokkan per <b>segmen</b>. Tiap segmen punya <b>Select All</b> dan pencarian di atas. Centang butir permission yang ingin diberikan, lalu <b>Simpan</b>. Segmen/permission <b>baru</b> ditandai badge <b>"Baru"</b>.`
+                },
+                {
+                    h: 'Permission Auto Recon',
+                    b: `Segmen terkait <b>Auto Recon</b>: <b>Reconcile QRIS Acquirer</b> (Card Statistic, View Match, View Unmatch, Action Unmatch, Export, View Decline), <b>Settlement Rekon</b> (Export, Inquiry, Read, Update, Export per Bank), serta <b>Approval → Process Unmatched Transaction</b> untuk persetujuan Flag Settle / Buat Transaksi.`
+                },
+                {
+                    h: 'Permission Auto Settlement',
+                    b: `Segmen khusus <b>Auto Settlement</b> (QRIS), dipisah per peran:<br><br>• <b>Auto Settlement QRIS Checker</b>: Read, Export, Hold, Reject, Settle.<br>• <b>Auto Settlement QRIS Approver</b>: Read, Approval.<br>• <b>Auto Settlement QRIS Result</b>: Read, Export, Export Segregasi, Hold, Settle, Reject, Retry Settle.`
                 }
             ]
         }

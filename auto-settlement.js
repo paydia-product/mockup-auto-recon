@@ -64,6 +64,73 @@ function st(id) {
     return items[id];
 }
 
+// 20 settlement seed — kondisi beragam untuk uji full flow.
+// MID: [mid, merchant, [ [nominalSettle, tipeSettlement, adjPlus, adjMinus], ... ] ]
+function seedRows() {
+    var S = [
+        // Single MID — bank core
+        { norek: '8810000000001', bank: 'BCA', owner: 'PT Andalan Retail', mids: [['MID-A001', 'Toko Andalan', [[220000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '8810000000003', bank: 'MANDIRI', owner: 'CV Maju Jaya', mids: [['MID-C001', 'Warung Maju', [[340000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '8810000000005', bank: 'BRI', owner: 'Warung Bu Sri', mids: [['MID-E001', 'Warung Bu Sri', [[125000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '8810000000015', bank: 'MANDIRI', owner: 'Warteg Murah', mids: [['MID-O001', 'Warteg Murah', [[5000, 'Reguler Matched', 0, 0]]]] }, // core kecil → tetap Checker
+        // Multi MID — bank core
+        { norek: '8810000000002', bank: 'BCA', owner: 'PT Kopi Nusantara', mids: [
+            ['MID-B001', 'Kopi Kenangan', [[180000, 'Reguler Matched', 0, 0]]],
+            ['MID-B002', 'Janji Jiwa', [[155000, 'Reguler Matched', 0, 0]]],
+            ['MID-B003', 'Roti Bakar 88', [[95000, 'Tambahan Matched', 0, 0]]]] },
+        { norek: '8810000000006', bank: 'BRI', owner: 'PT Empat Outlet', mids: [
+            ['MID-F001', 'Outlet Kota', [[210000, 'Reguler Matched', 0, 0]]],
+            ['MID-F002', 'Outlet Barat', [[175000, 'Reguler Matched', 0, 0]]],
+            ['MID-F003', 'Outlet Timur', [[130000, 'Tambahan Matched', 0, 0]]],
+            ['MID-F004', 'Outlet Selatan', [[90000, 'Reguler Matched', 0, 0]]]] }, // 4 MID → uji Hold Partial
+        { norek: '8810000000016', bank: 'BRI', owner: 'PT Dua Gerai', mids: [
+            ['MID-P001', 'Gerai Utara', [[230000, 'Reguler Matched', 0, 0]]],
+            ['MID-P002', 'Gerai Selatan', [[160000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '8810000000019', bank: 'BCA', owner: 'PT Empat Toko', mids: [
+            ['MID-S001', 'Toko A', [[145000, 'Reguler Matched', 0, 0]]],
+            ['MID-S002', 'Toko B', [[132000, 'Reguler Matched', 0, 0]]],
+            ['MID-S003', 'Toko C', [[118000, 'Tambahan Matched', 0, 0]]],
+            ['MID-S004', 'Toko D', [[99000, 'Reguler Matched', 0, 0]]]] },
+        // Dispute (adjustment chargeback)
+        { norek: '8810000000004', bank: 'MANDIRI', owner: 'PT Dua Merchant', mids: [
+            ['MID-D001', 'Merchant Alpha', [[500000, 'Reguler Matched', 0, 0]]],
+            ['MID-D002', 'Merchant Beta', [[0, 'Reguler Dispute', 0, 30000]]]] },
+        { norek: '8810000000014', bank: 'BCA', owner: 'PT Dispute Ganda', mids: [
+            ['MID-N001', 'Toko X', [[265000, 'Reguler Matched', 0, 0]]],
+            ['MID-N002', 'Toko Y', [[0, 'Tambahan Dispute', 0, 12000], [0, 'Reguler Dispute', 9000, 0]]]] },
+        { norek: '8810000000020', bank: 'MANDIRI', owner: 'PT Campur Dispute', mids: [
+            ['MID-T001', 'Gerai Pusat', [[280000, 'Reguler Matched', 0, 0]]],
+            ['MID-T002', 'Gerai Cabang', [[190000, 'Tambahan Matched', 0, 0]]],
+            ['MID-T003', 'Gerai Online', [[0, 'Reguler Dispute', 0, 25000]]]] },
+        // Bank Lainnya (non-core, admin Rp6.500)
+        { norek: '6600000000008', bank: 'OCBC', owner: 'PT Cahaya Digital', mids: [['MID-H001', 'Cahaya Digital', [[520000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '6600000000009', bank: 'NOBU', owner: 'Sumber Rezeki', mids: [
+            ['MID-I001', 'Gerai A', [[260000, 'Reguler Matched', 0, 0]]],
+            ['MID-I002', 'Gerai B', [[140000, 'Tambahan Matched', 0, 0]]]] },
+        { norek: '6600000000011', bank: 'BNI', owner: 'Apotek Sehat', mids: [['MID-K001', 'Apotek Sehat', [[175000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '6600000000012', bank: 'PERMATA', owner: 'PT Tiga Cabang', mids: [
+            ['MID-L001', 'Cabang 1', [[320000, 'Reguler Matched', 0, 0]]],
+            ['MID-L002', 'Cabang 2', [[210000, 'Reguler Matched', 0, 0]]],
+            ['MID-L003', 'Cabang 3', [[0, 'Reguler Dispute', 18000, 0]]]] },
+        { norek: '6600000000018', bank: 'JAGO', owner: 'Freelance Design', mids: [['MID-R001', 'Studio Kreatif', [[430000, 'Reguler Matched', 0, 0]]]] },
+        // Auto-hold: non-core & total < Rp10.000
+        { norek: '6600000000007', bank: 'OCBC', owner: 'Kios Pulsa Andi', mids: [['MID-G001', 'Kios Pulsa Andi', [[8500, 'Reguler Matched', 0, 0]]]] },
+        { norek: '6600000000017', bank: 'CIMB', owner: 'Laundry Bersih', mids: [['MID-Q001', 'Laundry Bersih', [[9000, 'Reguler Matched', 0, 0]]]] },
+        // Nominal besar (> Rp250 juta) untuk uji filter
+        { norek: '6600000000010', bank: 'AGI', owner: 'PT Besar Sekali', mids: [['MID-J001', 'Distributor Besar', [[285000000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '8810000000013', bank: 'BCA', owner: 'PT Nominal Besar', mids: [['MID-M001', 'Grosir Nasional', [[300000000, 'Reguler Matched', 0, 0]]]] }
+    ];
+    var rows = [], seq = 40000;
+    S.forEach(function (s) {
+        s.mids.forEach(function (md) {
+            md[2].forEach(function (t) {
+                rows.push({ txId: 'TX-ACQ-' + (seq++), tanggal: '24-06-2026 09:40:00', merchantName: md[1], mid: md[0], bankCode: s.bank, bankAccount: s.norek, bankAccountName: s.owner, nominalSettle: t[0], tipeSettlement: t[1], adjPlus: t[2] || 0, adjMinus: t[3] || 0 });
+            });
+        });
+    });
+    return rows;
+}
+
 function loadPool() {
     var db = [];
     try { db = JSON.parse(localStorage.getItem('paydia_settlements')) || []; } catch (e) { db = []; }
@@ -76,20 +143,9 @@ function loadPool() {
             nominalSettle: Number(r.nominalSettle) || 0, tipeSettlement: r.tipeSettlement || 'Reguler Matched',
             adjPlus: 0, adjMinus: 0 };
     });
-    // Demo: 3 merchant berbeda dgn NOREK sama → tergroup jadi 1 entry.
-    src.push({ txId: 'TX-ACQ-30001', tanggal: '24-06-2026 09:40:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 220000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
-    src.push({ txId: 'TX-ACQ-30002', tanggal: '24-06-2026 09:41:00', merchantName: 'Janji Jiwa', mid: 'MID-77002', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 185000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
-    src.push({ txId: 'TX-ACQ-30003', tanggal: '24-06-2026 09:42:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 97500, tipeSettlement: 'Tambahan Matched', adjPlus: 0, adjMinus: 0 });
-    // Demo: entry dengan total settle > Rp250 juta (uji filter Nominal > 250jt).
-    src.push({ txId: 'TX-ACQ-30010', tanggal: '24-06-2026 10:00:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 280000000, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
-    src.push({ txId: 'TX-ACQ-30011', tanggal: '24-06-2026 10:05:00', merchantName: 'PT Sumber Rejeki', mid: 'MID-88001', bankCode: 'BCA', bankAccount: '7100099887766', bankAccountName: 'PT Sumber Rejeki Abadi', nominalSettle: 12500000, tipeSettlement: 'Tambahan Matched', adjPlus: 0, adjMinus: 0 });
-    // Demo chargeback/dispute: settlement Dispute terpisah dari Matched; valuenya di adj chargeback (nominal settle 0).
-    src.push({ txId: 'TX-ACQ-30004', tanggal: '24-06-2026 09:45:00', merchantName: 'Kopi Kenangan', mid: 'MID-77001', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 0, tipeSettlement: 'Reguler Dispute', adjPlus: 0, adjMinus: 30000 });
-    src.push({ txId: 'TX-ACQ-30005', tanggal: '24-06-2026 09:46:00', merchantName: 'Roti Bakar 88', mid: 'MID-77003', bankCode: 'BCA', bankAccount: '8800123456789', bankAccountName: 'PT Mitra Bersama', nominalSettle: 0, tipeSettlement: 'Tambahan Dispute', adjPlus: 18000, adjMinus: 0 });
-    // Dispute pada group Firman (norek 3847075823) agar contoh dispute tersebar.
-    src.push({ txId: 'TX-ACQ-30006', tanggal: '24-06-2026 09:50:00', merchantName: 'Firman Zain', mid: '240327001000000', bankCode: 'BCA', bankAccount: '3847075823', bankAccountName: 'Putri Padmasari', nominalSettle: 0, tipeSettlement: 'Reguler Dispute', adjPlus: 0, adjMinus: 12000 });
-    // Demo: bank tujuan non-core (OCBC = Lainnya) dgn total settle < Rp10.000 → auto-hold.
-    src.push({ txId: 'TX-ACQ-30020', tanggal: '24-06-2026 10:10:00', merchantName: 'Kios Pulsa Andi', mid: 'MID-99001', bankCode: 'OCBC', bankAccount: '6600055554444', bankAccountName: 'Andi Saputra', nominalSettle: 8500, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0 });
+    // Seed 20 settlement (kondisi beragam) + normalisasi: semua mengikuti aturan grouping
+    // per norek, biaya admin bank Lainnya, auto-hold < Rp10.000, dan adjustment dispute.
+    Array.prototype.push.apply(src, seedRows());
     pool = src.map(function (r, i) {
         r.procISO = iso;
         r.procDisplay = disp + ' ' + pad(8 + Math.floor(i / 6)) + ':' + pad((i * 7) % 60) + ':00';
@@ -131,29 +187,6 @@ function buildGroups() {
         if (s.status === 'checker' && !s.request && isOther(g.bank) && totalOf(g) < AUTO_HOLD_MIN) {
             s.status = 'hold';
             s.request = { type: 'hold', scope: 'min', reason: 'Auto hold: total settle < Rp10.000 (bank tujuan non-BCA/Mandiri/BRI)', bukti: '', ts: todayProc(), auto: true };
-        }
-    });
-    saveItems();
-}
-
-// Pre-seed beberapa item ke settle tab untuk demo pertama kali.
-function seedDemoSettle() {
-    var seeds = [
-        { id: 'STL-3847075823', settleStatus: 'success', metodeSettlement: 'Otomatis', channel: 'BCA', metode: 'BI-Fast',
-          reason: '', approvedTs: '30-06-2026 10:30', reqTs: '30-06-2026 09:15' },
-        { id: 'STL-7100099887766', settleStatus: 'pending', metodeSettlement: 'Manual', channel: 'Mandiri', metode: 'RTGS',
-          reason: 'Konfirmasi manual diperlukan', approvedTs: '30-06-2026 11:00', reqTs: '30-06-2026 10:30' }
-    ];
-    seeds.forEach(function(sd) {
-        var s = items[sd.id];
-        if (s && s.status === 'checker') {
-            s.status = 'settle';
-            s.settleStatus = sd.settleStatus;
-            s.metodeSettlement = sd.metodeSettlement;
-            s.approvedTs = sd.approvedTs;
-            s.approvedBy = 'dion@paydia.id';
-            s.request = { type: 'settle', metodeSettlement: sd.metodeSettlement, channel: sd.channel, metode: sd.metode,
-                          prevStatus: 'checker', reason: sd.reason, bukti: '', ts: sd.reqTs };
         }
     });
     saveItems();
@@ -1154,11 +1187,16 @@ function bind() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    var firstLoad = !localStorage.getItem('paydia_as_items');
+    // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
+    var SEED_VER = '2026-07-01-seed20';
+    if (localStorage.getItem('paydia_as_seedver') !== SEED_VER) {
+        localStorage.removeItem('paydia_as_items');
+        localStorage.removeItem('paydia_as_splits');
+        localStorage.setItem('paydia_as_seedver', SEED_VER);
+    }
     loadItems();
     loadSplits();
     loadPool();
-    if (firstLoad) seedDemoSettle();
     filters = defaultFilters();
     bind();
     syncFilterInputs();
