@@ -54,7 +54,7 @@ function loadItems() { try { items = JSON.parse(localStorage.getItem('paydia_as_
 function saveItems() { localStorage.setItem('paydia_as_items', JSON.stringify(items)); }
 
 function st(id) {
-    if (!items[id]) items[id] = { status: 'checker', adjPlus: 0, adjMinus: 0, note: '', request: null, channel: '', bukti: '', settleStatus: null, approvedTs: null, metodeSettlement: null };
+    if (!items[id]) items[id] = { status: 'checker', adjPlus: 0, adjMinus: 0, note: '', request: null, channel: '', bukti: '', settleStatus: null, approvedTs: null, approvedBy: null, metodeSettlement: null };
     return items[id];
 }
 
@@ -134,6 +134,7 @@ function seedDemoSettle() {
             s.settleStatus = sd.settleStatus;
             s.metodeSettlement = sd.metodeSettlement;
             s.approvedTs = sd.approvedTs;
+            s.approvedBy = 'dion@paydia.id';
             s.request = { type: 'settle', metodeSettlement: sd.metodeSettlement, channel: sd.channel, metode: sd.metode,
                           prevStatus: 'checker', reason: sd.reason, bukti: '', ts: sd.reqTs };
         }
@@ -629,6 +630,7 @@ function approverDecide(g, approve) {
             s.channel = rq.channel || '';
         }
         s.approvedTs = todayProc();
+        s.approvedBy = 'dion@paydia.id';
         showToast('Request Disetujui', g.groupId + ' → ' + (rq.type || '').toUpperCase() + '.');
         writeLog('auto-settlement', 'email : dion@paydia.id\naction : Approve ' + (rq.type || '') + ' ' + g.groupId);
     } else {
@@ -745,6 +747,7 @@ function openDetailModal(g) {
         kv('Bukti', buktiVal) +
         kv('Waktu Diajukan', esc(rq.ts || '-')) +
         kv('Waktu Disetujui', esc(s.approvedTs || '-')) +
+        kv('Disetujui Oleh', esc(s.approvedBy || '-')) +
         expandSection('REQUEST DATA', '<span style="font-family:monospace;font-size:0.9rem;">&lt;&gt;</span> ', mockReqJson(g), false) +
         expandSection('RESPONSE DATA', '<span style="font-family:monospace;font-size:0.9rem;">{}</span> ', mockResJson(g), true);
     openModal('Lihat Detail', body, [{ label: 'Tutup', onClick: closeModal }]);
@@ -758,9 +761,9 @@ var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Adm
 
 function exportCols() {
     if (activeTab === 'pending') return EXPORT_COLS.concat(['Request']);
-    if (activeTab === 'hold') return EXPORT_COLS.concat(['Alasan', 'Waktu Diajukan', 'Waktu Disetujui', 'Catatan']);
-    if (activeTab === 'reject') return EXPORT_COLS.concat(['Waktu Diajukan', 'Waktu Disetujui', 'Catatan']);
-    if (activeTab === 'settle') return EXPORT_COLS.concat(['Channel Payment', 'Metode Transfer', 'Metode Settlement', 'Waktu Diajukan', 'Waktu Disetujui', 'Catatan']);
+    if (activeTab === 'hold') return EXPORT_COLS.concat(['Alasan', 'Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
+    if (activeTab === 'reject') return EXPORT_COLS.concat(['Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
+    if (activeTab === 'settle') return EXPORT_COLS.concat(['Channel Payment', 'Metode Transfer', 'Metode Settlement', 'Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
     return EXPORT_COLS;
 }
 
@@ -772,11 +775,11 @@ function exportRowData(rows) {
             var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');
             row.push(lbl);
         } else if (activeTab === 'hold') {
-            row.push(SCOPE_LABEL[rq.scope] || '-', rq.ts || '-', s.approvedTs || '-', rq.reason || '-');
+            row.push(SCOPE_LABEL[rq.scope] || '-', rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
         } else if (activeTab === 'reject') {
-            row.push(rq.ts || '-', s.approvedTs || '-', rq.reason || '-');
+            row.push(rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
         } else if (activeTab === 'settle') {
-            row.push(s.channel || rq.channel || '-', rq.metode || '-', s.metodeSettlement || '-', rq.ts || '-', s.approvedTs || '-', rq.reason || '-');
+            row.push(s.channel || rq.channel || '-', rq.metode || '-', s.metodeSettlement || '-', rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
         }
         return row;
     });
@@ -835,7 +838,8 @@ var SEG_OWNERS = ['PT MITRA BERSAMA', 'EDY KUSUMA', 'CICIH JUARSIH', 'PT DISTRIB
 function segRand(a) { return a[Math.floor(Math.random() * a.length)]; }
 function segData() {
     return SEG_TABLES.map(function (title) {
-        var n = Math.floor(Math.random() * 6); // 0–5 baris (beberapa tabel kosong, total 0)
+        // Tabel K selalu berisi (2–5 baris); tabel lain 0–5 baris.
+        var n = (title.indexOf('K.') === 0) ? Math.floor(Math.random() * 4) + 2 : Math.floor(Math.random() * 6);
         var rows = [], total = 0;
         for (var i = 0; i < n; i++) {
             var amt = Math.floor(Math.random() * 90000000) + 10000;
@@ -987,7 +991,8 @@ function openCatatanModal(g) {
         kv('Catatan', rq.reason ? '<span style="white-space:pre-wrap;">' + esc(rq.reason) + '</span>' : '<span style="color:var(--text-muted);">-</span>') +
         kv('Bukti', buktiVal) +
         kv('Waktu Diajukan', esc(rq.ts || '-')) +
-        kv('Waktu Disetujui', esc(s.approvedTs || '-'));
+        kv('Waktu Disetujui', esc(s.approvedTs || '-')) +
+        kv('Disetujui Oleh', esc(s.approvedBy || '-'));
     openModal('Catatan & Bukti', body, [{ label: 'Tutup', onClick: closeModal }]);
     var bb = document.getElementById('asBuktiBtn');
     if (bb) bb.addEventListener('click', function () { openBukti(rq.bukti); });
