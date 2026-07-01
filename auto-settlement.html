@@ -68,7 +68,8 @@
         .as-req-badge { font-size: 0.66rem; font-weight: 700; border-radius: 4px; padding: 2px 7px; }
         /* Tabel muat tanpa scroll samping: konten panjang membungkus, bukan meluber. */
         #asTable td, #asTable th { word-break: break-word; overflow-wrap: anywhere; }
-        #asExportTable td, #asExportTable th { word-break: break-word; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
+        /* Export sim: sheet lebar → scroll ke samping (jangan bungkus/berdesakan). */
+        #asExportTable td, #asExportTable th { white-space: nowrap; vertical-align: top; }
         #asTable { width: 100%; }
     </style>
 
@@ -339,8 +340,8 @@
             </div>
             <div class="modal-body" style="padding:0;">
                 <div id="asExportSub" style="padding:12px 18px; font-size:0.82rem; color:var(--text-secondary);"></div>
-                <div style="overflow-y:auto; overflow-x:hidden; max-height:440px;">
-                    <table class="data-table" id="asExportTable" style="table-layout:fixed; width:100%; font-size:0.74rem;">
+                <div style="overflow:auto; max-height:440px;">
+                    <table class="data-table" id="asExportTable" style="width:max-content; min-width:100%; font-size:0.74rem;">
                         <thead id="asExportHead"></thead>
                         <tbody id="asExportBody"></tbody>
                     </table>
@@ -374,7 +375,7 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260701-v17"></script>
+    <script src="auto-settlement.js?v=20260701-v18"></script>
     <script src="page-guide.js?v=20260629-v4"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {

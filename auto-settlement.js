@@ -214,9 +214,11 @@ function render() {
     renderToolbarActions();
     renderTable();
     renderBulkBar();
-    // Export dihapus di tab Approver.
+    // Export dihapus di tab Approver. Export Segregasi hanya di tab Settle.
     var exBtn = document.getElementById('asExportBtn');
     if (exBtn) exBtn.style.display = (activeTab === 'pending') ? 'none' : '';
+    var segBtn = document.getElementById('asExportSegBtn');
+    if (segBtn) segBtn.style.display = (activeTab === 'settle') ? '' : 'none';
 }
 
 function renderCounts() {
@@ -297,7 +299,7 @@ function renderTable() {
             c += '<td>' + esc(s.metodeSettlement || '-') + '</td>';
             var ds = displaySettleStatus(g);
             var ssColor = SETTLE_STATUS_COLOR[ds] || '#475569';
-            c += '<td><span style="font-size:0.72rem;font-weight:700;border-radius:4px;padding:2px 8px;background:' + ssColor + '22;color:' + ssColor + ';">' + esc(SETTLE_STATUS_LABEL[ds] || ds) + '</span></td>';
+            c += '<td><span style="font-size:0.72rem;font-weight:700;border-radius:4px;padding:2px 8px;white-space:nowrap;display:inline-block;background:' + ssColor + '22;color:' + ssColor + ';">' + esc(SETTLE_STATUS_LABEL[ds] || ds) + '</span></td>';
         }
         c += '<td style="text-align:center;white-space:nowrap;">' + actionButtons(g) + '</td>';
         c += '</tr>';
@@ -843,10 +845,18 @@ function segData() {
         return { title: title, rows: rows, total: total };
     });
 }
-var _segCache = null, _segDate = '';
+// Rekap grand total setelah tabel K (format mengikuti sheet 2606 REG).
+function segRecap(tables) {
+    var grand = tables.reduce(function (s, t) { return s + t.total; }, 0);
+    var adm = Math.floor(Math.random() * 150000) + 50000;   // dana admin
+    var hold = Math.floor(Math.random() * 60000) + 10000;   // dana yang di-hold
+    var diff = adm + hold;
+    return { grand: grand, grand2: grand + diff, diff: diff, adm: adm, hold: hold };
+}
+var _segCache = null, _segDate = '', _segRecap = null;
 function showSegregasiPreview(dateStr) {
-    _segCache = segData(); _segDate = dateStr;
-    document.getElementById('asExportSub').innerHTML = 'Simulasi hasil <b>Export Segregasi per Bank</b> — Tanggal ' + esc(dateStr) + '. Tabel dipisah per channel payment (semua dalam 1 sheet).';
+    _segCache = segData(); _segDate = dateStr; _segRecap = segRecap(_segCache);
+    document.getElementById('asExportSub').innerHTML = 'Simulasi hasil <b>Export Segregasi per Bank</b> — Tanggal ' + esc(dateStr) + '. Tabel dipisah per channel payment (semua dalam 1 sheet). Hanya memuat data dengan Metode Settlement <b>Manual</b>.';
     document.getElementById('asExportHead').innerHTML = '<tr>' + SEG_COLS.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>';
     var html = '';
     _segCache.forEach(function (t) {
@@ -855,6 +865,15 @@ function showSegregasiPreview(dateStr) {
             html += '<tr><td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(r.total) + '</td><td>' + esc(r.bank) + '</td><td style="font-variant-numeric:tabular-nums;">' + esc(r.norek) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.ket) + '</td></tr>';
         });
         html += '<tr><td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;border-top:2px solid #cbd5e1;">' + num(t.total) + '</td><td colspan="4" style="border-top:2px solid #cbd5e1;"></td></tr>';
+        // Rekap grand total tepat setelah tabel K.
+        if (t.title.indexOf('K.') === 0) {
+            var rc = _segRecap;
+            var rt = 'text-align:right;font-weight:700;font-variant-numeric:tabular-nums;';
+            html += '<tr><td style="' + rt + '">' + num(rc.grand) + '</td><td style="font-weight:700;">Grand Total</td><td></td><td></td><td></td></tr>';
+            html += '<tr><td style="' + rt + 'border-bottom:2px solid #334155;">' + num(rc.grand2) + '</td><td style="border-bottom:2px solid #334155;"></td><td style="border-bottom:2px solid #334155;"></td><td style="border-bottom:2px solid #334155;"></td><td style="border-bottom:2px solid #334155;"></td></tr>';
+            html += '<tr><td style="text-align:right;color:#dc2626;font-variant-numeric:tabular-nums;">(' + num(rc.diff) + ')</td><td>ok, by admin + dana yang di hold)</td><td style="font-weight:700;">Adm</td><td style="font-weight:700;">Hold</td><td style="font-weight:700;">Released HOLD</td></tr>';
+            html += '<tr><td></td><td></td><td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(rc.adm) + '</td><td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(rc.hold) + '</td><td></td></tr>';
+        }
     });
     document.getElementById('asExportBody').innerHTML = html;
     document.getElementById('asExportDownload').onclick = function () { downloadSegregasiCsv(); };
@@ -868,6 +887,13 @@ function downloadSegregasiCsv() {
         lines.push(e(t.title));
         t.rows.forEach(function (r) { lines.push([r.total, r.bank, r.norek, r.owner, r.ket].map(e).join(',')); });
         lines.push(e(t.total)); // baris total (hanya kolom Total Settle)
+        if (t.title.indexOf('K.') === 0 && _segRecap) {
+            var rc = _segRecap;
+            lines.push([rc.grand, 'Grand Total'].map(e).join(','));
+            lines.push(e(rc.grand2));
+            lines.push([-rc.diff, 'ok, by admin + dana yang di hold)', 'Adm', 'Hold', 'Released HOLD'].map(e).join(','));
+            lines.push(['', '', rc.adm, rc.hold, ''].map(e).join(','));
+        }
     });
     var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -878,7 +904,8 @@ function downloadSegregasiCsv() {
 }
 function openSegregasiModal() {
     var body = '<div class="as-fld"><label>Tanggal Export <span style="color:#ef4444;">*</span></label>' +
-        '<input type="date" id="asSegDate" value="' + todayISO() + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;"></div>';
+        '<input type="date" id="asSegDate" value="' + todayISO() + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;"></div>' +
+        '<p style="font-size:0.8rem;padding:8px 12px;background:#eff6ff;color:#1d4ed8;border-radius:6px;margin:0;"><i class="fas fa-info-circle"></i> Export Segregasi hanya akan memuat data dengan Metode Settlement <b>Manual</b>.</p>';
     openModal('Export Segregasi per Bank', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Export', style: 'background:#10b981;color:#fff;border:none;padding:8px 20px;font-weight:600;', onClick: function () {
