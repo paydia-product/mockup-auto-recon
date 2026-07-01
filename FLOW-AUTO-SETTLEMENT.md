@@ -37,14 +37,14 @@ flowchart TD
     REJ -->|Aksi: Hold / Settle| APV
 
     SET --> MET{Metode Settlement}
-    MET -->|Manual| PEND[Status Pending - catat saja]
-    MET -->|Otomatis| BANK[Kirim ke Bank]
+    MET -->|Manual| MSUC[Status Success - catat saja, tidak kirim ke bank]
+    MET -->|Otomatis| BANK[Kirim ke Bank - status Pending]
     BANK --> RESP{Respons Bank}
     RESP -->|Sukses| SUC[Status Success]
     RESP -->|Gagal sistem| FAIL[Status Fail]
     RESP -->|Ditolak| RBB[Status Reject by Bank]
 
-    PEND --> RbB{Reject by Bank - Manual saja}
+    MSUC --> RbB{Reject by Bank - Manual saja}
     RbB -->|Ya| RBB
     RbB -->|Tidak| EXP[Export / Export Segregasi]
     FAIL --> RTR{Retry Settlement - Otomatis}
@@ -136,7 +136,7 @@ flowchart TD
     C -->|Approve| E{Tipe request?}
     E -->|Hold| F[[Tab Hold]]
     E -->|Reject| G[[Tab Reject]]
-    E -->|Settle| H[Set status Settle Pending, simpan Metode Settlement dan Channel]
+    E -->|Settle| H[Simpan Metode dan Channel. Manual jadi Success, Otomatis jadi Pending]
     H --> I[[Tab Settle]]
     D --> J([Selesai])
     F --> J
@@ -200,15 +200,15 @@ flowchart TD
 ```mermaid
 flowchart TD
     A([Settle disetujui Approver]) --> B{Metode Settlement?}
-    B -->|Manual| M[Catat settlement saja - tidak kirim uang]
-    B -->|Otomatis| K[Kirim data ke bank]
-    M --> P[Status Pending - Response data kosong]
+    B -->|Manual| M[Status Success - catat saja, tanpa Request/Response]
+    B -->|Otomatis| K[Kirim data ke bank - status Pending]
+    M --> Z([End])
     K --> C{Respons bank?}
-    C -->|Belum ada| P
+    C -->|Belum ada| P[Status Pending - Response data kosong]
     C -->|Berhasil| SU[Status Success]
     C -->|Gagal sistem - timeout atau server| FA[Status Fail]
     C -->|Ditolak bank - norek invalid atau dibekukan| RB[Status Reject by Bank]
-    P --> Z([End])
+    P --> Z
     SU --> Z
     RB --> Z
     FA --> D{Retry Settlement Otomatis?}
@@ -239,8 +239,8 @@ sequenceDiagram
             S->>S: Kembalikan ke status sebelumnya
             S-->>C: Settlement kembali ke Checker
         else Approver Approve
-            S->>S: Status Settle = Pending
             alt Metode Otomatis
+                S->>S: Status = Pending
                 S->>B: Kirim data transfer
                 alt Bank sukses
                     B-->>S: Success
@@ -253,7 +253,7 @@ sequenceDiagram
                     S->>S: Status = Reject by Bank
                 end
             else Metode Manual
-                S->>S: Catat settlement saja - Response data kosong
+                S->>S: Status = Success - catat saja, tanpa Request/Response
             end
         end
     end

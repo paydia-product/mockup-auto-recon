@@ -46,7 +46,7 @@
                 },
                 {
                     h: 'Tab Checker — aksi',
-                    b: `Aksi per baris (kebab): <b>Hold</b>, <b>Reject</b>, <b>Settle</b>.<br><br>• <b>Hold</b>: cakupan <b>Hold Semua</b> / <b>Hold Partial (pilih MID)</b> / <b>Hold Dibawah Min. Transaksi</b>. Catatan wajib; bukti wajib untuk Hold Partial.<br>• <b>Reject</b>: catatan wajib, bukti opsional.<br>• <b>Settle</b>: pilih <b>Metode Settlement</b> (Manual = hanya catat, tidak kirim uang / Otomatis = catat + kirim uang ke bank), <b>Channel Payment</b>, <b>Metode Transfer</b>; catatan & bukti opsional.<br><br><b>Bulk Settle</b>: aktifkan mode bulk, centang baris → wajib pilih <b>Metode Settlement</b> + Channel + Metode Transfer.`
+                    b: `Aksi per baris (kebab): <b>Hold</b>, <b>Reject</b>, <b>Settle</b>.<br><br>• <b>Hold</b>: cakupan <b>Hold Semua</b> / <b>Hold Partial (pilih MID)</b> / <b>Hold Dibawah Min. Transaksi</b>. Catatan wajib; bukti wajib untuk Hold Partial.<br>• <b>Reject</b>: catatan wajib, bukti opsional.<br>• <b>Settle</b>: pilih <b>Metode Settlement</b> (Manual = hanya catat, tidak kirim uang, setelah approval langsung <b>Success</b> / Otomatis = catat + kirim uang ke bank, status awal <b>Pending</b>), <b>Channel Payment</b>, <b>Metode Transfer</b>; catatan & bukti opsional.<br><br><b>Bulk Settle</b>: aktifkan mode bulk, centang baris → wajib pilih <b>Metode Settlement</b> + Channel + Metode Transfer.`
                 },
                 {
                     h: 'Hold Partial memecah settlement',
@@ -58,7 +58,7 @@
                 },
                 {
                     h: 'Tab Settle — status & simulasi',
-                    b: `Kolom tambahan: <b>Channel Payment</b>, <b>Metode Settlement</b>, <b>Status</b>. Status: <b>Pending</b> (response bank masih kosong), <b>Success</b>, <b>Fail</b> (gagal sistem — timeout / server bank), <b>Reject by Bank</b> (norek tidak terdaftar / dibekukan).<br><br>Dropdown <b>Simulasi Status</b> untuk mencoba tampilan tiap status. <b>Lihat Detail</b> menampilkan Request/Response data, Channel Payment, Metode Transfer, Waktu Diajukan/Disetujui, dan <b>Disetujui Oleh</b>. <b>Reject by Bank</b> per baris hanya untuk item Metode <b>Manual</b>.`
+                    b: `Kolom tambahan: <b>Channel Payment</b>, <b>Metode Settlement</b>, <b>Status</b>. Status: <b>Pending</b> (Otomatis, response bank masih kosong), <b>Success</b> (Otomatis berhasil, atau Manual langsung setelah approval), <b>Fail</b> (gagal sistem — timeout / server bank), <b>Reject by Bank</b> (norek tidak terdaftar / dibekukan).<br><br>Dropdown <b>Simulasi Status</b> untuk mencoba tampilan tiap status. <b>Lihat Detail</b> menampilkan Channel Payment, Metode Transfer, Waktu Diajukan/Disetujui, dan <b>Disetujui Oleh</b>; segmen Request/Response data hanya untuk Metode <b>Otomatis</b> (Manual tidak mengirim apa pun ke luar). <b>Reject by Bank</b> per baris hanya untuk item Metode <b>Manual</b> dan wajib isi catatan + bukti.`
                 },
                 {
                     h: 'Retry Settlement',
