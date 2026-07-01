@@ -32,6 +32,7 @@ flowchart TD
     DEC -->|Approve Hold| HOLD
     DEC -->|Approve Reject| REJ[[Tab Reject]]
     DEC -->|Approve Settle| SET[[Tab Settle]]
+    DEC -->|Approve Reject by Bank| RBB[Status Reject by Bank]
 
     HOLD -->|Aksi: Reject / Settle| APV
     REJ -->|Aksi: Hold / Settle| APV
@@ -42,10 +43,10 @@ flowchart TD
     BANK --> RESP{Respons Bank}
     RESP -->|Sukses| SUC[Status Success]
     RESP -->|Gagal sistem| FAIL[Status Fail]
-    RESP -->|Ditolak| RBB[Status Reject by Bank]
+    RESP -->|Ditolak| RBB
 
-    MSUC --> RbB{Reject by Bank - Manual saja}
-    RbB -->|Ya| RBB
+    MSUC --> RbB{Ajukan Reject by Bank? - Manual saja}
+    RbB -->|Ya - perlu approval| APV
     RbB -->|Tidak| EXP[Export / Export Segregasi]
     FAIL --> RTR{Retry Settlement - Otomatis}
     RTR -->|Ya| BANK
@@ -171,7 +172,7 @@ flowchart TD
     S -->|Export / Export Segregasi| S4[Simulasi hasil export]
 
     S2 -->|Tidak| S2X[Aksi tidak tersedia]
-    S2 -->|Ya| S2Y[Tandai status Reject by Bank]
+    S2 -->|Ya| S2Y[Ajukan Reject by Bank ke Approver - catatan + bukti, status belum berubah]
 
     S3 --> S3D{Ada data Otomatis dan status Gagal?}
     S3D -->|Tidak| S3X[0 transaksi di-retry]
@@ -216,7 +217,7 @@ flowchart TD
     D -->|Tidak| Z
 ```
 
-> Reject by Bank per baris hanya untuk item Manual; item Otomatis yang gagal ditangani lewat Retry Settlement.
+> Reject by Bank per baris hanya untuk item Manual dan **perlu approval Approver** (status tidak berubah sampai di-approve); item Otomatis yang gagal ditangani lewat Retry Settlement.
 
 ---
 
@@ -304,6 +305,30 @@ sequenceDiagram
             S->>B: Kirim ulang data transfer
             S->>S: Status kembali ke Pending
             S-->>U: N transaksi dikirim ulang ke bank
+        end
+    end
+```
+
+---
+
+## 9. Sequence Diagram — Reject by Bank (perlu approval)
+
+```mermaid
+sequenceDiagram
+    actor U as Operator - Tab Settle
+    participant S as Sistem Auto Settlement
+    actor A as Approver
+    U->>S: Klik Reject by Bank - item Metode Manual
+    alt Sudah menunggu approval
+        S-->>U: Toast - Data sedang menunggu approval
+    else Belum diajukan
+        U->>S: Isi catatan wajib + bukti, ajukan
+        S->>S: Buat request ke Approver, status settle tidak berubah
+        S->>A: Request Reject by Bank masuk Tab Approver
+        alt Approver Approve
+            S->>S: Kembali ke Tab Settle, status jadi Reject by Bank
+        else Approver Reject
+            S->>S: Kembali ke Tab Settle, status tidak berubah
         end
     end
 ```
