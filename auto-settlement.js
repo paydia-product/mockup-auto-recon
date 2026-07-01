@@ -330,8 +330,8 @@ function renderTable() {
         c += '<td>' + esc(g.namaRek) + '</td>';
         if (activeTab === 'pending') {
             var rq = s.request || {};
-            var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : '#b45309');
-            var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'settle' ? 'Settle' : (rq.type === 'reject' ? 'Reject' : '-'));
+            var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309'));
+            var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'settle' ? 'Settle' : (rq.type === 'reject' ? 'Reject' : (rq.type === 'rejectbybank' ? 'Reject by Bank' : '-')));
             c += '<td><span class="as-req-badge" style="background:' + col + '22;color:' + col + ';white-space:normal;display:inline-block;line-height:1.3;">' + esc(lbl) + '</span></td>';
         }
         if (activeTab === 'hold') {
@@ -689,7 +689,7 @@ function openRetry() {
 function openApproverModal(g) {
     var s = st(g.groupId); var rq = s.request || {};
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
-    var reqLabel = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');
+    var reqLabel = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'rejectbybank' ? 'Reject by Bank' : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-'));
     var buktiVal = rq.bukti
         ? esc(rq.bukti) + ' <button type="button" id="asBuktiBtn" class="btn" style="margin-left:8px;padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;">Lihat</button>'
         : '<span style="color:var(--text-muted);">tidak ada</span>';
@@ -719,12 +719,18 @@ function confirmApprover(g, approve) {
 function approverDecide(g, approve) {
     var s = st(g.groupId); var rq = s.request || {};
     if (approve) {
-        s.status = rq.type;
-        if (rq.type === 'settle') {
-            s.metodeSettlement = rq.metodeSettlement || 'Otomatis';
-            s.channel = rq.channel || '';
-            // Manual = tidak kirim ke bank, langsung Sukses. Otomatis = Pending (menunggu respons bank).
-            s.settleStatus = (s.metodeSettlement === 'Manual') ? 'success' : 'pending';
+        if (rq.type === 'rejectbybank') {
+            // Kembali ke tab Settle dengan status Reject by Bank.
+            s.status = 'settle';
+            s.settleStatus = 'rejectbybank';
+        } else {
+            s.status = rq.type;
+            if (rq.type === 'settle') {
+                s.metodeSettlement = rq.metodeSettlement || 'Otomatis';
+                s.channel = rq.channel || '';
+                // Manual = tidak kirim ke bank, langsung Sukses. Otomatis = Pending (menunggu respons bank).
+                s.settleStatus = (s.metodeSettlement === 'Manual') ? 'success' : 'pending';
+            }
         }
         s.approvedTs = todayProc();
         s.approvedBy = 'dion@paydia.id';
@@ -760,23 +766,26 @@ function openRejectByBank() {
     ]);
 }
 
-// ── settle tab: per-row Reject by Bank (Manual only) ──
+// ── settle tab: per-row Reject by Bank (Manual only) — perlu approval Approver ──
 function openRejectByBankItem(g) {
+    var s = st(g.groupId);
+    // Guard: sudah diajukan & menunggu approval → tolak request ulang.
+    if (s.status === 'pending') { showToast('Menunggu Approval', 'Data sedang menunggu approval, mohon tunggu.'); return; }
     var body = selInfo(g) +
-        '<p style="font-size:0.82rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank tanpa pengiriman uang.</p>' +
+        '<p style="font-size:0.82rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank tanpa pengiriman uang. Perlu approval Approver.</p>' +
         noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Reject by Bank', body, [
         { label: 'Batal', onClick: closeModal },
-        { label: 'Konfirmasi', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+        { label: 'Ajukan Reject by Bank', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var reason = document.getElementById('asReason').value.trim();
             if (!reason) { showToast('Catatan Wajib', 'Isi catatan Reject by Bank.'); return; }
             var bk = validateBukti(null); if (!bk) return;
-            var s = st(g.groupId);
-            s.settleStatus = 'rejectbybank';
-            if (s.request) { s.request.reason = reason; if (bk.name) s.request.bukti = bk.name; }
+            var prev = s.status; s.status = 'pending';
+            // Status settle (settleStatus) TIDAK berubah sampai di-approve.
+            s.request = { type: 'rejectbybank', prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
             saveItems(); closeModal(); render();
-            showToast('Reject by Bank', g.groupId + ' ditandai Reject by Bank.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject by Bank item ' + g.groupId + '\ncatatan : ' + reason + (bk.name ? '\nbukti : ' + bk.name : ''));
+            showToast('Reject by Bank Diajukan', g.groupId + ' menunggu approval Approver.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Reject by Bank ' + g.groupId + '\ncatatan : ' + reason + (bk.name ? '\nbukti : ' + bk.name : ''));
         } }
     ]);
 }
