@@ -118,7 +118,13 @@ function seedRows() {
         { norek: '6600000000017', bank: 'CIMB', owner: 'Laundry Bersih', mids: [['MID-Q001', 'Laundry Bersih', [[9000, 'Reguler Matched', 0, 0]]]] },
         // Nominal besar (> Rp250 juta) untuk uji filter
         { norek: '6600000000010', bank: 'AGI', owner: 'PT Besar Sekali', mids: [['MID-J001', 'Distributor Besar', [[285000000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000013', bank: 'BCA', owner: 'PT Nominal Besar', mids: [['MID-M001', 'Grosir Nasional', [[300000000, 'Reguler Matched', 0, 0]]]] }
+        { norek: '8810000000013', bank: 'BCA', owner: 'PT Nominal Besar', mids: [['MID-M001', 'Grosir Nasional', [[300000000, 'Reguler Matched', 0, 0]]]] },
+        // §1.1 demo — bank+norek sama, nama beda → 1 entitas (nama = input paling awal "PT Sinar Pertama")
+        { norek: '8810000000021', bank: 'BCA', owner: 'PT Sinar Pertama', mids: [['MID-U001', 'Sinar Toko A', [[190000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '8810000000021', bank: 'BCA', owner: 'PT Sinar Kedua', mids: [['MID-U002', 'Sinar Toko B', [[160000, 'Reguler Matched', 0, 0]]]] },
+        // §1.1 demo — norek sama, bank beda → 2 rekening terpisah
+        { norek: '8810000000022', bank: 'BCA', owner: 'PT Dua Bank', mids: [['MID-V001', 'Dua Bank BCA', [[240000, 'Reguler Matched', 0, 0]]]] },
+        { norek: '8810000000022', bank: 'BRI', owner: 'PT Dua Bank', mids: [['MID-V002', 'Dua Bank BRI', [[175000, 'Reguler Matched', 0, 0]]]] }
     ];
     var rows = [], seq = 40000;
     S.forEach(function (s) {
@@ -159,12 +165,18 @@ function makeGroup(id, norek, txns) {
 // Group transaksi per NOMOR REKENING → 1 entry settlement.
 // Hold Partial memecah sebagian MID jadi settlement terpisah (splits).
 function buildGroups() {
-    var byNorek = {};
-    pool.forEach(function (t) { (byNorek[t.bankAccount] = byNorek[t.bankAccount] || []).push(t); });
+    // §1.1: kunci entitas = BANK + NOREK (nama beda tetap 1 entitas; nama tampil = input paling awal).
+    // Norek sama + bank beda = 2 rekening terpisah.
+    var norekBanks = {};
+    pool.forEach(function (t) { (norekBanks[t.bankAccount] = norekBanks[t.bankAccount] || {})[t.bankCode] = 1; });
+    var baseIdFor = function (bank, norek) { return 'STL-' + norek + (Object.keys(norekBanks[norek] || {}).length > 1 ? '-' + bank : ''); };
+    var byKey = {};
+    pool.forEach(function (t) { var k = t.bankCode + '||' + t.bankAccount; (byKey[k] = byKey[k] || []).push(t); });
     groups = [];
-    Object.keys(byNorek).forEach(function (norek) {
-        var txns = byNorek[norek];
-        var mySplits = splits.filter(function (s) { return s.norek === norek; });
+    Object.keys(byKey).forEach(function (k) {
+        var txns = byKey[k];
+        var bank = txns[0].bankCode, norek = txns[0].bankAccount;
+        var mySplits = splits.filter(function (s) { return s.norek === norek && (s.bank || bank) === bank; });
         var heldMids = {};
         mySplits.forEach(function (sp) {
             var stx = txns.filter(function (t) { return sp.mids.indexOf(t.mid) >= 0; });
@@ -172,7 +184,7 @@ function buildGroups() {
             sp.mids.forEach(function (m) { heldMids[m] = true; });
         });
         var baseTx = txns.filter(function (t) { return !heldMids[t.mid]; });
-        if (baseTx.length) { groups.push(makeGroup('STL-' + norek, norek, baseTx)); }
+        if (baseTx.length) { groups.push(makeGroup(baseIdFor(bank, norek), norek, baseTx)); }
     });
     groups.forEach(function (g) {
         var s = st(g.groupId);
@@ -252,11 +264,54 @@ function tabGroups(tab) {
 }
 
 // ── render ──
+// §1.3: Panel Summary per bank tujuan — dinamis dari data tab aktif (respek filter/search).
+function renderSummary() {
+    var el = document.getElementById('asSummaryPanel');
+    if (!el) return;
+    var rows = tabGroups(activeTab);
+    var byBank = {};
+    rows.forEach(function (g) {
+        var b = byBank[g.bank] = byBank[g.bank] || { awal: 0, admin: 0, cbP: 0, cbM: 0 };
+        b.awal += g.nominalAwal; b.admin += g.admin; b.cbP += (g.adjPlus || 0); b.cbM += (g.adjMinus || 0);
+    });
+    var banks = Object.keys(byBank).sort();
+    if (!banks.length) { el.style.display = 'none'; return; }
+    var tAwal = 0, tAdmin = 0, tcbP = 0, tcbM = 0, tEnd = 0;
+    var th = 'padding:8px 10px;font-size:0.72rem;color:var(--text-secondary);text-align:right;';
+    var tdR = 'padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums;';
+    var body = banks.map(function (b) {
+        var d = byBank[b], end = d.awal - d.admin + d.cbP - d.cbM;
+        tAwal += d.awal; tAdmin += d.admin; tcbP += d.cbP; tcbM += d.cbM; tEnd += end;
+        return '<tr>' +
+            '<td style="padding:7px 10px;font-weight:600;">' + esc(b) + '</td>' +
+            '<td style="' + tdR + '">' + num(d.awal) + '</td>' +
+            '<td style="' + tdR + '">' + (d.admin ? '−' + num(d.admin) : '-') + '</td>' +
+            '<td style="' + tdR + 'color:#16a34a;">' + (d.cbP ? '+' + num(d.cbP) : '-') + '</td>' +
+            '<td style="' + tdR + 'color:#dc2626;">' + (d.cbM ? '−' + num(d.cbM) : '-') + '</td>' +
+            '<td style="' + tdR + 'font-weight:700;">' + num(end) + '</td></tr>';
+    }).join('');
+    var totalRow = '<tr style="border-top:2px solid #cbd5e1;background:#f8fafc;">' +
+        '<td style="padding:7px 10px;font-weight:700;">Total</td>' +
+        '<td style="' + tdR + 'font-weight:700;">' + num(tAwal) + '</td>' +
+        '<td style="' + tdR + 'font-weight:700;">' + (tAdmin ? '−' + num(tAdmin) : '-') + '</td>' +
+        '<td style="' + tdR + 'font-weight:700;color:#16a34a;">' + (tcbP ? '+' + num(tcbP) : '-') + '</td>' +
+        '<td style="' + tdR + 'font-weight:700;color:#dc2626;">' + (tcbM ? '−' + num(tcbM) : '-') + '</td>' +
+        '<td style="' + tdR + 'font-weight:800;">' + num(tEnd) + '</td></tr>';
+    el.style.display = 'block';
+    el.innerHTML = '<div style="border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">' +
+        '<div style="padding:10px 14px;background:#eef2ff;font-weight:700;font-size:0.82rem;color:#4f46e5;"><i class="fas fa-chart-column" style="margin-right:6px;"></i>Summary per Bank Tujuan <span style="font-weight:400;color:var(--text-muted);font-size:0.75rem;">(Nominal Ending = Awal − Admin + CB(+) − CB(−))</span></div>' +
+        '<table class="data-table" style="width:100%;font-size:0.78rem;"><thead><tr>' +
+        '<th style="padding:8px 10px;font-size:0.72rem;color:var(--text-secondary);">Bank Tujuan</th>' +
+        '<th style="' + th + '">Nominal Awal</th><th style="' + th + '">Admin</th><th style="' + th + '">Chargeback (+)</th><th style="' + th + '">Chargeback (−)</th><th style="' + th + '">Nominal Ending</th>' +
+        '</tr></thead><tbody>' + body + totalRow + '</tbody></table></div>';
+}
+
 function render() {
     renderCounts();
     renderTabsActive();
     renderToolbarActions();
     renderTable();
+    renderSummary();
     renderBulkBar();
     // Export dihapus di tab Approver. Export Segregasi hanya di tab Settle.
     var exBtn = document.getElementById('asExportBtn');
@@ -402,7 +457,7 @@ function renderPager(total) {
 function renderToolbarActions() {
     var box = document.getElementById('asTabActions');
     box.innerHTML = '';
-    var bulkBtn = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Settle' : 'Bulk Settle') + '</button>';
+    var bulkBtn = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Aksi' : 'Bulk Aksi') + '</button>';
     if (activeTab === 'checker' || activeTab === 'hold' || activeTab === 'reject') {
         box.innerHTML = bulkBtn;
         document.getElementById('asBulkBtn').addEventListener('click', function () { bulkMode = !bulkMode; if (!bulkMode) selected.clear(); render(); });
@@ -428,9 +483,15 @@ function renderBulkBar() {
     if (bulkTabs.indexOf(activeTab) === -1 || !bulkMode) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     document.getElementById('asBulkCount').textContent = selected.size;
-    var show = selected.size > 0 ? 'inline-flex' : 'none';
-    document.getElementById('asBulkSettle').style.display = show;
-    document.getElementById('asUnselectAll').style.display = show;
+    var show = selected.size > 0;
+    // §1.6: aksi bulk per tab mengikuti aksi single yang tersedia di tab itu.
+    // checker: Hold/Reject/Settle · hold: Reject/Settle · reject: Hold/Settle.
+    var avail = { checker: ['hold', 'reject', 'settle'], hold: ['reject', 'settle'], reject: ['hold', 'settle'] }[activeTab] || [];
+    var setBtn = function (id, act) { document.getElementById(id).style.display = (show && avail.indexOf(act) >= 0) ? 'inline-flex' : 'none'; };
+    setBtn('asBulkHold', 'hold');
+    setBtn('asBulkReject', 'reject');
+    setBtn('asBulkSettle', 'settle');
+    document.getElementById('asUnselectAll').style.display = show ? 'inline-flex' : 'none';
 }
 
 // ── generic modal ──
@@ -588,9 +649,9 @@ function submitHold(g) {
     if (!bk) return;
     if (scope === 'partial') {
         // Pecah: MID yang dihold jadi settlement baru terpisah; sisa MID tetap di Checker.
-        var seq = splits.filter(function (x) { return x.norek === g.norek; }).length + 1;
-        var splitId = 'STL-' + g.norek + '-P' + seq;
-        splits.push({ id: splitId, norek: g.norek, mids: picked, createdTs: todayProc() });
+        var seq = splits.filter(function (x) { return x.norek === g.norek && (x.bank || g.bank) === g.bank; }).length + 1;
+        var splitId = g.groupId + '-P' + seq;
+        splits.push({ id: splitId, norek: g.norek, bank: g.bank, mids: picked, createdTs: todayProc() });
         items[splitId] = { status: 'pending', adjPlus: 0, adjMinus: 0, note: '', channel: '', bukti: '', settleStatus: null, approvedTs: null, approvedBy: null, metodeSettlement: null,
             request: { type: 'hold', scope: 'partial', partialMids: picked, prevStatus: 'checker', reason: reason, bukti: bk.name, ts: todayProc() } };
         saveSplits(); buildGroups(); closeModal(); render();
@@ -650,6 +711,44 @@ function openSettle(g) {
             else { note.style.display = 'none'; }
         });
     }
+}
+
+// §1.6 Bulk Hold — semua baris terpilih di-hold (Hold Semua), catatan sama untuk semua, bukti opsional.
+function openBulkHold() {
+    if (selected.size === 0) { showToast('Tidak Ada Pilihan', 'Pilih minimal satu baris.'); return; }
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk Hold <b>' + selected.size + '</b> entry terpilih (Hold Semua). Catatan berlaku untuk semua baris.</p>' +
+        noteField(true) + fileField('(opsional — bisa menyusul di tab Hold)');
+    openModal('Bulk Hold', body, [
+        { label: 'Batal', onClick: closeModal },
+        { label: 'Ajukan Hold', style: 'background:#b45309;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+            var reason = document.getElementById('asReason').value.trim();
+            if (!reason) { showToast('Catatan Wajib', 'Isi catatan hold.'); return; }
+            var bk = validateBukti(null); if (!bk) return;
+            var ids = Array.from(selected);
+            ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'hold', scope: 'all', prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() }; });
+            selected.clear(); saveItems(); closeModal(); render(); showToast('Bulk Hold Diajukan', ids.length + ' entry menunggu approval.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Hold ' + ids.length + ' entry');
+        } }
+    ]);
+}
+
+// §1.6 Bulk Reject — catatan sama untuk semua, bukti opsional.
+function openBulkReject() {
+    if (selected.size === 0) { showToast('Tidak Ada Pilihan', 'Pilih minimal satu baris.'); return; }
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk Reject <b>' + selected.size + '</b> entry terpilih. Catatan berlaku untuk semua baris.</p>' +
+        noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
+    openModal('Bulk Reject', body, [
+        { label: 'Batal', onClick: closeModal },
+        { label: 'Ajukan Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+            var reason = document.getElementById('asReason').value.trim();
+            if (!reason) { showToast('Catatan Wajib', 'Isi catatan reject.'); return; }
+            var bk = validateBukti(null); if (!bk) return;
+            var ids = Array.from(selected);
+            ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'reject', prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() }; });
+            selected.clear(); saveItems(); closeModal(); render(); showToast('Bulk Reject Diajukan', ids.length + ' entry menunggu approval.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Reject ' + ids.length + ' entry');
+        } }
+    ]);
 }
 
 function openBulkSettle() {
@@ -1208,6 +1307,8 @@ function bind() {
     document.getElementById('asExportBtn').addEventListener('click', exportTab);
     var segBtn = document.getElementById('asExportSegBtn');
     if (segBtn) segBtn.addEventListener('click', openSegregasiModal);
+    document.getElementById('asBulkHold').addEventListener('click', openBulkHold);
+    document.getElementById('asBulkReject').addEventListener('click', openBulkReject);
     document.getElementById('asBulkSettle').addEventListener('click', openBulkSettle);
     document.getElementById('asUnselectAll').addEventListener('click', function () { selected.clear(); render(); });
     document.getElementById('asTableBody').addEventListener('click', onTableClick);

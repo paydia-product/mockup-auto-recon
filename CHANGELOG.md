@@ -7,6 +7,18 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-07-06
+Build-brief Fase 1 — Batch 2. Ref: `BRIEF-GAP-ANALYSIS.md`.
+
+### Added
+- §1.3 Panel Summary per bank tujuan (dinamis atas tabel): Nominal Awal, Admin, Chargeback (+/−), Nominal Ending per bank + baris Total.
+- §1.6 Bulk Hold & Bulk Reject (selain Bulk Settle); catatan sama untuk semua baris, bukti opsional. Tombol bulk per tab mengikuti aksi single (checker: Hold/Reject/Settle · hold: Reject/Settle · reject: Hold/Settle).
+- Seed demo §1.1: bank+norek sama nama beda (1 entitas, nama input paling awal) & norek sama bank beda (2 rekening).
+
+### Changed
+- §1.1 Grouping kunci = BANK + NOREK (bukan norek saja). Norek sama + bank beda = 2 rekening terpisah (groupId di-encode bank saat norek dipakai >1 bank). Split hold-partial ikut bank-aware.
+- Tombol bulk-mode di-rename "Bulk Settle" → "Bulk Aksi".
+
 ## [1.1.0] — 2026-07-06
 Build-brief Fase 1 — Batch 1. Ref: `BRIEF-GAP-ANALYSIS.md`.
 
