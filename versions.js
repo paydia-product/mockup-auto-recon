@@ -8,7 +8,14 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.5.0', date: '2026-07-06', deployed: true, title: 'Batch UX — settle, search, 2FA sim', changes: [
+        { v: '1.6.0', date: '2026-07-06', deployed: true, title: 'Pecah otomatis, summary cards, kolom tanggal', changes: [
+            'BI-FAST >Rp250 juta: Pecah Otomatis (greedy 250 juta + sisa), teks & simbol dirapikan',
+            'Ringkasan nominal per bank jadi kartu (di luar tabel), pakai data semua tanggal',
+            'Konfirmasi bulk settle: breakdown per rekening + search (norek/nama pemilik rekening) + pagination 10/hal',
+            'Kolom "Tanggal Perubahan Terakhir" (updated_at) di semua tabel + export',
+            'Kolom "Tanggal Proses" → "Tanggal Recon" di semua tabel + export'
+        ] },
+        { v: '1.5.0', date: '2026-07-06', deployed: false, title: 'Batch UX — settle, search, 2FA sim', changes: [
             'Export Report Manajemen hanya di tab Settle',
             'BI-FAST >Rp250 juta: mekanisme Pecah Manual (auto-split ≤Rp250 juta/transfer) di konfirmasi settle',
             'Search by No. Rekening di semua tab',

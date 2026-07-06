@@ -21,8 +21,8 @@ var SETTLE_STATUS_COLOR = { pending: '#b45309', success: '#16a34a', fail: '#dc26
 var PER_PAGE = 10;
 
 // Base columns shared by every tab (in order). Unit = settlement group (per norek).
-var BASE_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Admin',
-    'Adjustment Chargeback (+)', 'Adjustment Chargeback (−)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
+var BASE_COLS = ['No', 'Tanggal Recon', 'ID Settlement', 'Nominal Awal', 'Admin',
+    'Adjustment Chargeback (+)', 'Adjustment Chargeback (−)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Tanggal Perubahan Terakhir'];
 
 var STATUS_LABEL = { checker: 'Checker', pending: 'Approver', hold: 'Hold', reject: 'Reject', settle: 'Settle' };
 
@@ -195,8 +195,16 @@ function makeGroup(id, norek, txns) {
         procISO: txns[0].procISO, procDisplay: txns[0].procDisplay, txns: txns, nominalAwal: 0, adjPlus: 0, adjMinus: 0,
         admin: isOther(txns[0].bankCode) ? ADMIN_FEE_OTHER : 0 };
     txns.forEach(function (t) { g.nominalAwal += t.nominalSettle; g.adjPlus += (t.adjPlus || 0); g.adjMinus += (t.adjMinus || 0); });
+    // Seed updated_at: sebar mundur 0–9 hari dari tanggal recon (deterministik dari norek)
+    // agar kolom "Tanggal Perubahan Terakhir" terisi realistis sebelum ada aksi.
+    var off = parseInt(String(norek).replace(/\D/g, '').slice(-1)) || 0;
+    var d = new Date(txns[0].procISO); d.setDate(d.getDate() - off);
+    var pad = function (x) { return String(x).padStart(2, '0'); };
+    g.updatedDisplay = pad(d.getDate()) + '-' + pad(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + (txns[0].procDisplay.split(' ')[1] || '00:00:00');
     return g;
 }
+// updated_at = kapan record terakhir berubah: stamp aksi > waktu approve > waktu request > seed.
+function updatedOf(g) { var s = st(g.groupId); return s.updatedTs || s.approvedTs || (s.request && s.request.ts) || g.updatedDisplay; }
 
 // Group transaksi per NOMOR REKENING → 1 entry settlement.
 // Hold Partial memecah sebagian MID jadi settlement terpisah (splits).
@@ -309,44 +317,51 @@ function tabGroups(tab) {
 function renderSummary() {
     var el = document.getElementById('asSummaryPanel');
     if (!el) return;
-    // §1.3: summary hanya di tab Checker; nominal dinamis dari data checker (respek filter/search).
+    // §1.3: summary hanya di tab Checker. Kartu ringkasan pakai SELURUH tanggal (abaikan filter/search).
     if (activeTab !== 'checker') { el.style.display = 'none'; return; }
-    var rows = tabGroups('checker');
     var byBank = {};
-    rows.forEach(function (g) {
-        var b = byBank[g.bank] = byBank[g.bank] || { awal: 0, admin: 0, cbP: 0, cbM: 0 };
-        b.awal += g.nominalAwal; b.admin += g.admin; b.cbP += (g.adjPlus || 0); b.cbM += (g.adjMinus || 0);
+    groups.forEach(function (g) {
+        if (st(g.groupId).status !== 'checker') return;
+        var b = byBank[g.bank] = byBank[g.bank] || { awal: 0, admin: 0, cbP: 0, cbM: 0, count: 0 };
+        b.awal += g.nominalAwal; b.admin += g.admin; b.cbP += (g.adjPlus || 0); b.cbM += (g.adjMinus || 0); b.count++;
     });
     var banks = Object.keys(byBank).sort();
     if (!banks.length) { el.style.display = 'none'; return; }
-    var tAwal = 0, tAdmin = 0, tcbP = 0, tcbM = 0, tEnd = 0;
-    var th = 'padding:8px 10px;font-size:0.72rem;color:var(--text-secondary);text-align:right;';
-    var tdR = 'padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums;';
-    var body = banks.map(function (b) {
+    var tAwal = 0, tAdmin = 0, tcbP = 0, tcbM = 0, tEnd = 0, tCount = 0;
+    var line = function (label, val, color) {
+        return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:0.72rem;padding:1px 0;">' +
+            '<span style="color:var(--text-secondary);">' + label + '</span>' +
+            '<span style="font-variant-numeric:tabular-nums;' + (color ? 'color:' + color + ';' : '') + '">' + val + '</span></div>';
+    };
+    var cards = banks.map(function (b) {
         var d = byBank[b], end = d.awal - d.admin + d.cbP - d.cbM;
-        tAwal += d.awal; tAdmin += d.admin; tcbP += d.cbP; tcbM += d.cbM; tEnd += end;
-        return '<tr>' +
-            '<td style="padding:7px 10px;font-weight:600;">' + esc(b) + '</td>' +
-            '<td style="' + tdR + '">' + num(d.awal) + '</td>' +
-            '<td style="' + tdR + '">' + (d.admin ? '−' + num(d.admin) : '-') + '</td>' +
-            '<td style="' + tdR + 'color:#16a34a;">' + (d.cbP ? '+' + num(d.cbP) : '-') + '</td>' +
-            '<td style="' + tdR + 'color:#dc2626;">' + (d.cbM ? '−' + num(d.cbM) : '-') + '</td>' +
-            '<td style="' + tdR + 'font-weight:700;">' + num(end) + '</td></tr>';
+        tAwal += d.awal; tAdmin += d.admin; tcbP += d.cbP; tcbM += d.cbM; tEnd += end; tCount += d.count;
+        return '<div style="flex:1 1 220px;min-width:200px;border:1px solid var(--border-color);border-radius:10px;padding:12px 14px;background:var(--card-bg);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">' +
+            '<span style="font-weight:700;font-size:0.9rem;">' + esc(b) + '</span>' +
+            '<span style="font-size:0.68rem;color:var(--text-muted);">' + d.count + ' rekening</span></div>' +
+            '<div style="font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;margin-bottom:8px;">' + rupiah(end) + '</div>' +
+            line('Nominal awal', num(d.awal)) +
+            line('Admin', d.admin ? '−' + num(d.admin) : '0') +
+            line('Chargeback (+)', d.cbP ? '+' + num(d.cbP) : '0', d.cbP ? '#16a34a' : '') +
+            line('Chargeback (−)', d.cbM ? '−' + num(d.cbM) : '0', d.cbM ? '#dc2626' : '') +
+            '</div>';
     }).join('');
-    var totalRow = '<tr style="border-top:2px solid #cbd5e1;background:#f8fafc;">' +
-        '<td style="padding:7px 10px;font-weight:700;">Total</td>' +
-        '<td style="' + tdR + 'font-weight:700;">' + num(tAwal) + '</td>' +
-        '<td style="' + tdR + 'font-weight:700;">' + (tAdmin ? '−' + num(tAdmin) : '-') + '</td>' +
-        '<td style="' + tdR + 'font-weight:700;color:#16a34a;">' + (tcbP ? '+' + num(tcbP) : '-') + '</td>' +
-        '<td style="' + tdR + 'font-weight:700;color:#dc2626;">' + (tcbM ? '−' + num(tcbM) : '-') + '</td>' +
-        '<td style="' + tdR + 'font-weight:800;">' + num(tEnd) + '</td></tr>';
+    var totalCard = '<div style="flex:1 1 220px;min-width:200px;border:1px solid #4f46e5;border-radius:10px;padding:12px 14px;background:#eef2ff;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">' +
+        '<span style="font-weight:700;font-size:0.9rem;color:#4f46e5;">Total Semua Bank</span>' +
+        '<span style="font-size:0.68rem;color:#6366f1;">' + tCount + ' rekening</span></div>' +
+        '<div style="font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;margin-bottom:8px;color:#4f46e5;">' + rupiah(tEnd) + '</div>' +
+        line('Nominal awal', num(tAwal)) +
+        line('Admin', tAdmin ? '−' + num(tAdmin) : '0') +
+        line('Chargeback (+)', tcbP ? '+' + num(tcbP) : '0', tcbP ? '#16a34a' : '') +
+        line('Chargeback (−)', tcbM ? '−' + num(tcbM) : '0', tcbM ? '#dc2626' : '') +
+        '</div>';
     el.style.display = 'block';
-    el.innerHTML = '<div style="border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">' +
-        '<div style="padding:10px 14px;background:#eef2ff;font-weight:700;font-size:0.82rem;color:#4f46e5;"><i class="fas fa-chart-column" style="margin-right:6px;"></i>Summary per Bank Tujuan <span style="font-weight:400;color:var(--text-muted);font-size:0.75rem;">(Nominal Ending = Awal − Admin + CB(+) − CB(−))</span></div>' +
-        '<table class="data-table" style="width:100%;font-size:0.78rem;"><thead><tr>' +
-        '<th style="padding:8px 10px;font-size:0.72rem;color:var(--text-secondary);">Bank Tujuan</th>' +
-        '<th style="' + th + '">Nominal Awal</th><th style="' + th + '">Admin</th><th style="' + th + '">Chargeback (+)</th><th style="' + th + '">Chargeback (−)</th><th style="' + th + '">Nominal Ending</th>' +
-        '</tr></thead><tbody>' + body + totalRow + '</tbody></table></div>';
+    el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">' +
+        '<div style="font-weight:700;font-size:0.9rem;">Ringkasan Nominal per Bank Tujuan</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);">Semua tanggal · nominal ending = awal − admin + chargeback</div></div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:12px;">' + cards + totalCard + '</div>';
 }
 
 function render() {
@@ -429,6 +444,7 @@ function renderTable() {
         c += '<td>' + esc(g.bank) + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>';
         c += '<td>' + esc(g.namaRek) + accountBadge(g) + accumBadge(g) + '</td>';
+        c += '<td style="font-variant-numeric:tabular-nums;">' + esc(updatedOf(g)) + '</td>';
         if (activeTab === 'pending') {
             var rq = s.request || {};
             var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309'));
@@ -734,36 +750,63 @@ function openReject(g) {
     ]);
 }
 
-// §5.5: ringkasan konfirmasi BULK settle — breakdown per entry (norek + nama pemilik).
+// §5.5: ringkasan konfirmasi BULK settle — breakdown per rekening (dgn search + pagination 10/hal).
+var _brk = { arr: [], page: 1, term: '' };
 function settleSummaryHTML(arr, ms, tf) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
-    var grand = 0;
-    var rows = arr.slice().sort(function (a, b) { return a.bank.localeCompare(b.bank); }).map(function (g) {
-        grand += totalOf(g);
+    _brk = { arr: arr.slice().sort(function (a, b) { return a.bank.localeCompare(b.bank); }), page: 1, term: '' };
+    var grand = arr.reduce(function (a, g) { return a + totalOf(g); }, 0);
+    // "Jumlah Baris" = banyaknya entry settlement (1 baris = 1 rekening tujuan) yang akan diproses.
+    return kv('Metode Settlement', esc(ms)) + kv('Channel Payment (sumber dana)', esc(tf.channel)) + kv('Metode Transfer', esc(tf.metode)) +
+        kv('Jumlah Baris (entry settlement)', arr.length) +
+        '<div style="margin-top:12px;font-weight:700;font-size:0.85rem;margin-bottom:6px;">Breakdown per Rekening Tujuan</div>' +
+        '<input type="text" id="asBrkSearch" placeholder="Cari No. Rekening / Nama Pemilik Rekening" style="width:100%;padding:8px 10px;font-size:0.8rem;border:1px solid var(--border-color);border-radius:6px;margin-bottom:8px;">' +
+        '<table class="data-table" style="width:100%;font-size:0.8rem;"><thead><tr><th style="padding:6px 10px;text-align:left;">Bank Tujuan</th><th style="padding:6px 10px;text-align:left;">No. Rekening</th><th style="padding:6px 10px;text-align:left;">Nama Pemilik Rekening</th><th style="padding:6px 10px;text-align:right;">Nominal Akhir</th></tr></thead><tbody id="asBrkBody"></tbody></table>' +
+        '<div id="asBrkPager" style="display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:8px;font-size:0.78rem;"></div>' +
+        '<div class="as-kv" style="margin-top:10px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
+}
+// Render body + pager breakdown; dipanggil setelah modal konfirmasi bulk terbuka.
+function renderBrk() {
+    var body = document.getElementById('asBrkBody'); if (!body) return;
+    var term = _brk.term.toLowerCase();
+    var rows = _brk.arr.filter(function (g) { return !term || (g.norek + ' ' + g.namaRek).toLowerCase().indexOf(term) >= 0; });
+    var per = 10, pages = Math.max(1, Math.ceil(rows.length / per));
+    if (_brk.page > pages) _brk.page = pages;
+    var slice = rows.slice((_brk.page - 1) * per, _brk.page * per);
+    body.innerHTML = slice.length ? slice.map(function (g) {
         return '<tr><td style="padding:6px 10px;">' + esc(g.bank) + '</td>' +
             '<td style="padding:6px 10px;font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>' +
             '<td style="padding:6px 10px;">' + esc(g.namaRek) + '</td>' +
             '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + num(totalOf(g)) + '</td></tr>';
-    }).join('');
-    // "Jumlah Baris" = banyaknya entry settlement (1 baris = 1 rekening tujuan) yang akan diproses.
-    return kv('Metode Settlement', esc(ms)) + kv('Channel Payment (sumber dana)', esc(tf.channel)) + kv('Metode Transfer', esc(tf.metode)) +
-        kv('Jumlah Baris (entry settlement)', arr.length) +
-        '<div style="margin-top:12px;font-weight:700;font-size:0.85rem;margin-bottom:4px;">Breakdown per Rekening Tujuan</div>' +
-        '<table class="data-table" style="width:100%;font-size:0.8rem;"><thead><tr><th style="padding:6px 10px;text-align:left;">Bank Tujuan</th><th style="padding:6px 10px;text-align:left;">No. Rekening</th><th style="padding:6px 10px;text-align:left;">Nama Pemilik</th><th style="padding:6px 10px;text-align:right;">Nominal Akhir</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-        '<div class="as-kv" style="margin-top:10px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
+    }).join('') : '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-muted);">Tidak ada hasil</td></tr>';
+    var pg = document.getElementById('asBrkPager');
+    if (rows.length <= per) { pg.innerHTML = ''; return; }
+    var btn = function (lbl, pageNo, dis, active) { return '<button data-pg="' + pageNo + '" ' + (dis ? 'disabled' : '') + ' style="padding:3px 9px;border:1px solid var(--border-color);border-radius:5px;background:' + (active ? 'var(--primary)' : '#fff') + ';color:' + (active ? '#fff' : 'var(--text-primary)') + ';cursor:' + (dis ? 'default' : 'pointer') + ';font-weight:600;">' + lbl + '</button>'; };
+    var h = '<span style="color:var(--text-secondary);margin-right:auto;">' + rows.length + ' rekening</span>' + btn('&lt;', _brk.page - 1, _brk.page <= 1);
+    for (var i = 1; i <= pages; i++) h += btn(i, i, false, i === _brk.page);
+    h += btn('&gt;', _brk.page + 1, _brk.page >= pages);
+    pg.innerHTML = h;
+    pg.querySelectorAll('button[data-pg]').forEach(function (b) { b.addEventListener('click', function () { _brk.page = +b.dataset.pg; renderBrk(); }); });
+}
+// Pasang search + render awal (dipanggil tepat setelah openModal konfirmasi bulk).
+function wireBrk() {
+    var s = document.getElementById('asBrkSearch');
+    if (s) s.addEventListener('input', function () { _brk.term = s.value.trim(); _brk.page = 1; renderBrk(); });
+    renderBrk();
 }
 
-// §10: pecah nominal > Rp250 juta jadi beberapa transfer BI-FAST (masing-masing ≤ Rp250 juta),
-// dibagi rata dengan sisa rupiah menempel ke transfer awal.
+// §10: pecah nominal > Rp250 juta jadi beberapa transfer BI-FAST secara otomatis.
+// Greedy: isi penuh Rp250 juta per transfer, sisanya jadi transfer terakhir.
+// Contoh 470 juta → [250 juta, 220 juta].
 function splitBifast(total, limit) {
     limit = limit || BIG_THRESHOLD;
-    var n = Math.ceil(total / limit);
-    var base = Math.floor(total / n), rem = total - base * n, arr = [];
-    for (var i = 0; i < n; i++) arr.push(base + (i < rem ? 1 : 0));
+    var arr = [], rem = total;
+    while (rem > limit) { arr.push(limit); rem -= limit; }
+    arr.push(rem);
     return arr;
 }
 // self-check: setiap pecahan ≤ limit dan jumlahnya = total (jalan sekali saat load)
-console.assert(splitBifast(600000000).every(function (x) { return x <= BIG_THRESHOLD; }) &&
+console.assert(JSON.stringify(splitBifast(470000000)) === JSON.stringify([250000000, 220000000]) &&
     splitBifast(600000000).reduce(function (a, b) { return a + b; }, 0) === 600000000, 'splitBifast invariant');
 
 function splitPreviewHTML(total) {
@@ -772,12 +815,11 @@ function splitPreviewHTML(total) {
         return '<tr><td style="padding:5px 10px;">BI-FAST Transfer ' + (i + 1) + '</td><td style="padding:5px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(amt) + '</td></tr>';
     }).join('');
     return '<div style="margin-top:14px;padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;">' +
-        '<div style="font-weight:700;font-size:0.82rem;color:#b45309;margin-bottom:6px;"><i class="fas fa-scissors"></i> Pecah Manual BI-FAST — nominal &gt; Rp250 juta dipecah jadi ' + chunks.length + ' transfer (masing-masing &le; Rp250 juta)</div>' +
-        '<table style="width:100%;font-size:0.8rem;"><tbody>' + rows + '</tbody></table>' +
-        '<p style="font-size:0.72rem;color:#92400e;margin:6px 0 0;">Operator mengirim ' + chunks.length + '× transfer BI-FAST terpisah ke rekening yang sama. Alternatif: 1× RTGS (khusus nominal &gt; Rp500 juta).</p></div>';
+        '<div style="font-weight:700;font-size:0.82rem;color:#b45309;margin-bottom:6px;">Pecah Otomatis Settlement menjadi:</div>' +
+        '<table style="width:100%;font-size:0.8rem;"><tbody>' + rows + '</tbody></table></div>';
 }
 function openSettle(g) {
-    var warn = overBifastLimit(g) ? '<p style="font-size:0.8rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-triangle-exclamation"></i> Nominal &gt; Rp250 juta — <b>BI-FAST tidak tersedia</b>. Pecah manual atau gunakan RTGS (&gt; Rp500 juta).</p>' : '';
+    var warn = overBifastLimit(g) ? '<p style="font-size:0.8rem;padding:8px 12px;background:#fff7ed;color:#b45309;border-radius:6px;margin-bottom:14px;"><i class="fas fa-triangle-exclamation"></i> Nominal &gt; Rp250 juta — bila pakai BI-FAST, settlement <b>dipecah otomatis</b> jadi beberapa transfer &le; Rp250 juta. Alternatif: RTGS (&gt; Rp500 juta).</p>' : '';
     var body = selInfo(g) + warn +
         metodeSettlementField() + channelField() + metodeField() + noteField(false) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Settle Transaksi', body, [
@@ -797,10 +839,10 @@ function openSettle(g) {
                 { label: 'Batal', onClick: closeModal },
                 { label: 'Konfirmasi & Ajukan', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
                     var s = st(g.groupId); var prev = s.status; s.status = 'pending';
-                    var metode = overBif ? 'BI-Fast (Pecah Manual)' : tf.metode;
-                    s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: metode, pecahManual: pecah, prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
+                    var metode = overBif ? 'BI-Fast (Pecah Otomatis)' : tf.metode;
+                    s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: metode, pecahOtomatis: pecah, prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
                     saveItems(); closeModal(); render();
-                    showToast('Settle Diajukan', overBif ? ('Nominal dipecah jadi ' + pecah + '× transfer BI-FAST.') : (ms === 'Manual' ? 'Sistem hanya mencatat settlement (tidak kirim uang ke bank).' : 'Sistem mencatat settlement dan mengirim uang ke bank.'));
+                    showToast('Settle Diajukan', overBif ? ('Nominal dipecah otomatis jadi ' + pecah + ' transfer BI-FAST.') : (ms === 'Manual' ? 'Sistem hanya mencatat settlement (tidak kirim uang ke bank).' : 'Sistem mencatat settlement dan mengirim uang ke bank.'));
                     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Settle ' + g.groupId + ' [' + ms + '] via ' + tf.channel + ' / ' + metode + (overBif ? (' — pecah ' + pecah + ' transfer') : ''));
                 } }
             ]);
@@ -886,7 +928,7 @@ function openBulkSettle() {
             var tf = validateTransfer(); if (!tf) return;
             if (tf.metode === 'BI-Fast') {
                 var over = Array.from(selected).map(groupById).filter(function (g) { return g && overBifastLimit(g); });
-                if (over.length) { showToast('Melebihi Limit BI-FAST', over.length + ' entry > Rp250 juta tidak bisa via BI-FAST. Pakai RTGS atau pecah manual.'); return; }
+                if (over.length) { showToast('Melebihi Limit BI-FAST', over.length + ' entry > Rp250 juta. Pakai RTGS, atau settle satu per satu agar dipecah otomatis.'); return; }
             }
             var ids = Array.from(selected);
             var arr = ids.map(groupById).filter(Boolean);
@@ -898,6 +940,7 @@ function openBulkSettle() {
                     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Settle ' + ids.length + ' entry [' + ms + '] via ' + tf.channel + ' / ' + tf.metode);
                 } }
             ]);
+            wireBrk();
         } }
     ]);
     // Note inline metode settlement (sama seperti settle single).
@@ -987,6 +1030,7 @@ function confirmApprover(g, approve) {
 }
 function approverDecide(g, approve) {
     var s = st(g.groupId); var rq = s.request || {};
+    s.updatedTs = todayProc(); // record berubah → perbarui Tanggal Perubahan Terakhir
     if (approve) {
         if (rq.type === 'rejectbybank') {
             // §6.2: Reject by Bank = kategori HOLD → masuk tab Hold (untuk besok).
@@ -1140,7 +1184,7 @@ function openDetailModal(g) {
 }
 
 // ── export current tab ──
-var EXPORT_COLS = ['No', 'Tanggal Proses', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
+var EXPORT_COLS = ['No', 'Tanggal Recon', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Tanggal Perubahan Terakhir'];
 
 function exportCols() {
     if (activeTab === 'pending') return EXPORT_COLS.concat(['Request']);
@@ -1152,7 +1196,7 @@ function exportCols() {
 
 function exportRowData(rows) {
     return rows.map(function (g, i) {
-        var row = [i + 1, g.procDisplay, g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek];
+        var row = [i + 1, g.procDisplay, g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek, updatedOf(g)];
         var s = st(g.groupId); var rq = s.request || {};
         if (activeTab === 'pending') {
             var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');

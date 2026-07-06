@@ -7,6 +7,15 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-07-06
+### Changed
+- **Pecah Otomatis** (§10): nominal > Rp250 juta via BI-FAST kini dipecah greedy — isi penuh Rp250 juta per transfer, sisa jadi transfer terakhir (contoh 470 juta → 250 juta + 220 juta). Header preview jadi "Pecah Otomatis Settlement menjadi:"; simbol gunting & catatan operator/RTGS dihapus.
+- **Ringkasan nominal per bank** diubah dari tabel jadi **kartu** (di luar tabel), menampilkan data **semua tanggal** (tak terpengaruh filter/search).
+- **Konfirmasi bulk settle** — tabel Breakdown per Rekening Tujuan: tambah **search** (No. Rekening / Nama Pemilik Rekening) + **pagination 10/halaman**; kolom "Nama Pemilik" → "Nama Pemilik Rekening".
+- **Tanggal Proses** → **Tanggal Recon** di semua tabel + hasil export (tanggal auto recon dijalankan).
+### Added
+- Kolom **Tanggal Perubahan Terakhir** (updated_at) di semua tabel + hasil export — kapan record settlement terakhir diproses.
+
 ## [1.5.0] — 2026-07-06
 ### Changed
 - **Export Report Manajemen** kini hanya muncul di tab **Settle** (sebelumnya di semua tab kecuali Approver).
