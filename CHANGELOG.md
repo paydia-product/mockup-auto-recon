@@ -7,6 +7,18 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-07-06
+### Changed
+- **Export Report Manajemen** kini hanya muncul di tab **Settle** (sebelumnya di semua tab kecuali Approver).
+- **Summary per Bank Tujuan** kini hanya di tab **Checker**; nominal selalu dinamis dari data yang sedang ada di Checker (respek filter/search).
+- **Konfirmasi settle single** disederhanakan jadi kalimat: "Konfirmasi Pengajuan Settle ke {norek} dari bank {bank} dengan nama pemilik {pemilik} sebesar {nominal}".
+- **Konfirmasi bulk settle**: breakdown per rekening (kolom No. Rekening + Nama Pemilik), label "Quantity" → "Jumlah Baris (entry settlement)", "Grand Total Disburse" → "Grand Total Settlement".
+- **Hold & Reject**: fungsi tambah/lihat bukti disatukan ke modal catatan, dinamai ulang **"Lihat Bukti"** (upload/ganti bukti + lihat catatan dalam satu modal).
+### Added
+- **Pecah Manual BI-FAST** (§10): nominal > Rp250 juta via BI-FAST otomatis dipecah jadi beberapa transfer ≤ Rp250 juta; breakdown transfer ditampilkan di konfirmasi settle. Alternatif RTGS (> Rp500 juta) tetap disebut.
+- **Search by No. Rekening** di semua tab (selain ID Settlement & Nama Pemilik).
+- **Approver — Simulasi 2FA Salah**: toggle di toolbar; saat aktif, PIN 2FA yang dimasukkan selalu dianggap salah dan memunculkan pesan error (uji error path).
+
 ## [1.4.0] — 2026-07-06
 ### Added
 - **Version picker UI** (`versions.js`): dropdown di topbar Auto Settlement QRIS untuk pilih versi & lihat changelog tiap versi (badge Latest/Deployed, pencarian, link ke CHANGELOG). Catatan: "muat versi" bersifat tampilan (mock) — build aktif tetap Latest.

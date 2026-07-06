@@ -37,6 +37,7 @@ var filters = null;
 var BIG_THRESHOLD = 250000000;
 var bulkMode = false;
 var simMode = null; // null | 'success' | 'pending' | 'fail' | 'rejectbybank' (settle tab simulation)
+var sim2faWrong = false; // §7: Approver — bila aktif, verifikasi 2FA selalu gagal (uji error path)
 
 // ── helpers ──
 var rupiah = function (n) { return 'Rp ' + (Number(n) || 0).toLocaleString('id-ID', { minimumFractionDigits: 2 }); };
@@ -295,8 +296,8 @@ function tabGroups(tab) {
             if (f.channel && (s.channel || (s.request && s.request.channel) || '') !== f.channel) return false;
         }
         if (searchTerm) {
-            // hanya by ID Settlement / Nama Pemilik Rekening
-            var hay = (g.groupId + ' ' + g.namaRek).toLowerCase();
+            // by ID Settlement / Nama Pemilik Rekening / No. Rekening
+            var hay = (g.groupId + ' ' + g.namaRek + ' ' + g.norek).toLowerCase();
             if (hay.indexOf(searchTerm.toLowerCase()) === -1) return false;
         }
         return true;
@@ -308,7 +309,9 @@ function tabGroups(tab) {
 function renderSummary() {
     var el = document.getElementById('asSummaryPanel');
     if (!el) return;
-    var rows = tabGroups(activeTab);
+    // §1.3: summary hanya di tab Checker; nominal dinamis dari data checker (respek filter/search).
+    if (activeTab !== 'checker') { el.style.display = 'none'; return; }
+    var rows = tabGroups('checker');
     var byBank = {};
     rows.forEach(function (g) {
         var b = byBank[g.bank] = byBank[g.bank] || { awal: 0, admin: 0, cbP: 0, cbM: 0 };
@@ -358,9 +361,9 @@ function render() {
     if (exBtn) exBtn.style.display = (activeTab === 'pending') ? 'none' : '';
     var segBtn = document.getElementById('asExportSegBtn');
     if (segBtn) segBtn.style.display = (activeTab === 'settle') ? '' : 'none';
-    // Report Manajemen = summary harian, disembunyikan di Approver (konsisten dgn Export).
+    // Report Manajemen = summary harian settlement — hanya relevan di tab Settle.
     var mgmtBtn = document.getElementById('asExportMgmtBtn');
-    if (mgmtBtn) mgmtBtn.style.display = (activeTab === 'pending') ? 'none' : '';
+    if (mgmtBtn) mgmtBtn.style.display = (activeTab === 'settle') ? '' : 'none';
 }
 
 function renderCounts() {
@@ -466,8 +469,8 @@ function renderTable() {
 
 function actionMenuItems(g) {
     if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
-    if (activeTab === 'hold') return [['rilis', 'Rilis ke Checker'], ['bukti', 'Tambah/Lihat Bukti'], ['catatan', 'Lihat Catatan']];
-    if (activeTab === 'reject') return [['hold', 'Hold'], ['settle', 'Settle'], ['catatan', 'Lihat Catatan']];
+    if (activeTab === 'hold') return [['rilis', 'Rilis ke Checker'], ['catatan', 'Lihat Bukti']];
+    if (activeTab === 'reject') return [['hold', 'Hold'], ['settle', 'Settle'], ['catatan', 'Lihat Bukti']];
     if (activeTab === 'settle') {
         var acts = [['detail', 'Lihat Detail']];
         // Reject by Bank hanya tersedia untuk item dengan Metode Settlement = Manual.
@@ -503,7 +506,13 @@ function renderToolbarActions() {
     var bulkBtn = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Aksi' : 'Bulk Aksi') + '</button>';
     if (activeTab === 'checker' || activeTab === 'hold' || activeTab === 'reject' || activeTab === 'pending') {
         box.innerHTML = bulkBtn;
+        // §7: Approver — toggle simulasi 2FA salah.
+        if (activeTab === 'pending') {
+            box.innerHTML += '<button class="btn" id="asSim2faBtn" title="Bila aktif, PIN 2FA yang dimasukkan akan dianggap salah" style="margin:0 0 0 8px;background:' + (sim2faWrong ? '#dc2626' : '#fff') + ';color:' + (sim2faWrong ? '#fff' : 'var(--text-secondary)') + ';border:1px solid ' + (sim2faWrong ? '#dc2626' : 'var(--border-color)') + ';font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-triangle-exclamation"></i> Simulasi 2FA Salah: ' + (sim2faWrong ? 'ON' : 'OFF') + '</button>';
+        }
         document.getElementById('asBulkBtn').addEventListener('click', function () { bulkMode = !bulkMode; if (!bulkMode) selected.clear(); render(); });
+        var s2 = document.getElementById('asSim2faBtn');
+        if (s2) s2.addEventListener('click', function () { sim2faWrong = !sim2faWrong; render(); });
     } else if (activeTab === 'settle') {
         // Settle tab: satu dropdown simulasi status (menggantikan banyak tombol).
         var simOpts = [['', 'Tanpa Simulasi'], ['success', 'Simulasi Sukses'], ['pending', 'Simulasi Pending'], ['fail', 'Simulasi Fail'], ['rejectbybank', 'Simulasi Reject by Bank']];
@@ -725,18 +734,47 @@ function openReject(g) {
     ]);
 }
 
-// §2.2/§5.5: ringkasan konfirmasi settle (channel sumber, bank tujuan, quantity, nominal akhir).
+// §5.5: ringkasan konfirmasi BULK settle — breakdown per entry (norek + nama pemilik).
 function settleSummaryHTML(arr, ms, tf) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
-    var byBank = {}, grand = 0;
-    arr.forEach(function (g) { var b = byBank[g.bank] = byBank[g.bank] || { qty: 0, total: 0 }; b.qty++; b.total += totalOf(g); grand += totalOf(g); });
-    var rows = Object.keys(byBank).sort().map(function (b) {
-        return '<tr><td style="padding:6px 10px;">' + esc(b) + '</td><td style="padding:6px 10px;text-align:center;">' + byBank[b].qty + '</td><td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + num(byBank[b].total) + '</td></tr>';
+    var grand = 0;
+    var rows = arr.slice().sort(function (a, b) { return a.bank.localeCompare(b.bank); }).map(function (g) {
+        grand += totalOf(g);
+        return '<tr><td style="padding:6px 10px;">' + esc(g.bank) + '</td>' +
+            '<td style="padding:6px 10px;font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>' +
+            '<td style="padding:6px 10px;">' + esc(g.namaRek) + '</td>' +
+            '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + num(totalOf(g)) + '</td></tr>';
     }).join('');
-    return kv('Metode Settlement', esc(ms)) + kv('Channel Payment (sumber dana)', esc(tf.channel)) + kv('Metode Transfer', esc(tf.metode)) + kv('Quantity (baris)', arr.length) +
-        '<div style="margin-top:12px;font-weight:700;font-size:0.85rem;margin-bottom:4px;">Breakdown per Bank Tujuan</div>' +
-        '<table class="data-table" style="width:100%;font-size:0.8rem;"><thead><tr><th style="padding:6px 10px;text-align:left;">Bank Tujuan</th><th style="padding:6px 10px;text-align:center;">Qty</th><th style="padding:6px 10px;text-align:right;">Nominal Akhir</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-        '<div class="as-kv" style="margin-top:10px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Disburse</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
+    // "Jumlah Baris" = banyaknya entry settlement (1 baris = 1 rekening tujuan) yang akan diproses.
+    return kv('Metode Settlement', esc(ms)) + kv('Channel Payment (sumber dana)', esc(tf.channel)) + kv('Metode Transfer', esc(tf.metode)) +
+        kv('Jumlah Baris (entry settlement)', arr.length) +
+        '<div style="margin-top:12px;font-weight:700;font-size:0.85rem;margin-bottom:4px;">Breakdown per Rekening Tujuan</div>' +
+        '<table class="data-table" style="width:100%;font-size:0.8rem;"><thead><tr><th style="padding:6px 10px;text-align:left;">Bank Tujuan</th><th style="padding:6px 10px;text-align:left;">No. Rekening</th><th style="padding:6px 10px;text-align:left;">Nama Pemilik</th><th style="padding:6px 10px;text-align:right;">Nominal Akhir</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<div class="as-kv" style="margin-top:10px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
+}
+
+// §10: pecah nominal > Rp250 juta jadi beberapa transfer BI-FAST (masing-masing ≤ Rp250 juta),
+// dibagi rata dengan sisa rupiah menempel ke transfer awal.
+function splitBifast(total, limit) {
+    limit = limit || BIG_THRESHOLD;
+    var n = Math.ceil(total / limit);
+    var base = Math.floor(total / n), rem = total - base * n, arr = [];
+    for (var i = 0; i < n; i++) arr.push(base + (i < rem ? 1 : 0));
+    return arr;
+}
+// self-check: setiap pecahan ≤ limit dan jumlahnya = total (jalan sekali saat load)
+console.assert(splitBifast(600000000).every(function (x) { return x <= BIG_THRESHOLD; }) &&
+    splitBifast(600000000).reduce(function (a, b) { return a + b; }, 0) === 600000000, 'splitBifast invariant');
+
+function splitPreviewHTML(total) {
+    var chunks = splitBifast(total);
+    var rows = chunks.map(function (amt, i) {
+        return '<tr><td style="padding:5px 10px;">BI-FAST Transfer ' + (i + 1) + '</td><td style="padding:5px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + rupiah(amt) + '</td></tr>';
+    }).join('');
+    return '<div style="margin-top:14px;padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;">' +
+        '<div style="font-weight:700;font-size:0.82rem;color:#b45309;margin-bottom:6px;"><i class="fas fa-scissors"></i> Pecah Manual BI-FAST — nominal &gt; Rp250 juta dipecah jadi ' + chunks.length + ' transfer (masing-masing &le; Rp250 juta)</div>' +
+        '<table style="width:100%;font-size:0.8rem;"><tbody>' + rows + '</tbody></table>' +
+        '<p style="font-size:0.72rem;color:#92400e;margin:6px 0 0;">Operator mengirim ' + chunks.length + '× transfer BI-FAST terpisah ke rekening yang sama. Alternatif: 1× RTGS (khusus nominal &gt; Rp500 juta).</p></div>';
 }
 function openSettle(g) {
     var warn = overBifastLimit(g) ? '<p style="font-size:0.8rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-triangle-exclamation"></i> Nominal &gt; Rp250 juta — <b>BI-FAST tidak tersedia</b>. Pecah manual atau gunakan RTGS (&gt; Rp500 juta).</p>' : '';
@@ -748,17 +786,22 @@ function openSettle(g) {
             var ms = document.getElementById('asMetodeSettle').value;
             if (!ms) { showToast('Metode Wajib', 'Pilih Metode Settlement.'); return; }
             var tf = validateTransfer(); if (!tf) return;
-            if (!bifastGuardOk(g, tf.metode)) return;
             var bk = validateBukti(null); if (!bk) return;
             var reason = document.getElementById('asReason').value.trim();
-            openModal('Konfirmasi Settle', settleSummaryHTML([g], ms, tf), [
+            // §4/§10: konfirmasi single = kalimat ringkas. BI-FAST > Rp250 juta → tawarkan Pecah Manual.
+            var overBif = tf.metode === 'BI-Fast' && overBifastLimit(g);
+            var pecah = overBif ? splitBifast(totalOf(g)).length : 0;
+            var confirmBody = '<p style="font-size:0.9rem;line-height:1.65;">Konfirmasi Pengajuan Settle ke <b>' + esc(g.norek) + '</b> dari bank <b>' + esc(g.bank) + '</b> dengan nama pemilik <b>' + esc(g.namaRek) + '</b> sebesar <b>' + rupiah(totalOf(g)) + '</b>.</p>' +
+                (overBif ? splitPreviewHTML(totalOf(g)) : '');
+            openModal('Konfirmasi Settle', confirmBody, [
                 { label: 'Batal', onClick: closeModal },
                 { label: 'Konfirmasi & Ajukan', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
                     var s = st(g.groupId); var prev = s.status; s.status = 'pending';
-                    s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
+                    var metode = overBif ? 'BI-Fast (Pecah Manual)' : tf.metode;
+                    s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: metode, pecahManual: pecah, prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
                     saveItems(); closeModal(); render();
-                    showToast('Settle Diajukan', ms === 'Manual' ? 'Sistem hanya mencatat settlement (tidak kirim uang ke bank).' : 'Sistem mencatat settlement dan mengirim uang ke bank.');
-                    writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Settle ' + g.groupId + ' [' + ms + '] via ' + tf.channel + ' / ' + tf.metode);
+                    showToast('Settle Diajukan', overBif ? ('Nominal dipecah jadi ' + pecah + '× transfer BI-FAST.') : (ms === 'Manual' ? 'Sistem hanya mencatat settlement (tidak kirim uang ke bank).' : 'Sistem mencatat settlement dan mengirim uang ke bank.'));
+                    writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Settle ' + g.groupId + ' [' + ms + '] via ' + tf.channel + ' / ' + metode + (overBif ? (' — pecah ' + pecah + ' transfer') : ''));
                 } }
             ]);
         } }
@@ -926,6 +969,7 @@ function require2FA(title, onOk) {
         { label: 'Verifikasi', style: 'background:var(--primary);color:#fff;border:none;padding:8px 20px;font-weight:600;', onClick: function () {
             var pin = (document.getElementById('as2fa').value || '').trim();
             if (!/^\d{6}$/.test(pin)) { showToast('PIN Tidak Valid', 'PIN 2FA harus 6 digit angka.'); return; }
+            if (sim2faWrong) { showToast('Verifikasi 2FA Gagal', 'PIN 2FA yang dimasukkan salah. Silakan coba lagi.'); document.getElementById('as2fa').value = ''; return; }
             onOk();
         } }
     ]);
@@ -1393,7 +1437,6 @@ function runAction(act, g) {
     else if (act === 'detail') openDetailModal(g);
     else if (act === 'rejectbybank_item') openRejectByBankItem(g);
     else if (act === 'rilis') openRilis(g);
-    else if (act === 'bukti') openTambahBukti(g);
 }
 
 // §3.3/§3.4/§3.5: Rilis hold ke Checker (gabung ke settlement berjalan) — TANPA approval.
@@ -1410,25 +1453,6 @@ function openRilis(g) {
         } }
     ]);
 }
-// §3.2: bukti hold boleh menyusul di tab Hold.
-function openTambahBukti(g) {
-    var s = st(g.groupId); var rq = s.request || {};
-    var body = selInfo(g) +
-        (rq.bukti ? '<p style="font-size:0.82rem;margin-bottom:8px;">Bukti saat ini: <b>' + esc(rq.bukti) + '</b> <button type="button" id="asBuktiBtn" class="btn" style="padding:3px 10px;font-size:0.72rem;background:var(--primary);color:#fff;border:none;">Lihat</button></p>' : '<p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:8px;">Belum ada bukti.</p>') +
-        fileField('(maks 25 MB, format PDF/JPG/JPEG/PNG)');
-    openModal('Tambah/Lihat Bukti', body, [
-        { label: 'Tutup', onClick: closeModal },
-        { label: 'Simpan Bukti', style: 'background:var(--primary);color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
-            var bk = validateBukti('Pilih file bukti dulu.'); if (!bk) return;
-            if (!s.request) s.request = { type: 'hold', scope: 'all', reason: '', ts: todayProc() };
-            s.request.bukti = bk.name; saveItems(); closeModal(); render();
-            showToast('Bukti Disimpan', 'Bukti hold ' + g.groupId + ' diperbarui.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Tambah bukti hold ' + g.groupId + '\nbukti : ' + bk.name);
-        } }
-    ]);
-    var bb = document.getElementById('asBuktiBtn'); if (bb) bb.addEventListener('click', function () { openBukti(rq.bukti); });
-}
-
 function closeKebab() { var m = document.getElementById('asKebabMenu'); m.classList.remove('show'); m.style.display = 'none'; m.innerHTML = ''; }
 function openKebab(btn, g) {
     var m = document.getElementById('asKebabMenu');
@@ -1441,9 +1465,9 @@ function openKebab(btn, g) {
     m.querySelectorAll('.dropdown-item').forEach(function (b) { b.addEventListener('click', function () { closeKebab(); runAction(b.dataset.act, g); }); });
 }
 
-// Modal Lihat Catatan (Hold / Reject tabs)
+// Modal "Lihat Bukti" (Hold / Reject tabs) — gabungan lihat catatan + tambah/lihat bukti.
 // - Tampilkan Waktu Disetujui di bawah Waktu Diajukan.
-// - Bukti: tampilkan hanya tombol Lihat tanpa nama file.
+// - Bukti: tombol Lihat (bila ada) + upload untuk tambah/ganti bukti.
 function openCatatanModal(g) {
     var s = st(g.groupId); var rq = s.request || {};
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
@@ -1460,8 +1484,20 @@ function openCatatanModal(g) {
         kv('Bukti', buktiVal) +
         kv('Waktu Diajukan', esc(rq.ts || '-')) +
         kv('Waktu Disetujui', esc(s.approvedTs || '-')) +
-        kv('Disetujui Oleh', esc(s.approvedBy || '-'));
-    openModal('Catatan & Bukti', body, [{ label: 'Tutup', onClick: closeModal }]);
+        kv('Disetujui Oleh', esc(s.approvedBy || '-')) +
+        '<div style="margin-top:14px;border-top:1px solid var(--border-color);padding-top:12px;">' +
+        '<div style="font-weight:700;font-size:0.82rem;margin-bottom:8px;">' + (rq.bukti ? 'Ganti Bukti' : 'Tambah Bukti') + '</div>' +
+        fileField('(maks 25 MB, format PDF/JPG/JPEG/PNG)') + '</div>';
+    openModal('Lihat Bukti', body, [
+        { label: 'Tutup', onClick: closeModal },
+        { label: 'Simpan Bukti', style: 'background:var(--primary);color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+            var bk = validateBukti('Pilih file bukti dulu.'); if (!bk) return;
+            if (!s.request) s.request = { type: (activeTab === 'reject' ? 'reject' : 'hold'), scope: 'all', reason: '', ts: todayProc() };
+            s.request.bukti = bk.name; saveItems(); closeModal(); render();
+            showToast('Bukti Disimpan', 'Bukti ' + g.groupId + ' diperbarui.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Tambah/ganti bukti ' + activeTab + ' ' + g.groupId + '\nbukti : ' + bk.name);
+        } }
+    ]);
     var bb = document.getElementById('asBuktiBtn');
     if (bb) bb.addEventListener('click', function () { openBukti(rq.bukti); });
 }

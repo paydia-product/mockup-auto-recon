@@ -8,7 +8,17 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.4.0', date: '2026-07-06', deployed: true, title: 'Version picker UI', changes: [
+        { v: '1.5.0', date: '2026-07-06', deployed: true, title: 'Batch UX — settle, search, 2FA sim', changes: [
+            'Export Report Manajemen hanya di tab Settle',
+            'BI-FAST >Rp250 juta: mekanisme Pecah Manual (auto-split ≤Rp250 juta/transfer) di konfirmasi settle',
+            'Search by No. Rekening di semua tab',
+            'Summary per bank hanya di tab Checker (nominal dinamis dari data checker)',
+            'Konfirmasi settle single = kalimat ringkas (norek/bank/pemilik/nominal)',
+            'Konfirmasi bulk settle: breakdown per rekening (norek + nama pemilik), "Jumlah Baris", "Grand Total Settlement"',
+            'Hold/Reject: fungsi bukti + catatan disatukan jadi "Lihat Bukti"',
+            'Approver: toggle Simulasi 2FA Salah untuk uji error path'
+        ] },
+        { v: '1.4.0', date: '2026-07-06', deployed: false, title: 'Version picker UI', changes: [
             'Dropdown pilih versi di topbar + changelog per versi',
             'Badge Latest / Deployed, pencarian versi, link ke CHANGELOG'
         ] },
