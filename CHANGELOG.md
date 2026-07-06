@@ -7,6 +7,12 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-07-06
+### Changed
+- **Posisi kartu ringkasan** dipindah ke luar card tabel (di bawah judul halaman), tidak lagi menempel di dalam tab Checker.
+- **Tab Hold**: tulisan "Anomali Rekening" disembunyikan (badge nama + kolom Alasan menampilkan "-").
+- **Reject by Bank** (tab Settle): data langsung dipindah ke **Hold tanpa approval**. Approver hanya menerima **notifikasi perpindahan** (badge "Notifikasi · Reject by Bank → Hold" + tombol "Tandai Dibaca"), mirip mekanisme Rilis ke Checker.
+
 ## [1.6.0] — 2026-07-06
 ### Changed
 - **Pecah Otomatis** (§10): nominal > Rp250 juta via BI-FAST kini dipecah greedy — isi penuh Rp250 juta per transfer, sisa jadi transfer terakhir (contoh 470 juta → 250 juta + 220 juta). Header preview jadi "Pecah Otomatis Settlement menjadi:"; simbol gunting & catatan operator/RTGS dihapus.

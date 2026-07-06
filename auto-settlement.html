@@ -173,6 +173,9 @@
 
             <h1 class="page-title">Auto Settlement QRIS</h1>
 
+            <!-- Panel Summary per bank tujuan (§1.3) — di luar card tabel, rendered by JS -->
+            <div id="asSummaryPanel" style="display:none; margin-bottom:16px;"></div>
+
             <div class="card">
                 <div style="padding: 24px;">
                     <!-- Stage tabs -->
@@ -301,9 +304,6 @@
                             <button class="btn" id="asUnselectAll" style="background:#fff;color:var(--text-secondary);border:1px solid var(--border-color);font-size:0.8rem;font-weight:600;padding:6px 14px;">Unselect All</button>
                         </div>
                     </div>
-
-                    <!-- Panel Summary per bank tujuan (§1.3, rendered by JS) -->
-                    <div id="asSummaryPanel" style="display:none; margin-bottom:14px;"></div>
 
                     <!-- Table (head + body rendered by JS, columns vary per tab) -->
                     <div class="table-wrapper">

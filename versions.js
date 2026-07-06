@@ -8,7 +8,12 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.6.0', date: '2026-07-06', deployed: true, title: 'Pecah otomatis, summary cards, kolom tanggal', changes: [
+        { v: '1.6.1', date: '2026-07-06', deployed: true, title: 'Fix posisi summary, hold anomali, reject-by-bank ke hold', changes: [
+            'Kartu ringkasan dipindah ke luar card tabel (di bawah judul halaman)',
+            'Tab Hold: tulisan "Anomali Rekening" (badge & Alasan) disembunyikan',
+            'Reject by Bank kini langsung pindah ke Hold tanpa approval; Approver hanya menerima notifikasi ("Tandai Dibaca")'
+        ] },
+        { v: '1.6.0', date: '2026-07-06', deployed: false, title: 'Pecah otomatis, summary cards, kolom tanggal', changes: [
             'BI-FAST >Rp250 juta: Pecah Otomatis (greedy 250 juta + sisa), teks & simbol dirapikan',
             'Ringkasan nominal per bank jadi kartu (di luar tabel), pakai data semua tanggal',
             'Konfirmasi bulk settle: breakdown per rekening + search (norek/nama pemilik rekening) + pagination 10/hal',

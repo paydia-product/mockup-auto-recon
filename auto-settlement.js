@@ -64,6 +64,7 @@ function accountStatus(g) {
 function accountBadge(g) {
     var stt = accountStatus(g);
     if (!stt) return '';
+    if (stt === 'anomaly' && activeTab === 'hold') return ''; // tab Hold: jangan tampilkan tulisan anomali rekening
     var m = { baru: ['Baru', '#2563eb'], notified: ['Norek berubah', '#b45309'], anomaly: ['Anomali Rekening', '#dc2626'] }[stt];
     return ' <span title="Deteksi perubahan rekening" style="font-size:0.62rem;font-weight:700;border-radius:4px;padding:1px 6px;background:' + m[1] + '22;color:' + m[1] + ';white-space:nowrap;">' + m[0] + '</span>';
 }
@@ -283,7 +284,9 @@ function tabGroups(tab) {
     var f = filters || defaultFilters();
     return groups.filter(function (g) {
         var s = st(g.groupId);
-        if (s.status !== tab) return false;
+        // Approver menampilkan request pending + notifikasi perpindahan data (status non-pending).
+        if (tab === 'pending') { if (s.status !== 'pending' && !s.notify) return false; }
+        else if (s.status !== tab) return false;
         if (f.start && g.procISO < f.start) return false;
         if (f.end && g.procISO > f.end) return false;
         if (f.banks && f.banks.size > 0 && !f.banks.has(g.bank)) return false;
@@ -385,7 +388,7 @@ function renderCounts() {
     ['checker', 'pending', 'hold', 'reject', 'settle'].forEach(function (tab) {
         var id = tab === 'pending' ? 'cnt-approver' : 'cnt-' + tab;
         var el = document.getElementById(id);
-        if (el) el.textContent = groups.filter(function (g) { return st(g.groupId).status === tab; }).length;
+        if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.notify) : s.status === tab; }).length;
     });
 }
 
@@ -446,14 +449,19 @@ function renderTable() {
         c += '<td>' + esc(g.namaRek) + accountBadge(g) + accumBadge(g) + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(updatedOf(g)) + '</td>';
         if (activeTab === 'pending') {
-            var rq = s.request || {};
-            var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309'));
-            var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'settle' ? 'Settle' : (rq.type === 'reject' ? 'Reject' : (rq.type === 'rejectbybank' ? 'Reject by Bank' : '-')));
-            c += '<td><span class="as-req-badge" style="background:' + col + '22;color:' + col + ';white-space:normal;display:inline-block;line-height:1.3;">' + esc(lbl) + '</span></td>';
+            if (s.notify) {
+                c += '<td><span class="as-req-badge" style="background:#0891b222;color:#0e7490;white-space:normal;display:inline-block;line-height:1.3;"><i class="fas fa-bell"></i> Notifikasi · Reject by Bank → Hold</span></td>';
+            } else {
+                var rq = s.request || {};
+                var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309'));
+                var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'settle' ? 'Settle' : (rq.type === 'reject' ? 'Reject' : (rq.type === 'rejectbybank' ? 'Reject by Bank' : '-')));
+                c += '<td><span class="as-req-badge" style="background:' + col + '22;color:' + col + ';white-space:normal;display:inline-block;line-height:1.3;">' + esc(lbl) + '</span></td>';
+            }
         }
         if (activeTab === 'hold') {
             var hr = s.request || {};
-            c += '<td>' + esc(SCOPE_LABEL[hr.scope] || '-') + '</td>';
+            // Tab Hold: sembunyikan tulisan "Anomali Rekening" pada kolom Alasan.
+            c += '<td>' + esc(hr.scope === 'anomaly' ? '-' : (SCOPE_LABEL[hr.scope] || '-')) + '</td>';
         }
         if (activeTab === 'settle') {
             c += '<td>' + esc(s.channel || (s.request && s.request.channel) || '-') + '</td>';
@@ -497,6 +505,9 @@ function actionMenuItems(g) {
 }
 function actionButtons(g) {
     if (activeTab === 'pending') {
+        if (st(g.groupId).notify) {
+            return '<button class="as-notify-ack btn" data-id="' + g.groupId + '" style="margin:0;background:#fff;color:var(--text-secondary);border:1px solid var(--border-color);font-size:0.78rem;font-weight:600;padding:6px 14px;">Tandai Dibaca</button>';
+        }
         return '<button class="as-approval-btn btn" data-id="' + g.groupId + '" style="margin:0;background:var(--primary);color:#fff;border:none;font-size:0.78rem;font-weight:600;padding:6px 14px;">Approval</button>';
     }
     if (actionMenuItems(g).length === 0) return '<span style="color:var(--text-muted);">—</span>';
@@ -1083,23 +1094,22 @@ function openRejectByBank() {
 // ── settle tab: per-row Reject by Bank (Manual only) — perlu approval Approver ──
 function openRejectByBankItem(g) {
     var s = st(g.groupId);
-    // Guard: sudah diajukan & menunggu approval → tolak request ulang.
-    if (s.status === 'pending') { showToast('Menunggu Approval', 'Data sedang menunggu approval, mohon tunggu.'); return; }
     var body = selInfo(g) +
-        '<p style="font-size:0.82rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank tanpa pengiriman uang. Perlu approval Approver.</p>' +
+        '<p style="font-size:0.82rem;padding:8px 12px;background:#fff7ed;color:#b45309;border-radius:6px;margin-bottom:14px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank dan <b>langsung dipindah ke Hold</b> tanpa approval. Approver hanya menerima notifikasi perpindahan data.</p>' +
         noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Reject by Bank', body, [
         { label: 'Batal', onClick: closeModal },
-        { label: 'Ajukan Reject by Bank', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+        { label: 'Pindahkan ke Hold', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var reason = document.getElementById('asReason').value.trim();
             if (!reason) { showToast('Catatan Wajib', 'Isi catatan Reject by Bank.'); return; }
             var bk = validateBukti(null); if (!bk) return;
-            var prev = s.status; s.status = 'pending';
-            // Status settle (settleStatus) TIDAK berubah sampai di-approve.
-            s.request = { type: 'rejectbybank', prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
+            // §6.2: langsung ke Hold (tanpa approval), + notifikasi ke Approver (mirip Rilis ke Checker).
+            s.status = 'hold'; s.settleStatus = 'rejectbybank'; s.updatedTs = todayProc();
+            s.request = { type: 'hold', scope: 'rejectbybank', prevStatus: 'settle', reason: reason, bukti: bk.name, ts: todayProc() };
+            s.notify = { kind: 'rejectbybank', from: 'settle', to: 'hold', ts: todayProc() };
             saveItems(); closeModal(); render();
-            showToast('Reject by Bank Diajukan', g.groupId + ' menunggu approval Approver.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Reject by Bank ' + g.groupId + '\ncatatan : ' + reason + (bk.name ? '\nbukti : ' + bk.name : ''));
+            showToast('Dipindah ke Hold', g.groupId + ' → Hold (Reject by Bank). Approver ter-notifikasi.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject by Bank ' + g.groupId + ' → pindah ke Hold (notifikasi Approver)\ncatatan : ' + reason + (bk.name ? '\nbukti : ' + bk.name : ''));
         } }
     ]);
 }
@@ -1551,6 +1561,8 @@ function onTableClick(e) {
     if (d) { var g = groupById(d.dataset.id); if (g) showSettlementDetail(g); return; }
     var ap = e.target.closest('.as-approval-btn');
     if (ap) { var g3 = groupById(ap.dataset.id); if (g3) openApproverModal(g3); return; }
+    var nk = e.target.closest('.as-notify-ack');
+    if (nk) { var gn = groupById(nk.dataset.id); if (gn) { st(gn.groupId).notify = null; saveItems(); render(); showToast('Notifikasi Dibaca', gn.groupId + ' — perpindahan ke Hold sudah ditandai.'); } return; }
     var k = e.target.closest('.as-kebab');
     if (k) { var g2 = groupById(k.dataset.id); if (g2) openKebab(k, g2); return; }
 }
