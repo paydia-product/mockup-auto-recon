@@ -7,6 +7,16 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-07-06
+Build-brief Fase 1 — Batch 1. Ref: `BRIEF-GAP-ANALYSIS.md`.
+
+### Added
+- §10 Guard split BI-FAST: nominal > Rp250 juta tidak bisa via BI-FAST — peringatan inline di modal Settle + blok saat submit (single & bulk). Pengecualian merchant Indonusa (selalu BI-FAST).
+- `BRIEF-GAP-ANALYSIS.md`: pemetaan brief → status mockup + rencana batch.
+
+### Changed
+- §1.4 Filter bank tujuan kini melistkan tiap bank merchant terpisah (BCA, BRI, Mandiri, NOBU, Permata, Jago, dst) secara dinamis; tidak lagi dikelompok "Bank Lainnya".
+
 ## [1.0.0] — 2026-07-06
 Baseline: kondisi mockup Auto Settlement QRIS sebelum eksekusi build-brief Fase 1. Merangkum seluruh pengerjaan sesi 1–3.
 

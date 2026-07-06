@@ -225,7 +225,7 @@ function tabGroups(tab) {
         if (s.status !== tab) return false;
         if (f.start && g.procISO < f.start) return false;
         if (f.end && g.procISO > f.end) return false;
-        if (f.banks && f.banks.size > 0 && !f.banks.has(bankGroup(g.bank))) return false;
+        if (f.banks && f.banks.size > 0 && !f.banks.has(g.bank)) return false;
         if (f.big && g.nominalAwal <= BIG_THRESHOLD) return false;
         if (f.small && totalOf(g) >= AUTO_HOLD_MIN) return false;
         if (tab === 'pending' && f.req) {
@@ -538,6 +538,17 @@ function validateTransfer() {
     return { channel: ch, metode: mt };
 }
 
+// §10: BI-FAST limit Rp250 juta/transaksi. Merchant Indonusa dikecualikan (selalu BI-FAST).
+function isIndonusa(g) { return /indonusa/i.test(g.namaRek || '') || (g.txns || []).some(function (t) { return /indonusa/i.test(t.merchantName || ''); }); }
+function overBifastLimit(g) { return !isIndonusa(g) && totalOf(g) > BIG_THRESHOLD; }
+function bifastGuardOk(g, metode) {
+    if (metode === 'BI-Fast' && overBifastLimit(g)) {
+        showToast('Melebihi Limit BI-FAST', g.namaRek + ': nominal > Rp250 juta tidak bisa via BI-FAST. Pecah manual atau pakai RTGS (> Rp500 juta).');
+        return false;
+    }
+    return true;
+}
+
 // Info data terpilih untuk modal aksi single (tanpa ID Settlement).
 function selInfo(g) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
@@ -610,7 +621,8 @@ function openReject(g) {
 }
 
 function openSettle(g) {
-    var body = selInfo(g) +
+    var warn = overBifastLimit(g) ? '<p style="font-size:0.8rem;padding:8px 12px;background:#fef2f2;color:#dc2626;border-radius:6px;margin-bottom:14px;"><i class="fas fa-triangle-exclamation"></i> Nominal &gt; Rp250 juta — <b>BI-FAST tidak tersedia</b>. Pecah manual atau gunakan RTGS (&gt; Rp500 juta).</p>' : '';
+    var body = selInfo(g) + warn +
         metodeSettlementField() + channelField() + metodeField() + noteField(false) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
     openModal('Settle Transaksi', body, [
         { label: 'Batal', onClick: closeModal },
@@ -618,6 +630,7 @@ function openSettle(g) {
             var ms = document.getElementById('asMetodeSettle').value;
             if (!ms) { showToast('Metode Wajib', 'Pilih Metode Settlement.'); return; }
             var tf = validateTransfer(); if (!tf) return;
+            if (!bifastGuardOk(g, tf.metode)) return;
             var bk = validateBukti(null); if (!bk) return;
             var s = st(g.groupId); var prev = s.status; s.status = 'pending';
             s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: document.getElementById('asReason').value.trim(), bukti: bk.name, ts: todayProc() };
@@ -648,6 +661,10 @@ function openBulkSettle() {
             var ms = document.getElementById('asMetodeSettle').value;
             if (!ms) { showToast('Metode Wajib', 'Pilih Metode Settlement.'); return; }
             var tf = validateTransfer(); if (!tf) return;
+            if (tf.metode === 'BI-Fast') {
+                var over = Array.from(selected).map(groupById).filter(function (g) { return g && overBifastLimit(g); });
+                if (over.length) { showToast('Melebihi Limit BI-FAST', over.length + ' entry > Rp250 juta tidak bisa via BI-FAST. Pakai RTGS atau pecah manual.'); return; }
+            }
             var ids = Array.from(selected);
             ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: '', bukti: '', ts: todayProc() }; });
             selected.clear(); saveItems(); closeModal(); render(); showToast('Bulk Settle Diajukan', ids.length + ' entry menunggu approval.');
@@ -1121,11 +1138,23 @@ function onTableClick(e) {
 }
 
 // ── filter panel + init ──
+// §1.4: filter bank tujuan = tiap bank merchant terpisah (bukan dikelompok "Lainnya").
+function renderBankFilter() {
+    var el = document.getElementById('asFilterBanks');
+    if (!el) return;
+    var seen = {};
+    groups.forEach(function (g) { seen[g.bank] = true; });
+    var list = Object.keys(seen).sort();
+    el.innerHTML = list.map(function (b) {
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;"><input type="checkbox" class="as-fbank" value="' + esc(b) + '"' + ((filters && filters.banks && filters.banks.has(b)) ? ' checked' : '') + '> ' + esc(b) + '</label>';
+    }).join('');
+}
 function syncFilterInputs() {
     document.getElementById('asFilterStart').value = filters.start || '';
     document.getElementById('asFilterEnd').value = filters.end || '';
     document.getElementById('asFilterBig').checked = !!filters.big;
     document.getElementById('asFilterSmall').checked = !!filters.small;
+    renderBankFilter();
     document.querySelectorAll('.as-fbank').forEach(function (cb) { cb.checked = filters.banks.has(cb.value); });
     document.getElementById('asFilterReq').value = filters.req || '';
     document.getElementById('asFilterReqSection').style.display = (activeTab === 'pending') ? 'block' : 'none';
