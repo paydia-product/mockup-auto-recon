@@ -37,8 +37,8 @@ Legend status: ✅ sudah sesuai · ⚠️ ada tapi perlu ubah · ❌ belum ada.
 
 ## Rencana batch implementasi
 
-- **Batch 1 (v1.1.0 — turn ini):** §1.4 filter bank terpisah · §10 guard >250jt BI-FAST.
-- **Batch 2:** §1.1 grouping bank+norek · §1.3 Panel Summary · §1.6 Bulk Hold/Reject.
+- **Batch 1 (v1.1.0) ✅ SELESAI:** §1.4 filter bank terpisah · §10 guard >250jt BI-FAST.
+- **Batch 2 (v1.2.0) ✅ SELESAI:** §1.1 grouping bank+norek · §1.3 Panel Summary · §1.6 Bulk Hold/Reject.
 - **Batch 3:** §2.1 On-Us/IFT + Otomatis disabled · §2.2/§5.5 modal konfirmasi summary.
 - **Batch 4:** §5.2 2FA · §5.3 Bulk approve.
 - **Batch 5:** §3.2/§3.3/§3.4 logic Hold & rilis · §6.2 reject-by-bank → Hold.

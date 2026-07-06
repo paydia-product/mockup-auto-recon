@@ -6,6 +6,13 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 - MAJOR: perubahan besar arah/scope. MINOR: fitur baru. PATCH: perbaikan kecil/bugfix/docs.
 
 ## [Unreleased]
+## [1.2.1] — 2026-07-06
+Docs untuk Batch 2.
+
+### Changed
+- Panduan Halaman: grouping Bank+Norek, Panel Summary per bank, Bulk Aksi (Hold/Reject/Settle).
+- BRIEF-GAP-ANALYSIS.md: tandai Batch 1 & 2 selesai.
+
 
 ## [1.2.0] — 2026-07-06
 Build-brief Fase 1 — Batch 2. Ref: `BRIEF-GAP-ANALYSIS.md`.

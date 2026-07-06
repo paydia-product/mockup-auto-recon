@@ -37,8 +37,8 @@
             title: 'Panduan Halaman Auto Settlement',
             items: [
                 {
-                    h: 'Unit data = settlement per Nomor Rekening',
-                    b: `Satu baris = satu <b>settlement group per nomor rekening</b>. Transaksi dari <b>beberapa MID berbeda dengan norek tujuan sama</b> otomatis digabung jadi satu entry (rincian per MID ada di modal <b>Detail ID Settlement → List Settlement</b>).<br><br><b>Total Settle = Nominal Awal − Biaya Admin + Adj. Chargeback (+) − Adj. Chargeback (−)</b>. Bank tujuan <b>di luar BCA/Mandiri/BRI</b> (Lainnya) dikenai <b>biaya admin flat Rp6.500</b> per payout.`
+                    h: 'Unit data = settlement per Bank + Nomor Rekening',
+                    b: `Satu baris = satu <b>settlement group per (Bank + Nomor Rekening)</b>. Transaksi dari <b>beberapa MID</b> dengan bank+norek tujuan sama digabung jadi satu entry (walau nama pemilik beda — nama yang ditampilkan = <b>input paling awal</b>). <b>Norek sama tapi bank beda = 2 rekening terpisah.</b> Rincian per MID ada di modal <b>Detail ID Settlement → List Settlement</b>.<br><br><b>Total Settle = Nominal Awal − Biaya Admin + Adj. Chargeback (+) − Adj. Chargeback (−)</b>. Bank tujuan <b>di luar BCA/Mandiri/BRI</b> dikenai <b>biaya admin flat Rp6.500</b> per payout.<br><br><b>Panel Summary per Bank Tujuan</b> (di atas tabel) merangkum per bank: Nominal Awal, Admin, Chargeback (+/−), dan <b>Nominal Ending</b>, plus baris Total.`
                 },
                 {
                     h: 'Alur Tab (Checker → Approver → hasil)',
@@ -46,7 +46,7 @@
                 },
                 {
                     h: 'Tab Checker — aksi',
-                    b: `Aksi per baris (kebab): <b>Hold</b>, <b>Reject</b>, <b>Settle</b>.<br><br>• <b>Hold</b>: cakupan <b>Hold Semua</b> / <b>Hold Partial (pilih MID)</b> / <b>Hold Dibawah Min. Transaksi</b>. Catatan wajib; bukti wajib untuk Hold Partial.<br>• <b>Reject</b>: catatan wajib, bukti opsional.<br>• <b>Settle</b>: pilih <b>Metode Settlement</b> (Manual = hanya catat, tidak kirim uang, setelah approval langsung <b>Success</b> / Otomatis = catat + kirim uang ke bank, status awal <b>Pending</b>), <b>Channel Payment</b>, <b>Metode Transfer</b>; catatan & bukti opsional.<br><br><b>Bulk Settle</b>: aktifkan mode bulk, centang baris → wajib pilih <b>Metode Settlement</b> + Channel + Metode Transfer.`
+                    b: `Aksi per baris (kebab): <b>Hold</b>, <b>Reject</b>, <b>Settle</b>.<br><br>• <b>Hold</b>: cakupan <b>Hold Semua</b> / <b>Hold Partial (pilih MID)</b> / <b>Hold Dibawah Min. Transaksi</b>. Catatan wajib; bukti wajib untuk Hold Partial.<br>• <b>Reject</b>: catatan wajib, bukti opsional.<br>• <b>Settle</b>: pilih <b>Metode Settlement</b> (Manual = hanya catat, tidak kirim uang, setelah approval langsung <b>Success</b> / Otomatis = catat + kirim uang ke bank, status awal <b>Pending</b>), <b>Channel Payment</b>, <b>Metode Transfer</b>; catatan & bukti opsional.<br><br><b>Bulk Aksi</b>: aktifkan mode bulk, centang baris → tersedia <b>Bulk Hold / Bulk Reject / Bulk Settle</b> (catatan/bukti sama untuk semua baris; bukti opsional). Tombol bulk mengikuti aksi yang tersedia di tab aktif.`
                 },
                 {
                     h: 'Hold Partial memecah settlement',
