@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-06
+### Added
+- **Version picker UI** (`versions.js`): dropdown di topbar Auto Settlement QRIS untuk pilih versi & lihat changelog tiap versi (badge Latest/Deployed, pencarian, link ke CHANGELOG). Catatan: "muat versi" bersifat tampilan (mock) — build aktif tetap Latest.
+
 ## [1.3.0] — 2026-07-06
 Build-brief Fase 1 — Batch 3–7 (sisa brief) sekaligus. Ref: `BRIEF-GAP-ANALYSIS.md`.
 
