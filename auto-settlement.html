@@ -188,6 +188,7 @@
                         <button class="btn btn-filter" id="asFilterBtn" style="margin:0;"><i class="fas fa-filter"></i> Filter</button>
                         <button class="btn btn-export" id="asExportBtn" style="margin:0;"><i class="far fa-file-excel"></i> Export</button>
                         <button class="btn btn-export" id="asExportSegBtn" style="margin:0;"><i class="far fa-file-excel"></i> Export Segregasi</button>
+                        <button class="btn btn-export" id="asExportMgmtBtn" style="margin:0;"><i class="far fa-file-lines"></i> Export Report Manajemen</button>
                         <div class="as-toolbar-actions" id="asTabActions"></div>
                         <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
                             <input type="text" id="asSearch" class="as-search-input" placeholder="Cari ID Settlement / Nama Pemilik Rekening">
@@ -291,6 +292,8 @@
                             <span id="asBulkCount">0</span> baris terpilih
                         </span>
                         <div style="display:flex; gap:8px;">
+                            <button class="btn" id="asBulkApprove" style="background:#16a34a;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-check"></i> Bulk Approve</button>
+                            <button class="btn" id="asBulkRejectReq" style="background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-xmark"></i> Bulk Reject</button>
                             <button class="btn" id="asBulkHold" style="background:#b45309;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-hand"></i> Bulk Hold</button>
                             <button class="btn" id="asBulkReject" style="background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-ban"></i> Bulk Reject</button>
                             <button class="btn" id="asBulkSettle" style="background:var(--success);color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-circle-check"></i> Bulk Settle</button>
@@ -380,8 +383,8 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260706-v26"></script>
-    <script src="page-guide.js?v=20260706-v9"></script>
+    <script src="auto-settlement.js?v=20260706-v27"></script>
+    <script src="page-guide.js?v=20260706-v10"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
             fetch('/api/logout', { method: 'POST' }).then(() => { window.location.replace('login.html'); });

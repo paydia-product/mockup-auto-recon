@@ -39,10 +39,9 @@ Legend status: ✅ sudah sesuai · ⚠️ ada tapi perlu ubah · ❌ belum ada.
 
 - **Batch 1 (v1.1.0) ✅ SELESAI:** §1.4 filter bank terpisah · §10 guard >250jt BI-FAST.
 - **Batch 2 (v1.2.0) ✅ SELESAI:** §1.1 grouping bank+norek · §1.3 Panel Summary · §1.6 Bulk Hold/Reject.
-- **Batch 3:** §2.1 On-Us/IFT + Otomatis disabled · §2.2/§5.5 modal konfirmasi summary.
-- **Batch 4:** §5.2 2FA · §5.3 Bulk approve.
-- **Batch 5:** §3.2/§3.3/§3.4 logic Hold & rilis · §6.2 reject-by-bank → Hold.
-- **Batch 6:** §8 deteksi perubahan rekening · §9.2 export manajemen.
-- **Batch 7:** §4 penyatuan baris <10rb di approver · §1.5 badge akumulasi · §7 audit anti-tamper.
+- **Batch 3–7 (v1.3.0) ✅ SELESAI:** §2.1 On-Us/IFT + Otomatis disabled · §2.2/§5.5 modal konfirmasi summary · §5.2 2FA · §5.3 Bulk approve · §3.2/§3.3/§3.4/§3.5 logic Hold & rilis · §6.2 reject-by-bank → Hold · §8 deteksi perubahan rekening · §9.2 export manajemen · §1.5 badge akumulasi · §4 notice include-hold.
+- §7 anti-tamper: field master (norek/nama/bank/nominal/relasi MID↔norek) di-render read-only tanpa input edit di semua layar — sudah sesuai, tidak ada aksi edit master.
 
-Setiap batch = bump versi + entri CHANGELOG + tag + deploy.
+Catatan §4: penyatuan baris <Rp10.000 diimplementasi sebagai **notice "include hold"** di preview Approver (auto-merge penuh lintas-batch bersifat minimal per brief). §10 auto-split & retry Otomatis = Fase 2 (out of scope).
+
+Setiap perubahan = bump versi + entri CHANGELOG + tag + deploy.

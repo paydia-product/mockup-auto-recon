@@ -6,6 +6,25 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 - MAJOR: perubahan besar arah/scope. MINOR: fitur baru. PATCH: perbaikan kecil/bugfix/docs.
 
 ## [Unreleased]
+
+## [1.3.0] — 2026-07-06
+Build-brief Fase 1 — Batch 3–7 (sisa brief) sekaligus. Ref: `BRIEF-GAP-ANALYSIS.md`.
+
+### Added
+- §2.2/§5.5 Modal konfirmasi summary sebelum settle (single & bulk): channel sumber, metode, quantity, breakdown per bank tujuan + Grand Total Disburse.
+- §5.2 2FA (PIN 6 digit) wajib saat approve & reject (single & bulk).
+- §5.3 Bulk Approve & Bulk Reject di tab Approver (2FA sekali untuk semua).
+- §8 Deteksi perubahan rekening (merchant tunggal): badge Baru / Norek berubah (ada pemberitahuan) / Anomali Rekening; anomali tanpa pemberitahuan → auto-hold. + seed demo (Fathurroji).
+- §9.2 Export Report Manajemen: per metode (Manual/Otomatis) → channel → bank tujuan (nominal+qty) + rekap Sukses/Dirilis/Hold (below 10rb, request, reject by bank); Pending/Fail = 0 (Otomatis, Fase 2).
+- §1.5 Badge "Akumulasi <Rp10.000" pada hold di bawah minimum.
+- §3.3/§3.4/§3.5 Tab Hold: aksi "Rilis ke Checker" (tanpa approval) + "Tambah/Lihat Bukti".
+- §4 Notice "include hold" di preview Approver (penyatuan baris <Rp10.000).
+
+### Changed
+- §2.1 Metode Transfer: BI-Fast · On-Us / IFT · RTGS. Metode Settlement Otomatis di-disable (tooltip Fase 2).
+- §3.2 Bukti hold tidak lagi wajib (semua jenis termasuk Hold Partial) — boleh menyusul via tab Hold.
+- §6.2 Reject by Bank yang di-approve → masuk tab Hold (kategori HOLD), bukan balik ke Settle.
+
 ## [1.2.1] — 2026-07-06
 Docs untuk Batch 2.
 

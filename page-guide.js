@@ -46,19 +46,23 @@
                 },
                 {
                     h: 'Tab Checker — aksi',
-                    b: `Aksi per baris (kebab): <b>Hold</b>, <b>Reject</b>, <b>Settle</b>.<br><br>• <b>Hold</b>: cakupan <b>Hold Semua</b> / <b>Hold Partial (pilih MID)</b> / <b>Hold Dibawah Min. Transaksi</b>. Catatan wajib; bukti wajib untuk Hold Partial.<br>• <b>Reject</b>: catatan wajib, bukti opsional.<br>• <b>Settle</b>: pilih <b>Metode Settlement</b> (Manual = hanya catat, tidak kirim uang, setelah approval langsung <b>Success</b> / Otomatis = catat + kirim uang ke bank, status awal <b>Pending</b>), <b>Channel Payment</b>, <b>Metode Transfer</b>; catatan & bukti opsional.<br><br><b>Bulk Aksi</b>: aktifkan mode bulk, centang baris → tersedia <b>Bulk Hold / Bulk Reject / Bulk Settle</b> (catatan/bukti sama untuk semua baris; bukti opsional). Tombol bulk mengikuti aksi yang tersedia di tab aktif.`
+                    b: `Aksi per baris (kebab): <b>Hold</b>, <b>Reject</b>, <b>Settle</b>.<br><br>• <b>Hold</b>: cakupan <b>Hold Semua</b> / <b>Hold Partial (pilih MID)</b> / <b>Hold Dibawah Min. Transaksi</b>. Catatan wajib; bukti wajib untuk Hold Partial.<br>• <b>Reject</b>: catatan wajib, bukti opsional.<br>• <b>Settle</b>: pilih <b>Metode Settlement</b> (Manual → langsung <b>Success</b> setelah approval; <b>Otomatis di-disable = Fase 2</b>), <b>Channel Payment</b> (sumber dana), <b>Metode Transfer</b> (BI-Fast / On-Us·IFT / RTGS); lalu muncul <b>modal konfirmasi</b> berisi channel, quantity, breakdown per bank tujuan & <b>Grand Total Disburse</b>. Catatan & bukti opsional.<br><br><b>Bulk Aksi</b>: aktifkan mode bulk, centang baris → tersedia <b>Bulk Hold / Bulk Reject / Bulk Settle</b> (catatan/bukti sama untuk semua baris; bukti opsional). Tombol bulk mengikuti aksi yang tersedia di tab aktif.`
                 },
                 {
                     h: 'Hold Partial memecah settlement',
                     b: `Saat <b>Hold Partial</b>, MID yang dipilih <b>dipecah menjadi settlement baru terpisah</b> (ID <code>…-P1</code>, <code>-P2</code>, dst) yang diajukan ke Approver, sedangkan <b>MID sisanya tetap di Checker</b> sebagai settlement tersendiri.<br><br>Contoh: 1 norek berisi 4 MID, Hold Partial 2 MID → terbentuk 1 settlement baru berisi 2 MID (menunggu approval), dan settlement lama menyisakan 2 MID di Checker.`
                 },
                 {
-                    h: 'Tab Approver',
-                    b: `Menampilkan request dari Checker (Hold / Hold Partial / Hold Min. / Reject / Settle). Approver bisa <b>Approve</b> atau <b>Reject</b> request, dan <b>Lihat</b> catatan + bukti. Approve memindahkan settlement ke tab sesuai tipe; Reject mengembalikannya ke status sebelumnya. Tab Approver <b>tidak punya Export</b>.`
+                    h: 'Tab Approver (2FA + bulk)',
+                    b: `Menampilkan request dari Checker (Hold / Reject / Settle / Reject by Bank). Approver <b>Approve</b> atau <b>Reject</b> — <b>wajib 2FA (PIN 6 digit)</b>. <b>Bulk Approve / Bulk Reject</b> tersedia (2FA sekali untuk semua; untuk kasus yang perlu diperiksa, tinjau satu-satu). Approver read-only (tidak bisa edit). Approve memindahkan ke tab sesuai tipe; Reject balik ke status sebelumnya. Tab ini <b>tidak punya Export</b>.<br><br>Untuk settle yang norek-nya punya hold terkait, muncul notice <b>"include hold"</b> (penyatuan baris &lt;Rp10.000).`
+                },
+                {
+                    h: 'Deteksi perubahan rekening & akumulasi',
+                    b: `Untuk <b>merchant tunggal</b> (1 MID/1 norek), sistem membandingkan norek/nama/bank vs settlement terakhir → badge <b>Baru</b>, <b>Norek berubah</b> (ada pemberitahuan), atau <b>Anomali Rekening</b> (tanpa pemberitahuan → <b>auto-hold</b> merah). Hold di bawah minimum ditandai badge <b>Akumulasi &lt;Rp10.000</b>.`
                 },
                 {
                     h: 'Tab Hold & Reject — aksi',
-                    b: `Daftar hasil <b>Hold</b> / <b>Reject</b>. Aksi per baris (kebab): dari <b>Hold</b> bisa ajukan <b>Reject</b> atau <b>Settle</b>; dari <b>Reject</b> bisa ajukan <b>Hold</b> atau <b>Settle</b> — semuanya lewat Approver lagi. Plus <b>Lihat Catatan</b> (catatan, bukti, Waktu Diajukan/Disetujui, <b>Disetujui Oleh</b>).<br><br>Di modal Catatan & Bukti: tab <b>Hold</b> menampilkan field <b>Alasan</b>; tab <b>Reject</b> tanpa field tipe request.`
+                    b: `Tab <b>Hold</b>: <b>Rilis ke Checker</b> (gabung ke settlement berjalan, <b>tanpa approval</b>; Approver hanya ter-notice), <b>Tambah/Lihat Bukti</b> (bukti boleh menyusul), dan <b>Lihat Catatan</b>. Reject by Bank yang di-approve juga masuk tab Hold.<br><br>Tab <b>Reject</b>: dari sini bisa ajukan <b>Hold</b> atau <b>Settle</b> (lewat Approver lagi) + <b>Lihat Catatan</b>. Di modal Catatan & Bukti: tab Hold menampilkan field <b>Alasan</b>; tab Reject tanpa field tipe request.`
                 },
                 {
                     h: 'Tab Settle — status & simulasi',
@@ -70,7 +74,7 @@
                 },
                 {
                     h: 'Export & Export Segregasi',
-                    b: `<b>Export</b> (per tab): kolom mengikuti tab aktif — tab Settle menyertakan Channel Payment, Metode Transfer, Metode Settlement, Waktu Diajukan/Disetujui, Disetujui Oleh, Catatan. Sheet lebar bisa di-scroll ke samping.<br><br><b>Export Segregasi</b> (khusus tab Settle): pilih <b>Tanggal</b>, hanya memuat data <b>Metode Settlement Manual</b>. Hasil dipisah <b>per channel payment</b> (tabel A–K) dalam satu sheet, plus segmen <b>Grand Total</b> (Adm / Hold / Released HOLD) setelah tabel K.`
+                    b: `<b>Export</b> (per tab): kolom mengikuti tab aktif — tab Settle menyertakan Channel Payment, Metode Transfer, Metode Settlement, Waktu Diajukan/Disetujui, Disetujui Oleh, Catatan. Sheet lebar bisa di-scroll ke samping.<br><br><b>Export Segregasi</b> (khusus tab Settle): pilih <b>Tanggal</b>, hanya data <b>Metode Manual</b>. Hasil dipisah <b>per channel payment</b> (tabel A–K) dalam satu sheet + segmen <b>Grand Total</b> (Adm / Hold / Released HOLD) setelah tabel K.<br><br><b>Export Report Manajemen</b>: summary harian per metode (Manual/Otomatis) → channel → bank tujuan (nominal+qty), plus rekap <b>Total Sukses / Dirilis / Hold</b> (below Rp10.000 · request · reject by bank). Status Pending & Fail = 0 (khusus Otomatis, Fase 2).`
                 }
             ]
         },
