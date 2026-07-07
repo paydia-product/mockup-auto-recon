@@ -8,7 +8,10 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.10.0', date: '2026-07-07', deployed: true, title: 'Filter hold, pecah & gabung saat approve, search versi', changes: [
+        { v: '1.10.1', date: '2026-07-07', deployed: true, title: 'Sticky message pindah ke tab Checker', changes: [
+            'Pesan "Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis" dipindah ke tab Checker, di bawah tombol filter'
+        ] },
+        { v: '1.10.0', date: '2026-07-07', deployed: false, title: 'Filter hold, pecah & gabung saat approve, search versi', changes: [
             'Tab Hold: filter by Alasan (Reject by Bank / Dibawah Min / Semua / Partial) & by Status (Belum Diproses / Siap Release / Sudah Release Checker)',
             'Perbaikan seed: kolom Alasan hold tidak ada yang kosong; status hold sesuai filter',
             'Reject by Bank pindah ke Hold — dihapus dari filter status Settle',

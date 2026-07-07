@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.10.1] — 2026-07-07
+### Changed
+- **Sticky message** "Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis…" dipindah dari tab Hold ke tab **Checker** (di bawah tombol Filter/Export/Bulk/Search), sesuai koreksi.
+
 ## [1.10.0] — 2026-07-07
 ### Added
 - **Filter tab Hold**: by **Alasan** (Reject by Bank / Hold Dibawah Min. Transaksi / Hold Semua / Hold Partial) dan by **Status** (Belum Diproses / Siap Release / Sudah Release Checker).

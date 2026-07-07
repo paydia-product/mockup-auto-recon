@@ -436,10 +436,10 @@ function renderAccumSticky() {
     var el = document.getElementById('asAccumSticky');
     if (!el) return;
     var n = accumReleasableCount();
-    if (!(n > 0 && activeTab === 'hold')) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    if (!(n > 0 && activeTab === 'checker')) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.cssText = 'position:sticky;top:0;z-index:20;margin-bottom:12px;background:#ecfdf5;border:1px solid #16a34a;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;';
     el.innerHTML = '<i class="fas fa-circle-check" style="color:#16a34a;"></i>' +
-        '<div style="font-size:0.82rem;color:#065f46;line-height:1.4;"><b>' + n + ' hold Dibawah Min. Transaksi sudah bisa dirilis.</b> Nominal norek-nya sudah memenuhi minimum transaksi (≥ Rp10.000) — rilis ke Checker untuk lanjut settle.</div>';
+        '<div style="font-size:0.82rem;color:#065f46;line-height:1.4;"><b>Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis.</b> Nominal norek-nya sudah memenuhi minimum transaksi (≥ Rp10.000) — buka tab Hold, lalu rilis ke Checker.</div>';
     el.style.display = 'flex';
 }
 
