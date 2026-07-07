@@ -8,7 +8,14 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.8.0', date: '2026-07-07', deployed: true, title: 'Stress-test seed 1000+/tab, hold ledger, pesan floating, segregasi aktual', changes: [
+        { v: '1.9.0', date: '2026-07-07', deployed: true, title: 'Sticky message, hold Bisa Rilis, summary list, layout checker', changes: [
+            'Pesan akumulasi jadi sticky non-closable di atas tabel (hilang saat tak ada yang bisa dirilis)',
+            'Hold hanya bisa Rilis ke Checker (tanpa reject/settle & tanpa bulk); status "Bisa Rilis" untuk hold dibawah min',
+            'Ringkasan nominal per bank + total diubah dari card ke bentuk list',
+            'Bulk Aksi aktif → tombol aksi single dinonaktifkan di semua baris',
+            'Checker: filter/export/bulk/search dipindah ke bawah ringkasan total, tepat di atas tabel'
+        ] },
+        { v: '1.8.0', date: '2026-07-07', deployed: false, title: 'Stress-test seed 1000+/tab, hold ledger, pesan floating, segregasi aktual', changes: [
             'Seed 1000+ data per tab (variasi bank, multi-MID, dispute, 3 jenis hold, semua status settle)',
             'Tab Hold jadi ledger permanen + kolom Status Hold (Aktif / Selesai)',
             'Status akumulasi min. transaksi jadi pesan floating (kolom Keterangan dihapus)',

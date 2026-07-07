@@ -72,23 +72,29 @@ function accountBadge(g) {
 // §4.5: label status ledger hold — aktif (belum diproses) vs sudah diproses/pindah tab.
 function holdStatusChip(g) {
     var s = st(g.groupId), chip = function (t, bg, fg) { return '<span style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;white-space:nowrap;background:' + bg + ';color:' + fg + ';">' + t + '</span>'; };
-    if (s.status === 'hold') return chip('Aktif · Belum Diproses', '#b4530922', '#b45309');
+    if (s.status === 'hold') {
+        // §2: "Bisa Rilis" hanya untuk hold Dibawah Min. Transaksi yang akumulasi norek-nya ≥ Rp10.000.
+        if (isReleasableMinHold(g)) return chip('Bisa Rilis', '#16a34a22', '#15803d');
+        return chip('Aktif · Belum Diproses', '#b4530922', '#b45309');
+    }
     var where = s.released ? 'Dirilis ke Checker' : (s.status === 'settle' ? 'Settle' : (s.status === 'reject' ? 'Reject' : STATUS_LABEL[s.status] || s.status));
     return chip('Selesai · ' + where, '#16a34a22', '#15803d');
 }
-// §3: jumlah hold <min yang norek-nya sudah terkumpul ≥ Rp10.000 (bisa dirilis). O(n).
-// Hold min dapat dirilis bila total settlement norek yg sama (checker + hold min) ≥ Rp10.000.
-function accumReleasableCount() {
+// §2/§3: hold <min ("Dibawah Min. Transaksi") bisa dirilis bila total settlement norek yg sama
+// (checker + hold min) ≥ Rp10.000. Dihitung sekali per render (O(n)) lalu di-cache.
+var _releasableNoreks = {};
+function computeReleasable() {
     var tot = {}, minNorek = {};
     groups.forEach(function (g) {
         var s = st(g.groupId), sc = (s.request || {}).scope;
         if (s.status === 'checker' || (s.status === 'hold' && sc === 'min')) tot[g.norek] = (tot[g.norek] || 0) + totalOf(g);
         if (s.status === 'hold' && sc === 'min') minNorek[g.norek] = 1;
     });
-    var n = 0;
-    Object.keys(minNorek).forEach(function (nr) { if ((tot[nr] || 0) >= AUTO_HOLD_MIN) n++; });
-    return n;
+    _releasableNoreks = {};
+    Object.keys(minNorek).forEach(function (nr) { if ((tot[nr] || 0) >= AUTO_HOLD_MIN) _releasableNoreks[nr] = 1; });
 }
+function accumReleasableCount() { return Object.keys(_releasableNoreks).length; }
+function isReleasableMinHold(g) { var s = st(g.groupId); return s.status === 'hold' && (s.request || {}).scope === 'min' && !!_releasableNoreks[g.norek]; }
 var esc = function (v) { v = String(v == null ? '' : v); return v.replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
 var isOther = function (b) { return CORE_BANKS.indexOf(String(b).toUpperCase()) === -1; };
 var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpperCase().replace('MANDIRI', 'Mandiri'); };
@@ -364,72 +370,63 @@ function renderSummary() {
     var banks = Object.keys(byBank).sort();
     if (!banks.length) { el.style.display = 'none'; return; }
     var tAwal = 0, tAdmin = 0, tcbP = 0, tcbM = 0, tEnd = 0, tCount = 0;
-    var line = function (label, val, color) {
-        return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:0.72rem;padding:1px 0;">' +
-            '<span style="color:var(--text-secondary);">' + label + '</span>' +
-            '<span style="font-variant-numeric:tabular-nums;' + (color ? 'color:' + color + ';' : '') + '">' + val + '</span></div>';
-    };
-    var cards = banks.map(function (b) {
+    // §3: bentuk LIST (bukan card) — mirip breakdown konfirmasi bulk settle.
+    var th = 'padding:8px 12px;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-align:right;';
+    var tdR = 'padding:7px 12px;text-align:right;font-variant-numeric:tabular-nums;';
+    var body = banks.map(function (b) {
         var d = byBank[b], end = d.awal - d.admin + d.cbP - d.cbM;
         tAwal += d.awal; tAdmin += d.admin; tcbP += d.cbP; tcbM += d.cbM; tEnd += end; tCount += d.count;
-        return '<div style="flex:1 1 220px;min-width:200px;border:1px solid var(--border-color);border-radius:10px;padding:12px 14px;background:var(--card-bg);">' +
-            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">' +
-            '<span style="font-weight:700;font-size:0.9rem;">' + esc(b) + '</span>' +
-            '<span style="font-size:0.68rem;color:var(--text-muted);">' + d.count + ' rekening</span></div>' +
-            '<div style="font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;margin-bottom:8px;">' + rupiah(end) + '</div>' +
-            line('Nominal awal', num(d.awal)) +
-            line('Admin', d.admin ? '−' + num(d.admin) : '0') +
-            line('Chargeback (+)', d.cbP ? '+' + num(d.cbP) : '0', d.cbP ? '#16a34a' : '') +
-            line('Chargeback (−)', d.cbM ? '−' + num(d.cbM) : '0', d.cbM ? '#dc2626' : '') +
-            '</div>';
+        return '<tr style="border-top:1px solid var(--border-color);">' +
+            '<td style="padding:7px 12px;font-weight:600;">' + esc(b) + '</td>' +
+            '<td style="' + tdR + 'color:var(--text-muted);">' + d.count + '</td>' +
+            '<td style="' + tdR + '">' + num(d.awal) + '</td>' +
+            '<td style="' + tdR + '">' + (d.admin ? '−' + num(d.admin) : '-') + '</td>' +
+            '<td style="' + tdR + 'color:#16a34a;">' + (d.cbP ? '+' + num(d.cbP) : '-') + '</td>' +
+            '<td style="' + tdR + 'color:#dc2626;">' + (d.cbM ? '−' + num(d.cbM) : '-') + '</td>' +
+            '<td style="' + tdR + 'font-weight:700;">' + num(end) + '</td></tr>';
     }).join('');
-    // Total = segmen terpisah (bar horizontal penuh), bukan satu kartu di antara kartu bank.
-    var tItem = function (label, val, color) {
-        return '<div style="display:flex;flex-direction:column;gap:2px;">' +
-            '<span style="font-size:0.68rem;color:#6366f1;">' + label + '</span>' +
-            '<span style="font-size:0.9rem;font-weight:700;font-variant-numeric:tabular-nums;' + (color ? 'color:' + color + ';' : 'color:#312e81;') + '">' + val + '</span></div>';
-    };
-    var totalSegment = '<div style="border:1px solid #c7d2fe;border-radius:12px;background:#eef2ff;padding:14px 18px;margin-top:16px;">' +
-        '<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;">' +
-        '<div style="flex:1 1 200px;">' +
-        '<div style="font-size:0.72rem;color:#6366f1;font-weight:600;margin-bottom:2px;">Total Semua Bank · ' + tCount + ' rekening</div>' +
-        '<div style="font-size:1.4rem;font-weight:800;font-variant-numeric:tabular-nums;color:#4f46e5;">' + rupiah(tEnd) + '</div></div>' +
-        tItem('Nominal awal', num(tAwal)) +
-        tItem('Admin', tAdmin ? '−' + num(tAdmin) : '0') +
-        tItem('Chargeback (+)', tcbP ? '+' + num(tcbP) : '0', tcbP ? '#16a34a' : '') +
-        tItem('Chargeback (−)', tcbM ? '−' + num(tcbM) : '0', tcbM ? '#dc2626' : '') +
-        '</div></div>';
+    var totalRow = '<tr style="border-top:2px solid #c7d2fe;background:#eef2ff;">' +
+        '<td style="padding:9px 12px;font-weight:800;color:#4f46e5;">Total Semua Bank</td>' +
+        '<td style="' + tdR + 'font-weight:800;color:#4f46e5;">' + tCount + '</td>' +
+        '<td style="' + tdR + 'font-weight:800;">' + num(tAwal) + '</td>' +
+        '<td style="' + tdR + 'font-weight:800;">' + (tAdmin ? '−' + num(tAdmin) : '-') + '</td>' +
+        '<td style="' + tdR + 'font-weight:800;color:#16a34a;">' + (tcbP ? '+' + num(tcbP) : '-') + '</td>' +
+        '<td style="' + tdR + 'font-weight:800;color:#dc2626;">' + (tcbM ? '−' + num(tcbM) : '-') + '</td>' +
+        '<td style="' + tdR + 'font-weight:800;color:#4f46e5;">' + num(tEnd) + '</td></tr>';
     el.style.display = 'block';
-    el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">' +
-        '<div style="font-weight:700;font-size:0.9rem;">Ringkasan Nominal per Bank Tujuan</div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);">Mengikuti filter aktif · nominal ending = awal − admin + chargeback</div></div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:12px;">' + cards + '</div>' +
-        totalSegment;
+    el.innerHTML = '<div style="border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;background:#f8fafc;border-bottom:1px solid var(--border-color);">' +
+        '<span style="font-weight:700;font-size:0.85rem;">Ringkasan Nominal per Bank Tujuan</span>' +
+        '<span style="font-size:0.7rem;color:var(--text-muted);">Mengikuti filter aktif · ending = awal − admin + chargeback</span></div>' +
+        '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.78rem;border-collapse:collapse;min-width:640px;"><thead><tr>' +
+        '<th style="padding:8px 12px;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-align:left;">Bank Tujuan</th>' +
+        '<th style="' + th + '">Rekening</th><th style="' + th + '">Nominal Awal</th><th style="' + th + '">Admin</th>' +
+        '<th style="' + th + '">Chargeback (+)</th><th style="' + th + '">Chargeback (−)</th><th style="' + th + '">Nominal Ending</th>' +
+        '</tr></thead><tbody>' + body + totalRow + '</tbody></table></div></div>';
 }
 
-// §3: pesan floating — muncul di luar tabel (tab Hold/Checker) saat ada hold <min yang sudah bisa dirilis.
-function renderAccumFloat() {
-    var el = document.getElementById('asAccumFloat');
-    if (!el) { el = document.createElement('div'); el.id = 'asAccumFloat'; document.body.appendChild(el); }
+// §1: sticky message di atas tabel (Checker & Hold) — TIDAK bisa ditutup; hilang sendiri
+// saat tidak ada lagi hold Dibawah Min. Transaksi yang bisa dirilis.
+function renderAccumSticky() {
+    var el = document.getElementById('asAccumSticky');
+    if (!el) return;
     var n = accumReleasableCount();
-    if (!(n > 0 && (activeTab === 'hold' || activeTab === 'checker') && !window.__accumDismissed)) { el.style.display = 'none'; return; }
-    el.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:900;max-width:340px;background:#ecfdf5;border:1px solid #16a34a;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:14px 16px;';
-    el.innerHTML = '<div style="display:flex;gap:10px;align-items:flex-start;">' +
-        '<i class="fas fa-circle-check" style="color:#16a34a;margin-top:2px;"></i>' +
-        '<div style="font-size:0.82rem;color:#065f46;line-height:1.45;"><b>' + n + ' hold di bawah minimum sudah bisa dirilis</b><br>Nominal norek-nya sudah memenuhi minimum transaksi (≥ Rp10.000). Buka tab Hold lalu rilis ke Checker.</div>' +
-        '<button id="asAccumClose" title="Tutup" style="background:none;border:none;color:#065f46;cursor:pointer;font-size:1rem;line-height:1;">&times;</button></div>';
-    el.style.display = 'block';
-    var cb = document.getElementById('asAccumClose'); if (cb) cb.onclick = function () { window.__accumDismissed = true; el.style.display = 'none'; };
+    if (!(n > 0 && (activeTab === 'hold' || activeTab === 'checker'))) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.cssText = 'position:sticky;top:0;z-index:20;margin-bottom:12px;background:#ecfdf5;border:1px solid #16a34a;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;';
+    el.innerHTML = '<i class="fas fa-circle-check" style="color:#16a34a;"></i>' +
+        '<div style="font-size:0.82rem;color:#065f46;line-height:1.4;"><b>' + n + ' hold Dibawah Min. Transaksi sudah bisa dirilis.</b> Nominal norek-nya sudah memenuhi minimum transaksi (≥ Rp10.000) — buka tab Hold, lalu rilis ke Checker.</div>';
+    el.style.display = 'flex';
 }
 
 function render() {
+    computeReleasable();
     renderCounts();
     renderTabsActive();
     renderToolbarActions();
     renderTable();
     renderSummary();
     renderBulkBar();
-    renderAccumFloat();
+    renderAccumSticky();
     // Export dihapus di tab Approver. Export Segregasi hanya di tab Settle.
     var exBtn = document.getElementById('asExportBtn');
     if (exBtn) exBtn.style.display = (activeTab === 'pending') ? 'none' : '';
@@ -465,8 +462,8 @@ function renderTable() {
     var thead = document.getElementById('asThead');
     var tbody = document.getElementById('asTableBody');
     var cols = columnsFor(activeTab);
-    // Bulk mode only for checker/hold/reject — settle no longer has bulk.
-    var hasCb = (activeTab === 'checker' || activeTab === 'hold' || activeTab === 'reject' || activeTab === 'pending') && bulkMode;
+    // Bulk mode: Checker / Reject / Approver. Hold & Settle tanpa bulk.
+    var hasCb = (activeTab === 'checker' || activeTab === 'reject' || activeTab === 'pending') && bulkMode;
     var headHtml = '<tr>';
     if (hasCb) headHtml += '<th style="width:38px;text-align:center;"><input type="checkbox" id="asSelectAll"></th>';
     cols.forEach(function (c) {
@@ -564,14 +561,16 @@ function actionMenuItems(g) {
     return [];
 }
 function actionButtons(g) {
+    // §4: saat Bulk Aksi aktif, tombol aksi single dinonaktifkan di semua kolom.
+    var disabled = 'opacity:.4;pointer-events:none;cursor:not-allowed;';
     if (activeTab === 'pending') {
         if (st(g.groupId).notify) {
-            return '<button class="as-notify-ack btn" data-id="' + g.groupId + '" style="margin:0;background:#fff;color:var(--text-secondary);border:1px solid var(--border-color);font-size:0.78rem;font-weight:600;padding:6px 14px;">Tandai Dibaca</button>';
+            return '<button class="as-notify-ack btn" data-id="' + g.groupId + '" ' + (bulkMode ? 'disabled' : '') + ' style="margin:0;background:#fff;color:var(--text-secondary);border:1px solid var(--border-color);font-size:0.78rem;font-weight:600;padding:6px 14px;' + (bulkMode ? disabled : '') + '">Tandai Dibaca</button>';
         }
-        return '<button class="as-approval-btn btn" data-id="' + g.groupId + '" style="margin:0;background:var(--primary);color:#fff;border:none;font-size:0.78rem;font-weight:600;padding:6px 14px;">Approval</button>';
+        return '<button class="as-approval-btn btn" data-id="' + g.groupId + '" ' + (bulkMode ? 'disabled' : '') + ' style="margin:0;background:var(--primary);color:#fff;border:none;font-size:0.78rem;font-weight:600;padding:6px 14px;' + (bulkMode ? disabled : '') + '">Approval</button>';
     }
     if (actionMenuItems(g).length === 0) return '<span style="color:var(--text-muted);">—</span>';
-    return '<button class="as-kebab" data-id="' + g.groupId + '" title="Aksi" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:1.1rem;padding:4px 10px;"><i class="fas fa-ellipsis-vertical"></i></button>';
+    return '<button class="as-kebab" data-id="' + g.groupId + '" title="' + (bulkMode ? 'Nonaktif saat Bulk Aksi' : 'Aksi') + '" ' + (bulkMode ? 'disabled' : '') + ' style="background:none;border:none;color:var(--text-secondary);font-size:1.1rem;padding:4px 10px;' + (bulkMode ? disabled : 'cursor:pointer;') + '"><i class="fas fa-ellipsis-vertical"></i></button>';
 }
 
 function renderPager(total) {
@@ -591,7 +590,8 @@ function renderToolbarActions() {
     var box = document.getElementById('asTabActions');
     box.innerHTML = '';
     var bulkBtn = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Aksi' : 'Bulk Aksi') + '</button>';
-    if (activeTab === 'checker' || activeTab === 'hold' || activeTab === 'reject' || activeTab === 'pending') {
+    // §2: tab Hold tanpa bulk — hanya rilis ke Checker per baris.
+    if (activeTab === 'checker' || activeTab === 'reject' || activeTab === 'pending') {
         box.innerHTML = bulkBtn;
         // §7: Approver — toggle simulasi 2FA salah.
         if (activeTab === 'pending') {
@@ -618,13 +618,13 @@ function renderToolbarActions() {
 
 function renderBulkBar() {
     var bar = document.getElementById('asBulkBar');
-    var bulkTabs = ['checker', 'hold', 'reject', 'pending'];
+    var bulkTabs = ['checker', 'reject', 'pending'];
     if (bulkTabs.indexOf(activeTab) === -1 || !bulkMode) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     document.getElementById('asBulkCount').textContent = selected.size;
     var show = selected.size > 0;
     // §1.6/§5.3: aksi bulk per tab. Approver (pending): Approve/Reject (2FA).
-    var avail = { checker: ['hold', 'reject', 'settle'], hold: ['reject', 'settle'], reject: ['hold', 'settle'], pending: ['approve', 'rejectreq'] }[activeTab] || [];
+    var avail = { checker: ['hold', 'reject', 'settle'], reject: ['hold', 'settle'], pending: ['approve', 'rejectreq'] }[activeTab] || [];
     var setBtn = function (id, act) { document.getElementById(id).style.display = (show && avail.indexOf(act) >= 0) ? 'inline-flex' : 'none'; };
     setBtn('asBulkApprove', 'approve');
     setBtn('asBulkRejectReq', 'rejectreq');

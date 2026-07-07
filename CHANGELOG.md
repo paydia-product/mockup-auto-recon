@@ -7,6 +7,14 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-07-07
+### Changed
+- **Pesan akumulasi** (hold < min bisa dirilis) diubah dari floating dismissible menjadi **sticky non-closable** tepat di atas tabel (Checker/Hold). Hilang otomatis saat tidak ada lagi hold yang bisa dirilis.
+- **Tab Hold**: aksi per baris kini **hanya Rilis ke Checker** (tidak bisa langsung reject/settle) dan **tanpa bulk**. Kolom Status Hold menambah status **"Bisa Rilis"** — muncul hanya untuk hold **Dibawah Min. Transaksi** yang akumulasi norek-nya sudah ≥ Rp10.000.
+- **Ringkasan Nominal per Bank + Total** diubah dari **card** menjadi **list/tabel** (mirip breakdown konfirmasi bulk settle).
+- **Bulk Aksi aktif** → semua **tombol aksi single** (kebab / Approval) dinonaktifkan di seluruh baris.
+- **Layout Checker**: Filter, Export, Bulk Aksi, dan Search dipindah ke **bawah ringkasan Total Semua Bank**, tepat di atas kolom tabel.
+
 ## [1.8.0] — 2026-07-07
 Stress-test build: data seed diperbesar ke 1000+ per tab + beberapa perubahan model & UI.
 ### Added

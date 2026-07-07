@@ -184,6 +184,9 @@
                         <button class="as-tab" data-tab="settle">Settle <span class="as-tab-count" id="cnt-settle">0</span></button>
                     </div>
 
+                    <!-- §2/§5: Ringkasan (list) per bank + Total — di dalam Checker, di atas toolbar -->
+                    <div id="asSummaryPanel" style="display:none; margin-bottom:16px;"></div>
+
                     <!-- Toolbar -->
                     <div class="as-toolbar2" style="position:relative;">
                         <button class="btn btn-filter" id="asFilterBtn" style="margin:0;"><i class="fas fa-filter"></i> Filter</button>
@@ -302,8 +305,8 @@
                         </div>
                     </div>
 
-                    <!-- Panel Summary per bank tujuan (§2) — di dalam tab Checker, mengikuti filter -->
-                    <div id="asSummaryPanel" style="display:none; margin-bottom:16px;"></div>
+                    <!-- §1: sticky message (tidak bisa ditutup) tepat di atas tabel Checker/Hold -->
+                    <div id="asAccumSticky" style="display:none;"></div>
 
                     <!-- Table (head + body rendered by JS, columns vary per tab) -->
                     <div class="table-wrapper">
