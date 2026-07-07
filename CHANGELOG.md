@@ -7,6 +7,18 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.10.0] — 2026-07-07
+### Added
+- **Filter tab Hold**: by **Alasan** (Reject by Bank / Hold Dibawah Min. Transaksi / Hold Semua / Hold Partial) dan by **Status** (Belum Diproses / Siap Release / Sudah Release Checker).
+- **Pecah saat approve** (§4): settlement BI-FAST > Rp250 juta baru **dipecah jadi >1 settlement** (greedy 250 juta + sisa) **setelah approve settle** — saat di Approver data masih utuh (bisa direject). Ditampilkan sebagai baris terpisah `#1/N … #N/N` di tab Settle.
+- **Gabung saat approve** (§3): transaksi **Dibawah Min. Transaksi** (norek+bank sama) yang sudah rilis ke Checker baru **digabung** ke settlement induk **setelah approve settle** — di Approver belum digabung (bisa direject). Induk menampilkan badge **⊕ Gabung N**.
+### Changed
+- **Status Hold** dinamai sesuai filter: **Belum Diproses / Siap Release / Sudah Release Checker** (menggantikan Aktif/Bisa Rilis/Selesai).
+- **Seed hold diperbaiki**: kolom **Alasan tidak ada yang kosong** (holdScope persist walau sudah rilis); anomali dihapus dari seed hold.
+- **Reject by Bank** tidak lagi muncul di tab Settle (masuk Hold) — opsi **Reject by Bank dihapus dari filter Status Settle**.
+- **Sticky message** akumulasi min hanya tampil di **tab Hold** (tidak lagi di Checker).
+- **Pencarian versi** (version picker) kini mencakup **deskripsi perubahan**, bukan hanya judul.
+
 ## [1.9.0] — 2026-07-07
 ### Changed
 - **Pesan akumulasi** (hold < min bisa dirilis) diubah dari floating dismissible menjadi **sticky non-closable** tepat di atas tabel (Checker/Hold). Hilang otomatis saat tidak ada lagi hold yang bisa dirilis.

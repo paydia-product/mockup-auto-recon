@@ -235,6 +235,24 @@
                                             <option value="settle">Settle</option>
                                         </select>
                                     </div>
+                                    <div class="filter-section" id="asFilterHoldAlasanSection" style="margin-top:16px; display:none;">
+                                        <span class="filter-section-title">Alasan</span>
+                                        <select id="asFilterHoldAlasan" style="padding:8px; font-size:0.8rem; width:100%; border:1px solid var(--border-color); border-radius:6px;">
+                                            <option value="">Semua Alasan</option>
+                                            <option value="rejectbybank">Reject by Bank</option>
+                                            <option value="min">Hold Dibawah Min. Transaksi</option>
+                                            <option value="all">Hold Semua</option>
+                                            <option value="partial">Hold Partial</option>
+                                        </select>
+                                    </div>
+                                    <div class="filter-section" id="asFilterHoldStatusSection" style="margin-top:16px; display:none;">
+                                        <span class="filter-section-title">Status</span>
+                                        <div style="display:flex; flex-direction:column; gap:8px;">
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fhs" value="belum"> Belum Diproses</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fhs" value="siap"> Siap Release</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fhs" value="released"> Sudah Release Checker</label>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="filter-col-divider"></div>
                                 <div class="filter-col-right">
@@ -253,7 +271,6 @@
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="pending"> Pending</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="success"> Success</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="fail"> Fail</label>
-                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-fss" value="rejectbybank"> Reject by Bank</label>
                                         </div>
                                     </div>
                                     <div class="filter-section" id="asFilterChannelSection" style="margin-top:16px; display:none;">

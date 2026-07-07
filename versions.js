@@ -8,7 +8,15 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.9.0', date: '2026-07-07', deployed: true, title: 'Sticky message, hold Bisa Rilis, summary list, layout checker', changes: [
+        { v: '1.10.0', date: '2026-07-07', deployed: true, title: 'Filter hold, pecah & gabung saat approve, search versi', changes: [
+            'Tab Hold: filter by Alasan (Reject by Bank / Dibawah Min / Semua / Partial) & by Status (Belum Diproses / Siap Release / Sudah Release Checker)',
+            'Perbaikan seed: kolom Alasan hold tidak ada yang kosong; status hold sesuai filter',
+            'Reject by Bank pindah ke Hold — dihapus dari filter status Settle',
+            'Pecah transaksi besar (BI-FAST) & gabung transaksi dibawah min baru dijalankan SETELAH approve settle',
+            'Sticky message hold hanya di tab Hold',
+            'Search versi kini mencakup deskripsi, bukan hanya judul'
+        ] },
+        { v: '1.9.0', date: '2026-07-07', deployed: false, title: 'Sticky message, hold Bisa Rilis, summary list, layout checker', changes: [
             'Pesan akumulasi jadi sticky non-closable di atas tabel (hilang saat tak ada yang bisa dirilis)',
             'Hold hanya bisa Rilis ke Checker (tanpa reject/settle & tanpa bulk); status "Bisa Rilis" untuk hold dibawah min',
             'Ringkasan nominal per bank + total diubah dari card ke bentuk list',
@@ -101,7 +109,7 @@
 
     function renderList(filter) {
         var f = (filter || '').toLowerCase();
-        return VERSIONS.filter(function (x) { return !f || ('v' + x.v + ' ' + x.title).toLowerCase().indexOf(f) >= 0; }).map(function (x, i) {
+        return VERSIONS.filter(function (x) { return !f || ('v' + x.v + ' ' + x.title + ' ' + (x.changes || []).join(' ')).toLowerCase().indexOf(f) >= 0; }).map(function (x, i) {
             var isLatest = x.v === VERSIONS[0].v;
             var isSel = x.v === selected;
             return '<div class="ver-item" data-v="' + x.v + '" style="padding:11px 14px;border-radius:10px;cursor:pointer;' + (isSel ? 'background:#eef2ff;' : '') + '">' +
