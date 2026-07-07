@@ -8,7 +8,16 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.7.0', date: '2026-07-07', deployed: true, title: 'Segregasi ringkas, total terpisah, akumulasi min, konfirmasi grouped', changes: [
+        { v: '1.8.0', date: '2026-07-07', deployed: true, title: 'Stress-test seed 1000+/tab, hold ledger, pesan floating, segregasi aktual', changes: [
+            'Seed 1000+ data per tab (variasi bank, multi-MID, dispute, 3 jenis hold, semua status settle)',
+            'Tab Hold jadi ledger permanen + kolom Status Hold (Aktif / Selesai)',
+            'Status akumulasi min. transaksi jadi pesan floating (kolom Keterangan dihapus)',
+            'Ringkasan nominal per bank + total pindah ke dalam tab Checker, mengikuti filter',
+            'Segregasi: urut tabel A–F; isi export tabel & segregasi mengikuti data aktual',
+            'Tanggal Perubahan Terakhir hanya terisi bila ada perubahan & selalu > Tanggal Recon',
+            'Default filter: semua tanggal'
+        ] },
+        { v: '1.7.0', date: '2026-07-07', deployed: false, title: 'Segregasi ringkas, total terpisah, akumulasi min, konfirmasi grouped', changes: [
             'Modal segregasi: hapus tabel A-C, J, K, Crossborder, Bug, Fee Faspay',
             'Kartu Total Semua Bank jadi segmen terpisah; kartu per bank dinamis mengikuti data',
             'Status akumulasi min. transaksi di kolom Keterangan (Checker & Hold); "Nominal sudah memenuhi minimum transaksi"',

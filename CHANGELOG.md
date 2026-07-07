@@ -7,6 +7,18 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-07-07
+Stress-test build: data seed diperbesar ke 1000+ per tab + beberapa perubahan model & UI.
+### Added
+- **Seed stress-test 1000+/tab** (deterministik): variasi banyak bank tujuan, banyak settlement multi-MID & dispute (chargeback), ke-3 jenis hold (Hold Semua / Partial / Dibawah Min) + anomali + reject-by-bank, dan semua status di tab Settle (Pending/Success/Fail/Reject by Bank).
+- **Tab Hold = ledger permanen**: semua settlement yang pernah di-hold tetap tampil walau sudah pindah tab. Kolom baru **Status Hold** (`Aktif · Belum Diproses` vs `Selesai · Dirilis/Settle/Reject`); baris yang sudah diproses bersifat view-only.
+- **Pesan floating** akumulasi minimum transaksi: muncul di luar tabel (tab Hold/Checker) saat ada hold < Rp10.000 yang norek-nya sudah terkumpul ≥ Rp10.000 (bisa dirilis). Menggantikan kolom **Keterangan** yang dihapus.
+### Changed
+- **Ringkasan Nominal per Bank + Total Semua Bank** dipindah ke dalam tab **Checker** dan kini **mengikuti filter/search** yang aktif.
+- **Segregasi**: tabel diurutkan ulang **A–F** (setelah penghapusan); isi **export tabel & export segregasi mengikuti data aktual** (segregasi = settle Metode Manual, dibucket per bank tujuan). Rekap Grand Total pindah ke setelah tabel terakhir.
+- **Tanggal Perubahan Terakhir**: hanya terisi bila record pernah berubah, dan **selalu lebih lambat dari Tanggal Recon** (kosong `-` untuk data yang belum pernah diubah).
+- **Default filter = semua tanggal** (berdasarkan Tanggal Recon).
+
 ## [1.7.0] — 2026-07-07
 ### Changed
 - **Modal Simulasi Segregasi** (tab Settle): hapus tabel A, B, C, J, K, Transaksi Crossborder, Transaksi Bug, Transaksi Fee Faspay. Rekap grand total kini muncul setelah tabel terakhir.

@@ -69,30 +69,33 @@ function accountBadge(g) {
     return ' <span title="Deteksi perubahan rekening" style="font-size:0.62rem;font-weight:700;border-radius:4px;padding:1px 6px;background:' + m[1] + '22;color:' + m[1] + ';white-space:nowrap;">' + m[0] + '</span>';
 }
 // §1.5: status akumulasi norek yang punya hold <Rp10.000.
-// Hold min bisa dirilis bila total settlement norek yg sama (checker + hold min) ≥ Rp10.000.
-// Return 'met' | 'wait' | null. Ditampilkan di kolom Keterangan (Checker & Hold).
-function norekAccum(g) {
-    var same = groups.filter(function (x) { return x.norek === g.norek; });
-    var hasMinHold = same.some(function (x) { var s = st(x.groupId); return s.status === 'hold' && (s.request || {}).scope === 'min'; });
-    if (!hasMinHold) return null;
-    var total = same.reduce(function (a, x) {
-        var s = st(x.groupId), sc = (s.request || {}).scope;
-        return (s.status === 'checker' || (s.status === 'hold' && sc === 'min')) ? a + totalOf(x) : a;
-    }, 0);
-    return total >= AUTO_HOLD_MIN ? 'met' : 'wait';
+// §4.5: label status ledger hold — aktif (belum diproses) vs sudah diproses/pindah tab.
+function holdStatusChip(g) {
+    var s = st(g.groupId), chip = function (t, bg, fg) { return '<span style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;white-space:nowrap;background:' + bg + ';color:' + fg + ';">' + t + '</span>'; };
+    if (s.status === 'hold') return chip('Aktif · Belum Diproses', '#b4530922', '#b45309');
+    var where = s.released ? 'Dirilis ke Checker' : (s.status === 'settle' ? 'Settle' : (s.status === 'reject' ? 'Reject' : STATUS_LABEL[s.status] || s.status));
+    return chip('Selesai · ' + where, '#16a34a22', '#15803d');
 }
-function accumChip(g) {
-    var a = norekAccum(g);
-    if (!a) return '<span style="color:var(--text-muted);">-</span>';
-    if (a === 'met') return '<span title="Total settlement norek ini sudah ≥ Rp10.000 — hold di bawah minimum bisa dirilis" style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;background:#16a34a22;color:#15803d;white-space:normal;display:inline-block;line-height:1.3;"><i class="fas fa-circle-check"></i> Nominal sudah memenuhi minimum transaksi</span>';
-    return '<span title="Total settlement norek ini masih < Rp10.000" style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;background:#b4530922;color:#b45309;white-space:normal;display:inline-block;line-height:1.3;">Belum memenuhi minimum transaksi</span>';
+// §3: jumlah hold <min yang norek-nya sudah terkumpul ≥ Rp10.000 (bisa dirilis). O(n).
+// Hold min dapat dirilis bila total settlement norek yg sama (checker + hold min) ≥ Rp10.000.
+function accumReleasableCount() {
+    var tot = {}, minNorek = {};
+    groups.forEach(function (g) {
+        var s = st(g.groupId), sc = (s.request || {}).scope;
+        if (s.status === 'checker' || (s.status === 'hold' && sc === 'min')) tot[g.norek] = (tot[g.norek] || 0) + totalOf(g);
+        if (s.status === 'hold' && sc === 'min') minNorek[g.norek] = 1;
+    });
+    var n = 0;
+    Object.keys(minNorek).forEach(function (nr) { if ((tot[nr] || 0) >= AUTO_HOLD_MIN) n++; });
+    return n;
 }
 var esc = function (v) { v = String(v == null ? '' : v); return v.replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
 var isOther = function (b) { return CORE_BANKS.indexOf(String(b).toUpperCase()) === -1; };
 var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpperCase().replace('MANDIRI', 'Mandiri'); };
 var todayProc = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 var todayISO = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
-function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: new Set(), big: false, small: false, req: '', settleStatuses: new Set(), metodeSettle: '', channel: '' }; }
+// Dokumentasi: default filter = SEMUA tanggal (start/end kosong). User bisa mempersempit via panel Filter.
+function defaultFilters() { return { start: '', end: '', banks: new Set(), big: false, small: false, req: '', settleStatuses: new Set(), metodeSettle: '', channel: '' }; }
 
 function loadItems() { try { items = JSON.parse(localStorage.getItem('paydia_as_items')) || {}; } catch (e) { items = {}; } }
 function saveItems() { localStorage.setItem('paydia_as_items', JSON.stringify(items)); }
@@ -108,97 +111,120 @@ function st(id) {
     return items[id];
 }
 
-// 20 settlement seed — kondisi beragam untuk uji full flow.
-// MID: [mid, merchant, [ [nominalSettle, tipeSettlement, adjPlus, adjMinus], ... ] ]
-function seedRows() {
-    var S = [
-        // Single MID — bank core
-        { norek: '8810000000001', bank: 'BCA', owner: 'PT Andalan Retail', mids: [['MID-A001', 'Toko Andalan', [[220000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000003', bank: 'MANDIRI', owner: 'CV Maju Jaya', mids: [['MID-C001', 'Warung Maju', [[340000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000005', bank: 'BRI', owner: 'Warung Bu Sri', mids: [['MID-E001', 'Warung Bu Sri', [[125000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000015', bank: 'MANDIRI', owner: 'Warteg Murah', mids: [['MID-O001', 'Warteg Murah', [[5000, 'Reguler Matched', 0, 0]]]] }, // core kecil → tetap Checker
-        // Multi MID — bank core
-        { norek: '8810000000002', bank: 'BCA', owner: 'PT Kopi Nusantara', mids: [
-            ['MID-B001', 'Kopi Kenangan', [[180000, 'Reguler Matched', 0, 0]]],
-            ['MID-B002', 'Janji Jiwa', [[155000, 'Reguler Matched', 0, 0]]],
-            ['MID-B003', 'Roti Bakar 88', [[95000, 'Tambahan Matched', 0, 0]]]] },
-        { norek: '8810000000006', bank: 'BRI', owner: 'PT Empat Outlet', mids: [
-            ['MID-F001', 'Outlet Kota', [[210000, 'Reguler Matched', 0, 0]]],
-            ['MID-F002', 'Outlet Barat', [[175000, 'Reguler Matched', 0, 0]]],
-            ['MID-F003', 'Outlet Timur', [[130000, 'Tambahan Matched', 0, 0]]],
-            ['MID-F004', 'Outlet Selatan', [[90000, 'Reguler Matched', 0, 0]]]] }, // 4 MID → uji Hold Partial
-        { norek: '8810000000016', bank: 'BRI', owner: 'PT Dua Gerai', mids: [
-            ['MID-P001', 'Gerai Utara', [[230000, 'Reguler Matched', 0, 0]]],
-            ['MID-P002', 'Gerai Selatan', [[160000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000019', bank: 'BCA', owner: 'PT Empat Toko', mids: [
-            ['MID-S001', 'Toko A', [[145000, 'Reguler Matched', 0, 0]]],
-            ['MID-S002', 'Toko B', [[132000, 'Reguler Matched', 0, 0]]],
-            ['MID-S003', 'Toko C', [[118000, 'Tambahan Matched', 0, 0]]],
-            ['MID-S004', 'Toko D', [[99000, 'Reguler Matched', 0, 0]]]] },
-        // Dispute (adjustment chargeback)
-        { norek: '8810000000004', bank: 'MANDIRI', owner: 'PT Dua Merchant', mids: [
-            ['MID-D001', 'Merchant Alpha', [[500000, 'Reguler Matched', 0, 0]]],
-            ['MID-D002', 'Merchant Beta', [[0, 'Reguler Dispute', 0, 30000]]]] },
-        { norek: '8810000000014', bank: 'BCA', owner: 'PT Dispute Ganda', mids: [
-            ['MID-N001', 'Toko X', [[265000, 'Reguler Matched', 0, 0]]],
-            ['MID-N002', 'Toko Y', [[0, 'Tambahan Dispute', 0, 12000], [0, 'Reguler Dispute', 9000, 0]]]] },
-        { norek: '8810000000020', bank: 'MANDIRI', owner: 'PT Campur Dispute', mids: [
-            ['MID-T001', 'Gerai Pusat', [[280000, 'Reguler Matched', 0, 0]]],
-            ['MID-T002', 'Gerai Cabang', [[190000, 'Tambahan Matched', 0, 0]]],
-            ['MID-T003', 'Gerai Online', [[0, 'Reguler Dispute', 0, 25000]]]] },
-        // Bank Lainnya (non-core, admin Rp6.500)
-        { norek: '6600000000008', bank: 'OCBC', owner: 'PT Cahaya Digital', mids: [['MID-H001', 'Cahaya Digital', [[520000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '6600000000009', bank: 'NOBU', owner: 'Sumber Rezeki', mids: [
-            ['MID-I001', 'Gerai A', [[260000, 'Reguler Matched', 0, 0]]],
-            ['MID-I002', 'Gerai B', [[140000, 'Tambahan Matched', 0, 0]]]] },
-        { norek: '6600000000011', bank: 'BNI', owner: 'Apotek Sehat', mids: [['MID-K001', 'Apotek Sehat', [[175000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '6600000000012', bank: 'PERMATA', owner: 'PT Tiga Cabang', mids: [
-            ['MID-L001', 'Cabang 1', [[320000, 'Reguler Matched', 0, 0]]],
-            ['MID-L002', 'Cabang 2', [[210000, 'Reguler Matched', 0, 0]]],
-            ['MID-L003', 'Cabang 3', [[0, 'Reguler Dispute', 18000, 0]]]] },
-        { norek: '6600000000018', bank: 'JAGO', owner: 'Freelance Design', mids: [['MID-R001', 'Studio Kreatif', [[430000, 'Reguler Matched', 0, 0]]]] },
-        // Auto-hold: non-core & total < Rp10.000
-        { norek: '6600000000007', bank: 'OCBC', owner: 'Kios Pulsa Andi', mids: [['MID-G001', 'Kios Pulsa Andi', [[8500, 'Reguler Matched', 0, 0]]]] },
-        { norek: '6600000000017', bank: 'CIMB', owner: 'Laundry Bersih', mids: [['MID-Q001', 'Laundry Bersih', [[9000, 'Reguler Matched', 0, 0]]]] },
-        // Nominal besar (> Rp250 juta) untuk uji filter
-        { norek: '6600000000010', bank: 'AGI', owner: 'PT Besar Sekali', mids: [['MID-J001', 'Distributor Besar', [[285000000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000013', bank: 'BCA', owner: 'PT Nominal Besar', mids: [['MID-M001', 'Grosir Nasional', [[300000000, 'Reguler Matched', 0, 0]]]] },
-        // §1.1 demo — bank+norek sama, nama beda → 1 entitas (nama = input paling awal "PT Sinar Pertama")
-        { norek: '8810000000021', bank: 'BCA', owner: 'PT Sinar Pertama', mids: [['MID-U001', 'Sinar Toko A', [[190000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000021', bank: 'BCA', owner: 'PT Sinar Kedua', mids: [['MID-U002', 'Sinar Toko B', [[160000, 'Reguler Matched', 0, 0]]]] },
-        // §1.1 demo — norek sama, bank beda → 2 rekening terpisah
-        { norek: '8810000000022', bank: 'BCA', owner: 'PT Dua Bank', mids: [['MID-V001', 'Dua Bank BCA', [[240000, 'Reguler Matched', 0, 0]]]] },
-        { norek: '8810000000022', bank: 'BRI', owner: 'PT Dua Bank', mids: [['MID-V002', 'Dua Bank BRI', [[175000, 'Reguler Matched', 0, 0]]]] },
-        // §8 demo deteksi perubahan rekening (merchant tunggal)
-        { norek: '8810000000031', bank: 'BCA', owner: 'Toko Baru Jaya', mids: [['MID-W001', 'Toko Baru Jaya', [[210000, 'Reguler Matched', 0, 0]]]] },      // baru
-        { norek: '8810000000032', bank: 'BCA', owner: 'PT Notif Merchant', mids: [['MID-W002', 'PT Notif Merchant', [[260000, 'Reguler Matched', 0, 0]]]] }, // norek berubah (ada pemberitahuan)
-        { norek: '8810000000033', bank: 'BCA', owner: 'Fathurroji', mids: [['MID-W003', 'Fathurroji', [[195000, 'Reguler Matched', 0, 0]]]] }               // anomali → auto-hold
-    ];
-    var rows = [], seq = 40000;
-    S.forEach(function (s) {
-        s.mids.forEach(function (md) {
-            md[2].forEach(function (t) {
-                rows.push({ txId: 'TX-ACQ-' + (seq++), tanggal: '24-06-2026 09:40:00', merchantName: md[1], mid: md[0], bankCode: s.bank, bankAccount: s.norek, bankAccountName: s.owner, nominalSettle: t[0], tipeSettlement: t[1], adjPlus: t[2] || 0, adjMinus: t[3] || 0 });
-            });
-        });
-    });
+// ── Seed generator (stress test 1000+/tab, DETERMINISTIK agar groupId stabil lintas reload) ──
+var GEN_BANKS = ['BCA', 'BRI', 'MANDIRI', 'BNI', 'PERMATA', 'CIMB', 'OCBC', 'NOBU', 'AGI', 'JAGO', 'MEGA', 'SEABANK', 'BSI', 'DANAMON', 'BTN', 'SINARMAS', 'MUAMALAT', 'BANK DKI', 'MAYBANK', 'PANIN', 'BUKOPIN', 'COMMONWEALTH'];
+var GEN_NAMES = ['Toko Makmur', 'CV Sinar Jaya', 'PT Anugerah', 'Warung Berkah', 'Kedai Kopi', 'PT Sentosa', 'Gerai Sehat', 'Toko Elektronik', 'PT Digital Niaga', 'Apotek Waras', 'PT Boga Rasa', 'Studio Kreatif', 'PT Mitra Usaha', 'Laundry Kilat', 'PT Sumber Pangan', 'Bengkel Jaya', 'PT Cahaya Abadi', 'Toko Bangunan', 'PT Karya Mandiri', 'Warteg Sederhana'];
+var GEN_MERCH = ['Outlet Pusat', 'Cabang Kota', 'Gerai Mall', 'Kios Online', 'Toko Utama', 'Stand Bazaar', 'Booth Event', 'Lapak Digital'];
+var GEN_REASONS = ['Data tidak sesuai rekonsiliasi', 'Menunggu konfirmasi merchant', 'Indikasi selisih nominal', 'Perlu verifikasi dokumen', 'Permintaan tim finance'];
+var _gi = 0;
+function _r(s) { var x = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+function _pick(a, s) { return a[Math.floor(_r(s) * a.length) % a.length]; }
+function _int(s, lo, hi) { return Math.floor(_r(s) * (hi - lo + 1)) + lo; }
+function _pad2(x) { return String(x).padStart(2, '0'); }
+function _isoDaysAgo(n) { var d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); }
+function _isoAdd(iso, n) { var d = new Date(iso); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); }
+function _disp(iso, s) { var p = iso.split('-'); return p[2] + '-' + p[1] + '-' + p[0] + ' ' + _pad2(_int(s, 8, 17)) + ':' + _pad2(_int(s + 1, 0, 59)) + ':' + _pad2(_int(s + 2, 0, 59)); }
+
+function buildSeedPool() {
+    _gi = 5;
+    var rows = [], uid = 4000000000;
+    function nextNorek() { uid += 7; return '88' + String(uid).slice(-11); }
+    // add 1 settlement (1..midCount MID, disputeCount MID dgn chargeback). state di-embed pada tx pertama.
+    function add(bank, midCount, disputeCount, amtEach, state, forceNorek, forceISO) {
+        var norek = forceNorek || nextNorek();
+        var owner = _pick(GEN_NAMES, _gi++) + ' ' + norek.slice(-4);
+        var iso = forceISO || _isoDaysAgo(_int(_gi++, 3, 120));
+        var disp = _disp(iso, _gi++);
+        if (state && state.__changed) {
+            var uts = _disp(_isoAdd(iso, _int(_gi++, 1, 20)), _gi++);
+            state.updatedTs = uts;
+            if (state.approvedTs === '__ts') state.approvedTs = uts;
+            if (state.request && state.request.ts === '__ts') state.request.ts = uts;
+            delete state.__changed;
+        }
+        for (var m = 0; m < midCount; m++) {
+            var mid = 'MID-' + norek.slice(-6) + '-' + m;
+            var merch = _pick(GEN_MERCH, _gi++) + ' ' + norek.slice(-3);
+            var amt = amtEach > 0 ? _int(_gi++, Math.floor(amtEach * 0.6), Math.floor(amtEach * 1.4)) : _int(_gi++, 30000, 900000);
+            var row = { txId: 'TX-' + norek + '-' + m, tanggal: disp, merchantName: merch, mid: mid, bankCode: bank, bankAccount: norek, bankAccountName: owner, nominalSettle: amt, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp };
+            if (m === 0 && state) row.seedState = state;
+            rows.push(row);
+            if (m < disputeCount) {
+                // chargeback dibatasi ≤ ~40% nominal MID agar Total Settle tak jadi negatif tak wajar.
+                var cb = _int(_gi++, 5000, Math.max(6000, Math.floor(amt * 0.4)));
+                rows.push({ txId: 'TX-' + norek + '-' + m + 'D', tanggal: disp, merchantName: merch, mid: mid, bankCode: bank, bankAccount: norek, bankAccountName: owner, nominalSettle: 0, tipeSettlement: (m % 2 ? 'Tambahan Dispute' : 'Reguler Dispute'), adjPlus: 0, adjMinus: cb, procISO: iso, procDisplay: disp });
+            }
+        }
+    }
+    var mc = function () { var r = _r(_gi++); return r < 0.4 ? 1 : r < 0.7 ? 2 : r < 0.9 ? 3 : 4; };       // banyak multi-MID
+    var dc = function (n) { return _r(_gi++) < 0.35 ? Math.min(n, _int(_gi++, 1, 2)) : 0; };                // ~35% punya dispute
+    var i, n;
+    // 1) CHECKER (~1000): variasi bank, multi-MID, dispute, sebagian nominal besar (>250jt)
+    for (i = 0; i < 1000; i++) { var big = (i % 40 === 0); n = big ? 1 : mc(); add(_pick(GEN_BANKS, _gi++), n, dc(n), big ? 280000000 : 0, { status: 'checker' }); }
+    // 2) APPROVER/pending (~1000): request settle / hold(all,partial,min) / reject
+    for (i = 0; i < 1000; i++) {
+        n = mc(); var t = _r(_gi++), req;
+        if (t < 0.4) req = { type: 'settle', metodeSettlement: 'Manual', channel: _pick(CHANNELS, _gi++), metode: _pick(METODE_TRANSFER, _gi++), prevStatus: 'checker', reason: '', bukti: '', ts: '__ts' };
+        else if (t < 0.7) req = { type: 'hold', scope: _pick(['all', 'partial', 'min'], _gi++), prevStatus: 'checker', reason: _pick(GEN_REASONS, _gi++), bukti: '', ts: '__ts' };
+        else req = { type: 'reject', prevStatus: 'checker', reason: _pick(GEN_REASONS, _gi++), bukti: '', ts: '__ts' };
+        add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'pending', request: req, __changed: true });
+    }
+    // 3) HOLD aktif (~1000): 3 jenis hold (all/partial/min) + anomali + reject-by-bank
+    for (i = 0; i < 1000; i++) {
+        var scope = _pick(['all', 'partial', 'min', 'min', 'anomaly', 'rejectbybank'], _gi++);
+        var noncore = ['OCBC', 'NOBU', 'BNI', 'PERMATA', 'CIMB', 'JAGO', 'MEGA', 'BSI', 'DANAMON'];
+        var bk = (scope === 'min') ? _pick(noncore, _gi++) : _pick(GEN_BANKS, _gi++);
+        var st2 = { status: 'hold', everHeld: true, approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true,
+            request: { type: 'hold', scope: scope, prevStatus: scope === 'rejectbybank' ? 'settle' : 'checker', reason: scope === 'anomaly' ? 'Anomali: perubahan rekening tanpa pemberitahuan' : (scope === 'min' ? 'Auto hold: total settle < Rp10.000' : _pick(GEN_REASONS, _gi++)), bukti: (i % 3 ? 'bukti_' + norekSafe(i) + '.pdf' : ''), ts: '__ts' } };
+        if (scope === 'rejectbybank') st2.settleStatus = 'rejectbybank';
+        // min: nominal ∈ [~7k,15k] agar Total Settle setelah admin 6.500 tetap positif & < Rp10.000.
+        add(bk, scope === 'min' ? 1 : mc(), scope === 'min' ? 0 : dc(2), scope === 'min' ? 11000 : 0, st2);
+    }
+    // 4) HOLD LEDGER (~300): pernah di-hold tapi sudah pindah (Checker/ Settle/ Reject) — tetap tampil di Hold
+    for (i = 0; i < 300; i++) {
+        var kind = i % 3, ledger;
+        if (kind === 0) ledger = { status: 'checker', everHeld: true, released: true, request: null, __changed: true };
+        else if (kind === 1) ledger = { status: 'settle', everHeld: true, settleStatus: _pick(['success', 'pending', 'fail'], _gi++), metodeSettlement: _pick(['Manual', 'Otomatis'], _gi++), channel: _pick(CHANNELS, _gi++), approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true, request: { type: 'settle', metode: _pick(METODE_TRANSFER, _gi++), channel: _pick(CHANNELS, _gi++), prevStatus: 'hold', reason: '', bukti: '', ts: '__ts' } };
+        else ledger = { status: 'reject', everHeld: true, approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true, request: { type: 'reject', prevStatus: 'hold', reason: _pick(GEN_REASONS, _gi++), bukti: '', ts: '__ts' } };
+        add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, ledger);
+    }
+    // 5) REJECT (~1000)
+    for (i = 0; i < 1000; i++) { n = mc(); add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'reject', approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true, request: { type: 'reject', prevStatus: 'checker', reason: _pick(GEN_REASONS, _gi++), bukti: (i % 2 ? 'bukti_r' + i + '.pdf' : ''), ts: '__ts' } }); }
+    // 6) SETTLE (~1000): semua status (pending/success/fail/rejectbybank), metode Manual/Otomatis
+    for (i = 0; i < 1000; i++) {
+        var ss = _pick(['success', 'success', 'pending', 'fail', 'rejectbybank'], _gi++);
+        var metode = ss === 'success' ? 'Manual' : _pick(['Manual', 'Otomatis'], _gi++);
+        n = mc();
+        add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'settle', settleStatus: ss, metodeSettlement: metode, channel: _pick(CHANNELS, _gi++), approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true, request: { type: 'settle', metodeSettlement: metode, metode: _pick(METODE_TRANSFER, _gi++), channel: _pick(CHANNELS, _gi++), prevStatus: 'checker', reason: '', bukti: '', ts: '__ts' } });
+    }
+    // 7) PASANGAN min-hold releasable (~40): norek sama, 2 bank → akumulasi ≥ Rp10.000 (pemicu pesan floating)
+    for (i = 0; i < 40; i++) {
+        var pn = nextNorek();
+        add('OCBC', 1, 0, 11000, { status: 'hold', everHeld: true, approvedTs: '__ts', approvedBy: 'sistem', __changed: true, request: { type: 'hold', scope: 'min', prevStatus: 'checker', reason: 'Auto hold: total settle < Rp10.000', bukti: '', ts: '__ts' } }, pn);
+        add('NOBU', 1, 0, 25000, { status: 'checker' }, pn);
+    }
     return rows;
 }
+function norekSafe(i) { return String(1000 + i); }
 
-function loadPool() {
-    var iso = todayISO();
-    var disp = iso.split('-').reverse().join('-');
-    var pad = function (x) { return String(x).padStart(2, '0'); };
-    // Auto Settlement pakai 20 seed bersih (bukan data settle-recon) agar full-flow
-    // testing tidak tertutup data lain; semua mengikuti aturan grouping per norek,
-    // biaya admin bank Lainnya, auto-hold < Rp10.000, dan adjustment dispute.
-    var src = seedRows();
-    pool = src.map(function (r, i) {
-        r.procISO = iso;
-        r.procDisplay = disp + ' ' + pad(8 + Math.floor(i / 6)) + ':' + pad((i * 7) % 60) + ':00';
-        return r;
+// Terapkan status seed ke items[] (hanya saat fresh seed). State di-embed pada tx pertama tiap group.
+function seedStatuses() {
+    groups.forEach(function (g) {
+        var ss = g.txns[0] && g.txns[0].seedState;
+        if (!ss) return;
+        items[g.groupId] = { status: ss.status, adjPlus: 0, adjMinus: 0, note: '', request: ss.request || null,
+            channel: ss.channel || '', bukti: '', settleStatus: ss.settleStatus || null,
+            approvedTs: ss.approvedTs || null, approvedBy: ss.approvedBy || null,
+            metodeSettlement: ss.metodeSettlement || null, everHeld: !!ss.everHeld,
+            updatedTs: ss.updatedTs || null, released: !!ss.released, notify: ss.notify || null };
     });
+    saveItems();
+}
+
+function loadPool(fresh) {
+    pool = buildSeedPool();
     buildGroups();
+    if (fresh) seedStatuses();
 }
 
 // Bangun 1 group settlement dari sekumpulan transaksi.
@@ -207,16 +233,11 @@ function makeGroup(id, norek, txns) {
         procISO: txns[0].procISO, procDisplay: txns[0].procDisplay, txns: txns, nominalAwal: 0, adjPlus: 0, adjMinus: 0,
         admin: isOther(txns[0].bankCode) ? ADMIN_FEE_OTHER : 0 };
     txns.forEach(function (t) { g.nominalAwal += t.nominalSettle; g.adjPlus += (t.adjPlus || 0); g.adjMinus += (t.adjMinus || 0); });
-    // Seed updated_at: sebar mundur 0–9 hari dari tanggal recon (deterministik dari norek)
-    // agar kolom "Tanggal Perubahan Terakhir" terisi realistis sebelum ada aksi.
-    var off = parseInt(String(norek).replace(/\D/g, '').slice(-1)) || 0;
-    var d = new Date(txns[0].procISO); d.setDate(d.getDate() - off);
-    var pad = function (x) { return String(x).padStart(2, '0'); };
-    g.updatedDisplay = pad(d.getDate()) + '-' + pad(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + (txns[0].procDisplay.split(' ')[1] || '00:00:00');
     return g;
 }
-// updated_at = kapan record terakhir berubah: stamp aksi > waktu approve > waktu request > seed.
-function updatedOf(g) { var s = st(g.groupId); return s.updatedTs || s.approvedTs || (s.request && s.request.ts) || g.updatedDisplay; }
+// §4.7: Tanggal Perubahan Terakhir hanya terisi bila record pernah berubah (stamp aksi > approve > request).
+// Kosong ('') bila belum pernah diubah — dan selalu > Tanggal Recon.
+function updatedOf(g) { var s = st(g.groupId); return s.updatedTs || s.approvedTs || (s.request && s.request.ts) || ''; }
 
 // Group transaksi per NOMOR REKENING → 1 entry settlement.
 // Hold Partial memecah sebagian MID jadi settlement terpisah (splits).
@@ -297,6 +318,8 @@ function tabGroups(tab) {
         var s = st(g.groupId);
         // Approver menampilkan request pending + notifikasi perpindahan data (status non-pending).
         if (tab === 'pending') { if (s.status !== 'pending' && !s.notify) return false; }
+        // §4.5 Hold = ledger permanen: semua yang pernah di-hold tetap tampil (walau sudah pindah tab).
+        else if (tab === 'hold') { if (s.status !== 'hold' && !s.everHeld) return false; }
         else if (s.status !== tab) return false;
         if (f.start && g.procISO < f.start) return false;
         if (f.end && g.procISO > f.end) return false;
@@ -331,11 +354,10 @@ function tabGroups(tab) {
 function renderSummary() {
     var el = document.getElementById('asSummaryPanel');
     if (!el) return;
-    // §1.3: summary hanya di tab Checker. Kartu ringkasan pakai SELURUH tanggal (abaikan filter/search).
+    // §2: summary di dalam tab Checker, mengikuti filter & search yang aktif.
     if (activeTab !== 'checker') { el.style.display = 'none'; return; }
     var byBank = {};
-    groups.forEach(function (g) {
-        if (st(g.groupId).status !== 'checker') return;
+    tabGroups('checker').forEach(function (g) {
         var b = byBank[g.bank] = byBank[g.bank] || { awal: 0, admin: 0, cbP: 0, cbM: 0, count: 0 };
         b.awal += g.nominalAwal; b.admin += g.admin; b.cbP += (g.adjPlus || 0); b.cbM += (g.adjMinus || 0); b.count++;
     });
@@ -380,9 +402,24 @@ function renderSummary() {
     el.style.display = 'block';
     el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">' +
         '<div style="font-weight:700;font-size:0.9rem;">Ringkasan Nominal per Bank Tujuan</div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);">Semua tanggal · nominal ending = awal − admin + chargeback</div></div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);">Mengikuti filter aktif · nominal ending = awal − admin + chargeback</div></div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:12px;">' + cards + '</div>' +
         totalSegment;
+}
+
+// §3: pesan floating — muncul di luar tabel (tab Hold/Checker) saat ada hold <min yang sudah bisa dirilis.
+function renderAccumFloat() {
+    var el = document.getElementById('asAccumFloat');
+    if (!el) { el = document.createElement('div'); el.id = 'asAccumFloat'; document.body.appendChild(el); }
+    var n = accumReleasableCount();
+    if (!(n > 0 && (activeTab === 'hold' || activeTab === 'checker') && !window.__accumDismissed)) { el.style.display = 'none'; return; }
+    el.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:900;max-width:340px;background:#ecfdf5;border:1px solid #16a34a;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:14px 16px;';
+    el.innerHTML = '<div style="display:flex;gap:10px;align-items:flex-start;">' +
+        '<i class="fas fa-circle-check" style="color:#16a34a;margin-top:2px;"></i>' +
+        '<div style="font-size:0.82rem;color:#065f46;line-height:1.45;"><b>' + n + ' hold di bawah minimum sudah bisa dirilis</b><br>Nominal norek-nya sudah memenuhi minimum transaksi (≥ Rp10.000). Buka tab Hold lalu rilis ke Checker.</div>' +
+        '<button id="asAccumClose" title="Tutup" style="background:none;border:none;color:#065f46;cursor:pointer;font-size:1rem;line-height:1;">&times;</button></div>';
+    el.style.display = 'block';
+    var cb = document.getElementById('asAccumClose'); if (cb) cb.onclick = function () { window.__accumDismissed = true; el.style.display = 'none'; };
 }
 
 function render() {
@@ -392,6 +429,7 @@ function render() {
     renderTable();
     renderSummary();
     renderBulkBar();
+    renderAccumFloat();
     // Export dihapus di tab Approver. Export Segregasi hanya di tab Settle.
     var exBtn = document.getElementById('asExportBtn');
     if (exBtn) exBtn.style.display = (activeTab === 'pending') ? 'none' : '';
@@ -406,7 +444,7 @@ function renderCounts() {
     ['checker', 'pending', 'hold', 'reject', 'settle'].forEach(function (tab) {
         var id = tab === 'pending' ? 'cnt-approver' : 'cnt-' + tab;
         var el = document.getElementById(id);
-        if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.notify) : s.status === tab; }).length;
+        if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.notify) : tab === 'hold' ? (s.status === 'hold' || s.everHeld) : s.status === tab; }).length;
     });
 }
 
@@ -418,9 +456,8 @@ function uiTab() { return activeTab === 'pending' ? 'approver' : activeTab; }
 function columnsFor(tab) {
     var cols = BASE_COLS.slice();
     if (tab === 'pending') cols.push('Request');
-    if (tab === 'hold') cols.push('Alasan');
+    if (tab === 'hold') cols.push('Alasan', 'Status Hold'); // §4.5 status ledger hold (aktif / sudah diproses)
     if (tab === 'settle') cols.push('Channel Payment', 'Metode Settlement', 'Status');
-    if (tab === 'checker' || tab === 'hold') cols.push('Keterangan'); // §1.5 status akumulasi min. transaksi
     return cols;
 }
 
@@ -454,10 +491,12 @@ function renderTable() {
         var s = st(g.groupId);
         var no = (page - 1) * PER_PAGE + idx + 1;
         var c = '<tr>';
-        if (hasCb) c += '<td style="text-align:center;"><input type="checkbox" class="as-cb" data-id="' + g.groupId + '" ' + (selected.has(g.groupId) ? 'checked' : '') + '></td>';
+        // Hold ledger yang sudah diproses tidak bisa di-bulk (view-only) → sel checkbox kosong.
+        var rowCb = hasCb && !(activeTab === 'hold' && s.status !== 'hold');
+        if (hasCb) c += '<td style="text-align:center;">' + (rowCb ? '<input type="checkbox" class="as-cb" data-id="' + g.groupId + '" ' + (selected.has(g.groupId) ? 'checked' : '') + '>' : '') + '</td>';
         c += '<td>' + no + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.procDisplay) + '</td>';
-        c += '<td style="font-variant-numeric:tabular-nums;">' + esc(updatedOf(g)) + '</td>';
+        c += '<td style="font-variant-numeric:tabular-nums;">' + (updatedOf(g) ? esc(updatedOf(g)) : '<span style="color:var(--text-muted);">-</span>') + '</td>';
         c += '<td style="min-width:150px;"><a class="as-link" data-detail="settle" data-id="' + g.groupId + '" style="font-family:monospace;font-size:0.78rem;white-space:normal;word-break:break-all;">' + esc(g.groupId) + '</a></td>';
         c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(g.nominalAwal) + '</td>';
         c += '<td style="text-align:right;">' + (g.admin ? num(g.admin) : '-') + '</td>';
@@ -481,6 +520,7 @@ function renderTable() {
             var hr = s.request || {};
             // Tab Hold: sembunyikan tulisan "Anomali Rekening" pada kolom Alasan.
             c += '<td>' + esc(hr.scope === 'anomaly' ? '-' : (SCOPE_LABEL[hr.scope] || '-')) + '</td>';
+            c += '<td>' + holdStatusChip(g) + '</td>';
         }
         if (activeTab === 'settle') {
             c += '<td>' + esc(s.channel || (s.request && s.request.channel) || '-') + '</td>';
@@ -488,9 +528,6 @@ function renderTable() {
             var ds = displaySettleStatus(g);
             var ssColor = SETTLE_STATUS_COLOR[ds] || '#475569';
             c += '<td><span style="font-size:0.72rem;font-weight:700;border-radius:4px;padding:2px 8px;white-space:nowrap;display:inline-block;background:' + ssColor + '22;color:' + ssColor + ';">' + esc(SETTLE_STATUS_LABEL[ds] || ds) + '</span></td>';
-        }
-        if (activeTab === 'checker' || activeTab === 'hold') {
-            c += '<td style="min-width:170px;">' + accumChip(g) + '</td>';
         }
         c += '<td style="text-align:center;white-space:nowrap;">' + actionButtons(g) + '</td>';
         c += '</tr>';
@@ -515,7 +552,8 @@ function renderTable() {
 
 function actionMenuItems(g) {
     if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
-    if (activeTab === 'hold') return [['rilis', 'Rilis ke Checker'], ['catatan', 'Lihat Bukti']];
+    // §4.5 Hold ledger: baris aktif bisa dirilis; baris yang sudah diproses (pindah tab) view-only.
+    if (activeTab === 'hold') return (st(g.groupId).status === 'hold') ? [['rilis', 'Rilis ke Checker'], ['catatan', 'Lihat Bukti']] : [['catatan', 'Lihat Bukti']];
     if (activeTab === 'reject') return [['hold', 'Hold'], ['settle', 'Settle'], ['catatan', 'Lihat Bukti']];
     if (activeTab === 'settle') {
         var acts = [['detail', 'Lihat Detail']];
@@ -1210,7 +1248,7 @@ var EXPORT_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Sett
 
 function exportCols() {
     if (activeTab === 'pending') return EXPORT_COLS.concat(['Request']);
-    if (activeTab === 'hold') return EXPORT_COLS.concat(['Alasan', 'Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
+    if (activeTab === 'hold') return EXPORT_COLS.concat(['Alasan', 'Status Hold', 'Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
     if (activeTab === 'reject') return EXPORT_COLS.concat(['Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
     if (activeTab === 'settle') return EXPORT_COLS.concat(['Channel Payment', 'Metode Transfer', 'Metode Settlement', 'Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
     return EXPORT_COLS;
@@ -1224,7 +1262,8 @@ function exportRowData(rows) {
             var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');
             row.push(lbl);
         } else if (activeTab === 'hold') {
-            row.push(SCOPE_LABEL[rq.scope] || '-', rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
+            var hStat = s.status === 'hold' ? 'Aktif · Belum Diproses' : ('Selesai · ' + (s.released ? 'Dirilis ke Checker' : (s.status === 'settle' ? 'Settle' : (s.status === 'reject' ? 'Reject' : (STATUS_LABEL[s.status] || s.status)))));
+            row.push(rq.scope === 'anomaly' ? '-' : (SCOPE_LABEL[rq.scope] || '-'), hStat, rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
         } else if (activeTab === 'reject') {
             row.push(rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
         } else if (activeTab === 'settle') {
@@ -1277,29 +1316,33 @@ function exportTab() {
 // "Sample Data Breakdown ... sheet 2606 REG". Isi tabel disimulasikan (random).
 // Semua tabel dalam 1 sheet (di preview = satu tabel dengan section per channel).
 var SEG_TABLES = [
-    'D. VIA OCBC - LAINNYA', 'F. VIA BCA', 'F. VIA BRI', 'G. VIA MANDIRI', 'H. AGI', 'I. NOBU'
+    'A. VIA OCBC - LAINNYA', 'B. VIA BCA', 'C. VIA BRI', 'D. VIA MANDIRI', 'E. AGI', 'F. NOBU'
 ];
 var SEG_COLS = ['Total Settle', 'Nama Bank', 'Nomor rekening', 'Nama pemilik rekening', 'Keterangan'];
-var SEG_BANKS = ['BCA', 'BRI', 'BANK MANDIRI', 'BNI', 'BANK PERMATA', 'BANK CIMB NIAGA/SYARIAH', 'BANK JAGO', 'BANK OCBC NISP', 'NOBU BANK', 'BANK ARTHA GRAHA', 'BANK MAYBANK INDONESIA'];
-var SEG_OWNERS = ['PT MITRA BERSAMA', 'EDY KUSUMA', 'CICIH JUARSIH', 'PT DISTRIBUSI SUKSES MANDIRI', 'ANDI NAHDA', 'PT FOTO AJAIB INDONESIA', 'YOLANDA', 'Anastasia Soelistio', 'PT SUMBER MANDALA KARYA', 'Sigit Setyawan'];
-function segRand(a) { return a[Math.floor(Math.random() * a.length)]; }
+// §4.6: segregasi dibangun dari DATA AKTUAL — settle Manual, dibucket per bank tujuan ke tabel A–F.
+var SEG_BANK_TABLE = { BCA: 'B. VIA BCA', BRI: 'C. VIA BRI', MANDIRI: 'D. VIA MANDIRI', AGI: 'E. AGI', NOBU: 'F. NOBU' };
 function segData() {
-    return SEG_TABLES.map(function (title) {
-        var n = Math.floor(Math.random() * 6); // 0–5 baris per tabel
-        var rows = [], total = 0;
-        for (var i = 0; i < n; i++) {
-            var amt = Math.floor(Math.random() * 90000000) + 10000;
-            total += amt;
-            rows.push({ total: amt, bank: segRand(SEG_BANKS), norek: String(Math.floor(Math.random() * 8999999999) + 1000000000), owner: segRand(SEG_OWNERS), ket: '' });
-        }
-        return { title: title, rows: rows, total: total };
+    var buckets = {}; SEG_TABLES.forEach(function (t) { buckets[t] = []; });
+    groups.forEach(function (g) {
+        var s = st(g.groupId);
+        if (s.status !== 'settle' || s.metodeSettlement !== 'Manual') return;
+        var title = SEG_BANK_TABLE[g.bank] || 'A. VIA OCBC - LAINNYA';
+        buckets[title].push({ total: totalOf(g), bank: g.bank, norek: g.norek, owner: g.namaRek, ket: '' });
+    });
+    return SEG_TABLES.map(function (t) {
+        var rows = buckets[t];
+        return { title: t, rows: rows, total: rows.reduce(function (a, r) { return a + r.total; }, 0) };
     });
 }
-// Rekap grand total setelah tabel K (format mengikuti sheet 2606 REG).
+// Rekap grand total: adm = admin settle Manual, hold = nominal hold aktif (dari data aktual).
 function segRecap(tables) {
     var grand = tables.reduce(function (s, t) { return s + t.total; }, 0);
-    var adm = Math.floor(Math.random() * 150000) + 50000;   // dana admin
-    var hold = Math.floor(Math.random() * 60000) + 10000;   // dana yang di-hold
+    var adm = 0, hold = 0;
+    groups.forEach(function (g) {
+        var s = st(g.groupId);
+        if (s.status === 'settle' && s.metodeSettlement === 'Manual') adm += g.admin;
+        if (s.status === 'hold') hold += totalOf(g);
+    });
     var diff = adm + hold;
     return { grand: grand, grand2: grand + diff, diff: diff, adm: adm, hold: hold };
 }
@@ -1680,15 +1723,16 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-01-seed20-clean';
-    if (localStorage.getItem('paydia_as_seedver') !== SEED_VER) {
+    var SEED_VER = '2026-07-07-stress-1k-b';
+    var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
+    if (fresh) {
         localStorage.removeItem('paydia_as_items');
         localStorage.removeItem('paydia_as_splits');
         localStorage.setItem('paydia_as_seedver', SEED_VER);
     }
     loadItems();
     loadSplits();
-    loadPool();
+    loadPool(fresh);
     filters = defaultFilters();
     bind();
     syncFilterInputs();
