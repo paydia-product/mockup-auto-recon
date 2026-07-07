@@ -8,7 +8,16 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.6.1', date: '2026-07-06', deployed: true, title: 'Fix posisi summary, hold anomali, reject-by-bank ke hold', changes: [
+        { v: '1.7.0', date: '2026-07-07', deployed: true, title: 'Segregasi ringkas, total terpisah, akumulasi min, konfirmasi grouped', changes: [
+            'Modal segregasi: hapus tabel A-C, J, K, Crossborder, Bug, Fee Faspay',
+            'Kartu Total Semua Bank jadi segmen terpisah; kartu per bank dinamis mengikuti data',
+            'Status akumulasi min. transaksi di kolom Keterangan (Checker & Hold); "Nominal sudah memenuhi minimum transaksi"',
+            'Pagination semua tab: 50 data per halaman',
+            'Konfirmasi bulk settle & bulk approve: grouping per bank tujuan (list norek, qty transaksi, nominal akhir per bank)',
+            'Logic: settlement yang pernah di-hold ditandai; hold→checker→hold me-replace data lama',
+            'Kolom Tanggal Perubahan Terakhir dipindah ke kanan Tanggal Recon'
+        ] },
+        { v: '1.6.1', date: '2026-07-06', deployed: false, title: 'Fix posisi summary, hold anomali, reject-by-bank ke hold', changes: [
             'Kartu ringkasan dipindah ke luar card tabel (di bawah judul halaman)',
             'Tab Hold: tulisan "Anomali Rekening" (badge & Alasan) disembunyikan',
             'Reject by Bank kini langsung pindah ke Hold tanpa approval; Approver hanya menerima notifikasi ("Tandai Dibaca")'

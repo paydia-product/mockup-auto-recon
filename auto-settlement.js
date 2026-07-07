@@ -18,11 +18,11 @@ var REQ_HOLD_LABEL = { all: 'Hold', partial: 'Hold Partial', min: 'Hold Dibawah 
 // Settle tab status system
 var SETTLE_STATUS_LABEL = { pending: 'Pending', success: 'Success', fail: 'Fail', rejectbybank: 'Reject by Bank' };
 var SETTLE_STATUS_COLOR = { pending: '#b45309', success: '#16a34a', fail: '#dc2626', rejectbybank: '#7c3aed' };
-var PER_PAGE = 10;
+var PER_PAGE = 50;
 
 // Base columns shared by every tab (in order). Unit = settlement group (per norek).
-var BASE_COLS = ['No', 'Tanggal Recon', 'ID Settlement', 'Nominal Awal', 'Admin',
-    'Adjustment Chargeback (+)', 'Adjustment Chargeback (−)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Tanggal Perubahan Terakhir'];
+var BASE_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Settlement', 'Nominal Awal', 'Admin',
+    'Adjustment Chargeback (+)', 'Adjustment Chargeback (−)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
 
 var STATUS_LABEL = { checker: 'Checker', pending: 'Approver', hold: 'Hold', reject: 'Reject', settle: 'Settle' };
 
@@ -68,13 +68,24 @@ function accountBadge(g) {
     var m = { baru: ['Baru', '#2563eb'], notified: ['Norek berubah', '#b45309'], anomaly: ['Anomali Rekening', '#dc2626'] }[stt];
     return ' <span title="Deteksi perubahan rekening" style="font-size:0.62rem;font-weight:700;border-radius:4px;padding:1px 6px;background:' + m[1] + '22;color:' + m[1] + ';white-space:nowrap;">' + m[0] + '</span>';
 }
-// §1.5: penanda norek dengan hold <Rp10.000 (bisa terkumpul ≥Rp10.000 bila ada transaksi lain di norek sama).
-function accumBadge(g) {
-    var rq = st(g.groupId).request || {};
-    if (st(g.groupId).status === 'hold' && rq.scope === 'min') {
-        return ' <span title="Hold di bawah minimum; bisa dirilis bila akumulasi norek ≥ Rp10.000" style="font-size:0.62rem;font-weight:700;border-radius:4px;padding:1px 6px;background:#0891b222;color:#0891b2;white-space:nowrap;">Akumulasi &lt;Rp10.000</span>';
-    }
-    return '';
+// §1.5: status akumulasi norek yang punya hold <Rp10.000.
+// Hold min bisa dirilis bila total settlement norek yg sama (checker + hold min) ≥ Rp10.000.
+// Return 'met' | 'wait' | null. Ditampilkan di kolom Keterangan (Checker & Hold).
+function norekAccum(g) {
+    var same = groups.filter(function (x) { return x.norek === g.norek; });
+    var hasMinHold = same.some(function (x) { var s = st(x.groupId); return s.status === 'hold' && (s.request || {}).scope === 'min'; });
+    if (!hasMinHold) return null;
+    var total = same.reduce(function (a, x) {
+        var s = st(x.groupId), sc = (s.request || {}).scope;
+        return (s.status === 'checker' || (s.status === 'hold' && sc === 'min')) ? a + totalOf(x) : a;
+    }, 0);
+    return total >= AUTO_HOLD_MIN ? 'met' : 'wait';
+}
+function accumChip(g) {
+    var a = norekAccum(g);
+    if (!a) return '<span style="color:var(--text-muted);">-</span>';
+    if (a === 'met') return '<span title="Total settlement norek ini sudah ≥ Rp10.000 — hold di bawah minimum bisa dirilis" style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;background:#16a34a22;color:#15803d;white-space:normal;display:inline-block;line-height:1.3;"><i class="fas fa-circle-check"></i> Nominal sudah memenuhi minimum transaksi</span>';
+    return '<span title="Total settlement norek ini masih < Rp10.000" style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;background:#b4530922;color:#b45309;white-space:normal;display:inline-block;line-height:1.3;">Belum memenuhi minimum transaksi</span>';
 }
 var esc = function (v) { v = String(v == null ? '' : v); return v.replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); };
 var isOther = function (b) { return CORE_BANKS.indexOf(String(b).toUpperCase()) === -1; };
@@ -235,12 +246,12 @@ function buildGroups() {
         var s = st(g.groupId);
         // Auto-hold: total settle < Rp10.000 untuk bank tujuan bukan BCA/Mandiri/BRI.
         if (s.status === 'checker' && !s.request && isOther(g.bank) && totalOf(g) < AUTO_HOLD_MIN) {
-            s.status = 'hold';
+            s.status = 'hold'; s.everHeld = true;
             s.request = { type: 'hold', scope: 'min', reason: 'Auto hold: total settle < Rp10.000 (bank tujuan non-BCA/Mandiri/BRI)', bukti: '', ts: todayProc(), auto: true };
         }
         // §8: anomali perubahan rekening tanpa pemberitahuan → auto-hold.
         if (s.status === 'checker' && !s.request && accountStatus(g) === 'anomaly') {
-            s.status = 'hold';
+            s.status = 'hold'; s.everHeld = true;
             s.request = { type: 'hold', scope: 'anomaly', reason: 'Anomali: perubahan rekening tanpa pemberitahuan/history (indikasi fraud)', bukti: '', ts: todayProc(), auto: true };
         }
     });
@@ -350,21 +361,28 @@ function renderSummary() {
             line('Chargeback (−)', d.cbM ? '−' + num(d.cbM) : '0', d.cbM ? '#dc2626' : '') +
             '</div>';
     }).join('');
-    var totalCard = '<div style="flex:1 1 220px;min-width:200px;border:1px solid #4f46e5;border-radius:10px;padding:12px 14px;background:#eef2ff;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">' +
-        '<span style="font-weight:700;font-size:0.9rem;color:#4f46e5;">Total Semua Bank</span>' +
-        '<span style="font-size:0.68rem;color:#6366f1;">' + tCount + ' rekening</span></div>' +
-        '<div style="font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;margin-bottom:8px;color:#4f46e5;">' + rupiah(tEnd) + '</div>' +
-        line('Nominal awal', num(tAwal)) +
-        line('Admin', tAdmin ? '−' + num(tAdmin) : '0') +
-        line('Chargeback (+)', tcbP ? '+' + num(tcbP) : '0', tcbP ? '#16a34a' : '') +
-        line('Chargeback (−)', tcbM ? '−' + num(tcbM) : '0', tcbM ? '#dc2626' : '') +
-        '</div>';
+    // Total = segmen terpisah (bar horizontal penuh), bukan satu kartu di antara kartu bank.
+    var tItem = function (label, val, color) {
+        return '<div style="display:flex;flex-direction:column;gap:2px;">' +
+            '<span style="font-size:0.68rem;color:#6366f1;">' + label + '</span>' +
+            '<span style="font-size:0.9rem;font-weight:700;font-variant-numeric:tabular-nums;' + (color ? 'color:' + color + ';' : 'color:#312e81;') + '">' + val + '</span></div>';
+    };
+    var totalSegment = '<div style="border:1px solid #c7d2fe;border-radius:12px;background:#eef2ff;padding:14px 18px;margin-top:16px;">' +
+        '<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;">' +
+        '<div style="flex:1 1 200px;">' +
+        '<div style="font-size:0.72rem;color:#6366f1;font-weight:600;margin-bottom:2px;">Total Semua Bank · ' + tCount + ' rekening</div>' +
+        '<div style="font-size:1.4rem;font-weight:800;font-variant-numeric:tabular-nums;color:#4f46e5;">' + rupiah(tEnd) + '</div></div>' +
+        tItem('Nominal awal', num(tAwal)) +
+        tItem('Admin', tAdmin ? '−' + num(tAdmin) : '0') +
+        tItem('Chargeback (+)', tcbP ? '+' + num(tcbP) : '0', tcbP ? '#16a34a' : '') +
+        tItem('Chargeback (−)', tcbM ? '−' + num(tcbM) : '0', tcbM ? '#dc2626' : '') +
+        '</div></div>';
     el.style.display = 'block';
     el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">' +
         '<div style="font-weight:700;font-size:0.9rem;">Ringkasan Nominal per Bank Tujuan</div>' +
         '<div style="font-size:0.72rem;color:var(--text-muted);">Semua tanggal · nominal ending = awal − admin + chargeback</div></div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:12px;">' + cards + totalCard + '</div>';
+        '<div style="display:flex;flex-wrap:wrap;gap:12px;">' + cards + '</div>' +
+        totalSegment;
 }
 
 function render() {
@@ -402,6 +420,7 @@ function columnsFor(tab) {
     if (tab === 'pending') cols.push('Request');
     if (tab === 'hold') cols.push('Alasan');
     if (tab === 'settle') cols.push('Channel Payment', 'Metode Settlement', 'Status');
+    if (tab === 'checker' || tab === 'hold') cols.push('Keterangan'); // §1.5 status akumulasi min. transaksi
     return cols;
 }
 
@@ -438,6 +457,7 @@ function renderTable() {
         if (hasCb) c += '<td style="text-align:center;"><input type="checkbox" class="as-cb" data-id="' + g.groupId + '" ' + (selected.has(g.groupId) ? 'checked' : '') + '></td>';
         c += '<td>' + no + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.procDisplay) + '</td>';
+        c += '<td style="font-variant-numeric:tabular-nums;">' + esc(updatedOf(g)) + '</td>';
         c += '<td style="min-width:150px;"><a class="as-link" data-detail="settle" data-id="' + g.groupId + '" style="font-family:monospace;font-size:0.78rem;white-space:normal;word-break:break-all;">' + esc(g.groupId) + '</a></td>';
         c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(g.nominalAwal) + '</td>';
         c += '<td style="text-align:right;">' + (g.admin ? num(g.admin) : '-') + '</td>';
@@ -446,8 +466,7 @@ function renderTable() {
         c += '<td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">' + num(totalOf(g)) + '</td>';
         c += '<td>' + esc(g.bank) + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>';
-        c += '<td>' + esc(g.namaRek) + accountBadge(g) + accumBadge(g) + '</td>';
-        c += '<td style="font-variant-numeric:tabular-nums;">' + esc(updatedOf(g)) + '</td>';
+        c += '<td>' + esc(g.namaRek) + accountBadge(g) + '</td>';
         if (activeTab === 'pending') {
             if (s.notify) {
                 c += '<td><span class="as-req-badge" style="background:#0891b222;color:#0e7490;white-space:normal;display:inline-block;line-height:1.3;"><i class="fas fa-bell"></i> Notifikasi · Reject by Bank → Hold</span></td>';
@@ -469,6 +488,9 @@ function renderTable() {
             var ds = displaySettleStatus(g);
             var ssColor = SETTLE_STATUS_COLOR[ds] || '#475569';
             c += '<td><span style="font-size:0.72rem;font-weight:700;border-radius:4px;padding:2px 8px;white-space:nowrap;display:inline-block;background:' + ssColor + '22;color:' + ssColor + ';">' + esc(SETTLE_STATUS_LABEL[ds] || ds) + '</span></td>';
+        }
+        if (activeTab === 'checker' || activeTab === 'hold') {
+            c += '<td style="min-width:170px;">' + accumChip(g) + '</td>';
         }
         c += '<td style="text-align:center;white-space:nowrap;">' + actionButtons(g) + '</td>';
         c += '</tr>';
@@ -761,49 +783,34 @@ function openReject(g) {
     ]);
 }
 
-// §5.5: ringkasan konfirmasi BULK settle — breakdown per rekening (dgn search + pagination 10/hal).
-var _brk = { arr: [], page: 1, term: '' };
+// §5.5/§6: breakdown konfirmasi settle — grouping per BANK TUJUAN, tiap bank list norek + qty transaksi + nominal akhir.
+function settleGroupedHTML(arr) {
+    var byBank = {};
+    arr.forEach(function (g) {
+        var b = byBank[g.bank] = byBank[g.bank] || { rows: [], tx: 0, total: 0 };
+        b.rows.push(g); b.tx += (g.txns ? g.txns.length : 0); b.total += totalOf(g);
+    });
+    var grand = arr.reduce(function (a, g) { return a + totalOf(g); }, 0);
+    var blocks = Object.keys(byBank).sort().map(function (b) {
+        var d = byBank[b];
+        var list = d.rows.slice().sort(function (x, y) { return String(x.norek).localeCompare(String(y.norek)); }).map(function (g) {
+            return '<div style="display:flex;justify-content:space-between;gap:12px;padding:5px 12px;font-size:0.78rem;border-top:1px solid var(--border-color);">' +
+                '<span style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + ' · <span style="color:var(--text-secondary);">' + esc(g.namaRek) + '</span></span>' +
+                '<span style="font-variant-numeric:tabular-nums;font-weight:600;">' + num(totalOf(g)) + '</span></div>';
+        }).join('');
+        return '<div style="border:1px solid var(--border-color);border-radius:8px;overflow:hidden;margin-bottom:10px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;background:#f8fafc;">' +
+            '<span style="font-weight:700;font-size:0.85rem;">' + esc(b) + '</span>' +
+            '<span style="font-size:0.72rem;color:var(--text-secondary);">' + d.rows.length + ' rekening · ' + d.tx + ' transaksi · <b style="color:var(--text-primary);">' + rupiah(d.total) + '</b></span></div>' +
+            list + '</div>';
+    }).join('');
+    return '<div style="font-weight:700;font-size:0.85rem;margin:12px 0 8px;">Breakdown per Bank Tujuan</div>' + blocks +
+        '<div class="as-kv" style="margin-top:6px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
+}
 function settleSummaryHTML(arr, ms, tf) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
-    _brk = { arr: arr.slice().sort(function (a, b) { return a.bank.localeCompare(b.bank); }), page: 1, term: '' };
-    var grand = arr.reduce(function (a, g) { return a + totalOf(g); }, 0);
-    // "Jumlah Baris" = banyaknya entry settlement (1 baris = 1 rekening tujuan) yang akan diproses.
     return kv('Metode Settlement', esc(ms)) + kv('Channel Payment (sumber dana)', esc(tf.channel)) + kv('Metode Transfer', esc(tf.metode)) +
-        kv('Jumlah Baris (entry settlement)', arr.length) +
-        '<div style="margin-top:12px;font-weight:700;font-size:0.85rem;margin-bottom:6px;">Breakdown per Rekening Tujuan</div>' +
-        '<input type="text" id="asBrkSearch" placeholder="Cari No. Rekening / Nama Pemilik Rekening" style="width:100%;padding:8px 10px;font-size:0.8rem;border:1px solid var(--border-color);border-radius:6px;margin-bottom:8px;">' +
-        '<table class="data-table" style="width:100%;font-size:0.8rem;"><thead><tr><th style="padding:6px 10px;text-align:left;">Bank Tujuan</th><th style="padding:6px 10px;text-align:left;">No. Rekening</th><th style="padding:6px 10px;text-align:left;">Nama Pemilik Rekening</th><th style="padding:6px 10px;text-align:right;">Nominal Akhir</th></tr></thead><tbody id="asBrkBody"></tbody></table>' +
-        '<div id="asBrkPager" style="display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:8px;font-size:0.78rem;"></div>' +
-        '<div class="as-kv" style="margin-top:10px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
-}
-// Render body + pager breakdown; dipanggil setelah modal konfirmasi bulk terbuka.
-function renderBrk() {
-    var body = document.getElementById('asBrkBody'); if (!body) return;
-    var term = _brk.term.toLowerCase();
-    var rows = _brk.arr.filter(function (g) { return !term || (g.norek + ' ' + g.namaRek).toLowerCase().indexOf(term) >= 0; });
-    var per = 10, pages = Math.max(1, Math.ceil(rows.length / per));
-    if (_brk.page > pages) _brk.page = pages;
-    var slice = rows.slice((_brk.page - 1) * per, _brk.page * per);
-    body.innerHTML = slice.length ? slice.map(function (g) {
-        return '<tr><td style="padding:6px 10px;">' + esc(g.bank) + '</td>' +
-            '<td style="padding:6px 10px;font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>' +
-            '<td style="padding:6px 10px;">' + esc(g.namaRek) + '</td>' +
-            '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + num(totalOf(g)) + '</td></tr>';
-    }).join('') : '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-muted);">Tidak ada hasil</td></tr>';
-    var pg = document.getElementById('asBrkPager');
-    if (rows.length <= per) { pg.innerHTML = ''; return; }
-    var btn = function (lbl, pageNo, dis, active) { return '<button data-pg="' + pageNo + '" ' + (dis ? 'disabled' : '') + ' style="padding:3px 9px;border:1px solid var(--border-color);border-radius:5px;background:' + (active ? 'var(--primary)' : '#fff') + ';color:' + (active ? '#fff' : 'var(--text-primary)') + ';cursor:' + (dis ? 'default' : 'pointer') + ';font-weight:600;">' + lbl + '</button>'; };
-    var h = '<span style="color:var(--text-secondary);margin-right:auto;">' + rows.length + ' rekening</span>' + btn('&lt;', _brk.page - 1, _brk.page <= 1);
-    for (var i = 1; i <= pages; i++) h += btn(i, i, false, i === _brk.page);
-    h += btn('&gt;', _brk.page + 1, _brk.page >= pages);
-    pg.innerHTML = h;
-    pg.querySelectorAll('button[data-pg]').forEach(function (b) { b.addEventListener('click', function () { _brk.page = +b.dataset.pg; renderBrk(); }); });
-}
-// Pasang search + render awal (dipanggil tepat setelah openModal konfirmasi bulk).
-function wireBrk() {
-    var s = document.getElementById('asBrkSearch');
-    if (s) s.addEventListener('input', function () { _brk.term = s.value.trim(); _brk.page = 1; renderBrk(); });
-    renderBrk();
+        kv('Jumlah Baris (entry settlement)', arr.length) + settleGroupedHTML(arr);
 }
 
 // §10: pecah nominal > Rp250 juta jadi beberapa transfer BI-FAST secara otomatis.
@@ -877,6 +884,11 @@ function bulkApproverDecide(approve) {
     var ids = Array.from(selected);
     var body = '<p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:6px;">' + (approve ? 'Approve' : 'Reject') + ' <b>' + ids.length + '</b> request terpilih sekaligus.</p>' +
         '<p style="font-size:0.78rem;color:var(--text-muted);">Bulk tidak menampilkan catatan/bukti per item — untuk kasus yang perlu diperiksa, tinjau satu-satu.</p>';
+    // §6: khusus Bulk Approve, tampilkan breakdown per bank untuk request settle terpilih.
+    if (approve) {
+        var settleArr = ids.map(groupById).filter(function (g) { return g && st(g.groupId).status === 'pending' && (st(g.groupId).request || {}).type === 'settle'; });
+        if (settleArr.length) body += settleGroupedHTML(settleArr);
+    }
     openModal(approve ? 'Bulk Approve' : 'Bulk Reject', body, [
         { label: 'Batal', onClick: closeModal },
         { label: approve ? 'Lanjut Approve' : 'Lanjut Reject', style: 'background:' + (approve ? '#16a34a' : '#dc2626') + ';color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
@@ -951,7 +963,6 @@ function openBulkSettle() {
                     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Settle ' + ids.length + ' entry [' + ms + '] via ' + tf.channel + ' / ' + tf.metode);
                 } }
             ]);
-            wireBrk();
         } }
     ]);
     // Note inline metode settlement (sama seperti settle single).
@@ -1057,6 +1068,7 @@ function approverDecide(g, approve) {
                 s.settleStatus = (s.metodeSettlement === 'Manual') ? 'success' : 'pending';
             }
         }
+        if (s.status === 'hold') s.everHeld = true; // §7: tandai settlement pernah di-hold
         s.approvedTs = todayProc();
         s.approvedBy = 'dion@paydia.id';
         showToast('Request Disetujui', g.groupId + ' → ' + (rq.type || '').toUpperCase() + '.');
@@ -1104,7 +1116,7 @@ function openRejectByBankItem(g) {
             if (!reason) { showToast('Catatan Wajib', 'Isi catatan Reject by Bank.'); return; }
             var bk = validateBukti(null); if (!bk) return;
             // §6.2: langsung ke Hold (tanpa approval), + notifikasi ke Approver (mirip Rilis ke Checker).
-            s.status = 'hold'; s.settleStatus = 'rejectbybank'; s.updatedTs = todayProc();
+            s.status = 'hold'; s.settleStatus = 'rejectbybank'; s.everHeld = true; s.updatedTs = todayProc();
             s.request = { type: 'hold', scope: 'rejectbybank', prevStatus: 'settle', reason: reason, bukti: bk.name, ts: todayProc() };
             s.notify = { kind: 'rejectbybank', from: 'settle', to: 'hold', ts: todayProc() };
             saveItems(); closeModal(); render();
@@ -1194,7 +1206,7 @@ function openDetailModal(g) {
 }
 
 // ── export current tab ──
-var EXPORT_COLS = ['No', 'Tanggal Recon', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Tanggal Perubahan Terakhir'];
+var EXPORT_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
 
 function exportCols() {
     if (activeTab === 'pending') return EXPORT_COLS.concat(['Request']);
@@ -1206,7 +1218,7 @@ function exportCols() {
 
 function exportRowData(rows) {
     return rows.map(function (g, i) {
-        var row = [i + 1, g.procDisplay, g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek, updatedOf(g)];
+        var row = [i + 1, g.procDisplay, updatedOf(g), g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek];
         var s = st(g.groupId); var rq = s.request || {};
         if (activeTab === 'pending') {
             var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');
@@ -1233,7 +1245,7 @@ function downloadCsv(data) {
     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Export tab ' + STATUS_LABEL[activeTab]);
 }
 function showExportPreview(data) {
-    var fmt = function (c, v) { return (typeof v === 'number' && c >= 3 && c <= 7) ? num(v) : esc(v); };
+    var fmt = function (c, v) { return (typeof v === 'number' && c >= 4 && c <= 8) ? num(v) : esc(v); };
     document.getElementById('asExportSub').innerHTML = 'Simulasi hasil ekspor tab <b>' + STATUS_LABEL[activeTab] + '</b> — ' + data.length + ' baris.';
     document.getElementById('asExportHead').innerHTML = '<tr>' + exportCols().map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
     document.getElementById('asExportBody').innerHTML = data.map(function (row) {
@@ -1265,9 +1277,7 @@ function exportTab() {
 // "Sample Data Breakdown ... sheet 2606 REG". Isi tabel disimulasikan (random).
 // Semua tabel dalam 1 sheet (di preview = satu tabel dengan section per channel).
 var SEG_TABLES = [
-    'A. VIA OCBC - BCA', 'B. VIA OCBC - BRI', 'C. VIA OCBC - MANDIRI, BNI, PERMATA, CIMB',
-    'D. VIA OCBC - LAINNYA', 'F. VIA BCA', 'F. VIA BRI', 'G. VIA MANDIRI', 'H. AGI', 'I. NOBU',
-    'J. VIA FASPAY', 'K. VIA PAYDIA BISNIS', 'Transaksi Crossborder', 'Transaksi Bug', 'Transaksi Fee Faspay'
+    'D. VIA OCBC - LAINNYA', 'F. VIA BCA', 'F. VIA BRI', 'G. VIA MANDIRI', 'H. AGI', 'I. NOBU'
 ];
 var SEG_COLS = ['Total Settle', 'Nama Bank', 'Nomor rekening', 'Nama pemilik rekening', 'Keterangan'];
 var SEG_BANKS = ['BCA', 'BRI', 'BANK MANDIRI', 'BNI', 'BANK PERMATA', 'BANK CIMB NIAGA/SYARIAH', 'BANK JAGO', 'BANK OCBC NISP', 'NOBU BANK', 'BANK ARTHA GRAHA', 'BANK MAYBANK INDONESIA'];
@@ -1275,8 +1285,7 @@ var SEG_OWNERS = ['PT MITRA BERSAMA', 'EDY KUSUMA', 'CICIH JUARSIH', 'PT DISTRIB
 function segRand(a) { return a[Math.floor(Math.random() * a.length)]; }
 function segData() {
     return SEG_TABLES.map(function (title) {
-        // Tabel K selalu berisi (2–5 baris); tabel lain 0–5 baris.
-        var n = (title.indexOf('K.') === 0) ? Math.floor(Math.random() * 4) + 2 : Math.floor(Math.random() * 6);
+        var n = Math.floor(Math.random() * 6); // 0–5 baris per tabel
         var rows = [], total = 0;
         for (var i = 0; i < n; i++) {
             var amt = Math.floor(Math.random() * 90000000) + 10000;
@@ -1300,14 +1309,14 @@ function showSegregasiPreview(dateStr) {
     document.getElementById('asExportSub').innerHTML = 'Simulasi hasil <b>Export Segregasi per Bank</b> — Tanggal ' + esc(dateStr) + '. Tabel dipisah per channel payment (semua dalam 1 sheet). Hanya memuat data dengan Metode Settlement <b>Manual</b>.';
     document.getElementById('asExportHead').innerHTML = '<tr>' + SEG_COLS.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr>';
     var html = '';
-    _segCache.forEach(function (t) {
+    _segCache.forEach(function (t, idx) {
         html += '<tr><td colspan="5" style="background:#eef2ff;color:#4f46e5;font-weight:700;padding:8px 10px;">' + esc(t.title) + '</td></tr>';
         t.rows.forEach(function (r) {
             html += '<tr><td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(r.total) + '</td><td>' + esc(r.bank) + '</td><td style="font-variant-numeric:tabular-nums;">' + esc(r.norek) + '</td><td>' + esc(r.owner) + '</td><td>' + esc(r.ket) + '</td></tr>';
         });
         html += '<tr><td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;border-top:2px solid #cbd5e1;">' + num(t.total) + '</td><td colspan="4" style="border-top:2px solid #cbd5e1;"></td></tr>';
-        // Rekap grand total tepat setelah tabel K.
-        if (t.title.indexOf('K.') === 0) {
+        // Rekap grand total setelah tabel terakhir.
+        if (idx === _segCache.length - 1) {
             var rc = _segRecap;
             var rt = 'text-align:right;font-weight:700;font-variant-numeric:tabular-nums;';
             html += '<tr><td style="' + rt + '">' + num(rc.grand) + '</td><td style="font-weight:700;">Grand Total</td><td></td><td></td><td></td></tr>';
@@ -1324,11 +1333,11 @@ function showSegregasiPreview(dateStr) {
 function downloadSegregasiCsv() {
     var e = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     var lines = ['Export Segregasi per Bank', 'Tanggal:,' + _segDate, 'Generated By:,dion@paydia.id', '', SEG_COLS.join(',')];
-    _segCache.forEach(function (t) {
+    _segCache.forEach(function (t, idx) {
         lines.push(e(t.title));
         t.rows.forEach(function (r) { lines.push([r.total, r.bank, r.norek, r.owner, r.ket].map(e).join(',')); });
         lines.push(e(t.total)); // baris total (hanya kolom Total Settle)
-        if (t.title.indexOf('K.') === 0 && _segRecap) {
+        if (idx === _segCache.length - 1 && _segRecap) {
             var rc = _segRecap;
             lines.push([rc.grand, 'Grand Total'].map(e).join(','));
             lines.push(e(rc.grand2));

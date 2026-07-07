@@ -7,6 +7,18 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-07-07
+### Changed
+- **Modal Simulasi Segregasi** (tab Settle): hapus tabel A, B, C, J, K, Transaksi Crossborder, Transaksi Bug, Transaksi Fee Faspay. Rekap grand total kini muncul setelah tabel terakhir.
+- **Kartu Total Semua Bank** dijadikan segmen terpisah (bar horizontal penuh) di bawah grid kartu per bank; kartu per bank tetap bertambah otomatis mengikuti variasi bank tujuan di data.
+- **Pagination** di semua tab: maksimal **50 data per halaman** (dari 10).
+- **Konfirmasi Bulk Settle** (Checker): breakdown di-**grouping per Bank Tujuan** — tiap bank menampilkan jumlah rekening, jumlah transaksi, dan nominal akhir, diikuti daftar norek tujuan.
+- **Kolom Tanggal Perubahan Terakhir** dipindah ke sebelah kanan **Tanggal Recon** (tabel + export).
+### Added
+- **Kolom Keterangan** (Checker & Hold): status akumulasi minimum transaksi untuk hold < Rp10.000. Bila total settlement norek yang sama sudah ≥ Rp10.000 → "Nominal sudah memenuhi minimum transaksi" (bisa dirilis); jika belum → "Belum memenuhi minimum transaksi". Menggantikan badge "Akumulasi <Rp10.000" yang dulu menempel di kolom nama.
+- **Konfirmasi Bulk Approve** (Approver): menampilkan breakdown grouped per bank untuk request settle terpilih (hanya untuk aksi bulk).
+- **Logic hold history** (§7): settlement yang pernah di-hold ditandai (`everHeld`); siklus hold → checker → hold me-replace entri lama di tab Hold (tidak menduplikasi).
+
 ## [1.6.1] — 2026-07-06
 ### Changed
 - **Posisi kartu ringkasan** dipindah ke luar card tabel (di bawah judul halaman), tidak lagi menempel di dalam tab Checker.
