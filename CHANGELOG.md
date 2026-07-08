@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.17.2] — 2026-07-08
+### Reverted
+- **Revert v1.17.1** (chargeback tetap di base saat Hold Partial). Alasan: settlement dispute bisa **tidak diproses settle** melalui **Hold Semua / Hold Dibawah Min. Transaksi / Reject** — **bukan** lewat Hold Partial. Jadi penanganan khusus dispute di Hold Partial tidak diperlukan; logika `buildGroups` dikembalikan **persis ke kondisi v1.17.0**.
+
 ## [1.17.1] — 2026-07-08
 ### Fixed
 - **Hold Partial — transaksi dispute/chargeback tetap di base**: transaksi dispute tidak bisa dihold, jadi **chargeback tetap tinggal di settlement Checker (base)**, tidak ikut dihold dan tidak hilang. Yang dihold hanya **dana settle**; sisa dana settle + seluruh transaksi chargeback tetap di base (nominal rekonsiliasi benar).

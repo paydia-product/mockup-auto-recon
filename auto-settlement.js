@@ -389,21 +389,21 @@ function buildGroups() {
         var txns = byKey[k];
         var bank = txns[0].bankCode, norek = txns[0].bankAccount;
         var mySplits = splits.filter(function (s) { return s.norek === norek && (s.bank || bank) === bank; });
-        var heldMids = {}, touchedByMid = {}; // heldMids: whole-MID carve (legacy); touchedByMid: partial-nominal (dana settle yang dihold per MID).
+        var heldMids = {}, reduceByMid = {}; // heldMids: MID keluar penuh dari base; reduceByMid: MID partial, base berkurang.
         mySplits.forEach(function (sp) {
             var stx = txns.filter(function (t) { return sp.mids.indexOf(t.mid) >= 0; });
             if (!stx.length) { sp.mids.forEach(function (m) { heldMids[m] = true; }); return; }
             var gg;
             if (sp.holdAmounts) {
-                // Yang dihold = dana settle saja. Transaksi dispute/chargeback TIDAK bisa dihold → tetap di base.
+                // Held per MID: nama & MID asli, nominal = dana yang dihold.
                 var heldTxns = [];
                 sp.mids.forEach(function (m) {
                     var mt = stx.filter(function (t) { return t.mid === m; });
                     if (!mt.length) return;
                     var full = mt.reduce(function (a, t) { return a + t.nominalSettle; }, 0);
                     var held = (sp.holdAmounts[m] != null) ? sp.holdAmounts[m] : full;
-                    touchedByMid[m] = (touchedByMid[m] || 0) + held;
-                    heldTxns.push({ txId: 'TX-' + norek + '-h-' + m, mid: m, merchantName: mt[0].merchantName, bankCode: bank, bankAccount: norek, bankAccountName: mt[0].bankAccountName, nominalSettle: held, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: mt[0].procISO, procDisplay: mt[0].procDisplay });
+                    if (held >= full) heldMids[m] = true; else reduceByMid[m] = (reduceByMid[m] || 0) + held;
+                    heldTxns.push({ txId: 'TX-' + norek + '-h-' + m, mid: m, merchantName: mt[0].merchantName, bankCode: bank, bankAccount: norek, bankAccountName: mt[0].bankAccountName, nominalSettle: held, tipeSettlement: mt[0].tipeSettlement, adjPlus: 0, adjMinus: 0, procISO: mt[0].procISO, procDisplay: mt[0].procDisplay });
                 });
                 gg = makeGroup(sp.id, norek, heldTxns);
             } else {
@@ -412,18 +412,15 @@ function buildGroups() {
             }
             groups.push(gg);
         });
-        // Base: MID legacy dikeluarkan penuh; MID partial → sisa dana settle + SEMUA transaksi dispute/chargeback tetap di base.
+        // Base: MID dihold penuh dikeluarkan; MID partial berkurang (nama & MID asli tetap tampil).
         var baseByMid = {};
-        txns.forEach(function (t) { (baseByMid[t.mid] = baseByMid[t.mid] || []).push(t); });
+        txns.forEach(function (t) { if (heldMids[t.mid]) return; (baseByMid[t.mid] = baseByMid[t.mid] || []).push(t); });
         var baseTxns = [];
         Object.keys(baseByMid).forEach(function (mid) {
             var mt = baseByMid[mid];
-            if (heldMids[mid]) return; // whole-MID carve → seluruh transaksi MID pindah ke split
-            if (touchedByMid[mid] != null) {
+            if (reduceByMid[mid]) {
                 var full = mt.reduce(function (a, t) { return a + t.nominalSettle; }, 0);
-                var remain = full - touchedByMid[mid];
-                if (remain > 0) baseTxns.push({ txId: 'TX-' + norek + '-b-' + mid, mid: mid, merchantName: mt[0].merchantName, bankCode: bank, bankAccount: norek, bankAccountName: mt[0].bankAccountName, nominalSettle: remain, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: mt[0].procISO, procDisplay: mt[0].procDisplay });
-                mt.forEach(function (t) { if ((t.adjPlus || 0) !== 0 || (t.adjMinus || 0) !== 0) baseTxns.push(t); }); // dispute/chargeback tetap di base
+                baseTxns.push({ txId: 'TX-' + norek + '-b-' + mid, mid: mid, merchantName: mt[0].merchantName, bankCode: bank, bankAccount: norek, bankAccountName: mt[0].bankAccountName, nominalSettle: full - reduceByMid[mid], tipeSettlement: mt[0].tipeSettlement, adjPlus: 0, adjMinus: 0, procISO: mt[0].procISO, procDisplay: mt[0].procDisplay });
             } else {
                 mt.forEach(function (t) { baseTxns.push(t); });
             }
@@ -2026,7 +2023,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-08-partial-chargeback-base';
+    var SEED_VER = '2026-07-08-partial-revert-1170';
     var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
     if (fresh) {
         localStorage.removeItem('paydia_as_items');

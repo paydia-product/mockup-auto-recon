@@ -8,7 +8,11 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.17.1', date: '2026-07-08', deployed: true, title: 'Hold Partial: transaksi dispute/chargeback tetap di base', changes: [
+        { v: '1.17.2', date: '2026-07-08', deployed: true, title: 'Revert v1.17.1 (chargeback base) — kembali ke logic v1.17.0', changes: [
+            'Revert perubahan v1.17.1: hold partial tidak mengubah dispute (dispute hanya bisa tidak-di-settle lewat Hold Semua / Hold Dibawah Min / Reject, bukan Hold Partial)',
+            'Logic Hold Partial kembali persis ke kondisi v1.17.0'
+        ] },
+        { v: '1.17.1', date: '2026-07-08', deployed: false, title: 'Hold Partial: transaksi dispute/chargeback tetap di base (di-revert v1.17.2)', changes: [
             'Transaksi dispute/chargeback tidak bisa dihold — chargeback tetap tinggal di settlement Checker (base)',
             'Yang dihold hanya dana settle; sisa dana + seluruh chargeback tetap di base (rekonsiliasi benar)'
         ] },
