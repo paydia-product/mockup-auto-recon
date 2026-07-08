@@ -7,6 +7,14 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.12.0] — 2026-07-08
+### Fixed
+- **FATAL**: hilangkan tombol **"Tandai Dibaca"** pada notifikasi Approver. Sebelumnya mengklik tombol itu meng-`null`-kan penanda sehingga **baris hilang dari tab Approver** — dianggap kehilangan data. Sekarang record perpindahan **persisten** dan tidak bisa dihapus.
+### Added
+- **2 jenis request auto-approve** di tab Approver: **"Rilis ke Checker"** dan **"Reject by Bank"** — tampil di kolom **Request** dan tersedia di **filter Request** (opsi baru: "Rilis ke Checker (Otomatis)" & "Reject by Bank (Otomatis)").
+### Changed
+- Kedua jenis di atas bersifat **auto-approval** (tanpa approve manual). Khusus 2 jenis ini, kolom **Aksi** berisi **teks** `Otomatis {tab asal} → {tab tujuan}` (mis. `Otomatis Hold → Checker`, `Otomatis Reject → Checker`, `Otomatis Settle → Hold`) — **tanpa tombol**. Data tetap hidup di tab tujuan (Checker/Hold) sekaligus tercatat permanen di Approver.
+
 ## [1.11.0] — 2026-07-08
 ### Added
 - **Notifikasi perpindahan data ke Approver** (read-only): tab Approver kini menampilkan notifikasi untuk 3 kasus perpindahan status — **hold → Checker** (rilis), **reject → Checker** (rilis), dan **settle → Hold** (Reject by Bank). Baris notifikasi **hanya bisa "Tandai Dibaca"**, tanpa aksi Approve/Reject (sifatnya pemberitahuan ke Approver).

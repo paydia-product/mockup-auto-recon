@@ -82,13 +82,11 @@ function holdStatusChip(g) {
     var m = { belum: ['#b4530922', '#b45309'], siap: ['#16a34a22', '#15803d'], released: ['#0891b222', '#0e7490'] }[k];
     return '<span style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;white-space:nowrap;background:' + m[0] + ';color:' + m[1] + ';">' + HOLD_STATUS_LABEL[k] + '</span>';
 }
-// Notifikasi perpindahan data ke Approver (read-only). Label dinamis per-kasus (rilis hold/reject → checker, reject by bank settle → hold).
-function notifyLabel(nt) {
-    if (!nt) return '';
-    var L = { checker: 'Checker', hold: 'Hold', reject: 'Reject', settle: 'Settle' };
-    var kind = nt.kind === 'rejectbybank' ? 'Reject by Bank' : (nt.kind === 'rilis' ? 'Rilis ke Checker' : (nt.kind || ''));
-    return (L[nt.from] || nt.from) + ' → ' + (L[nt.to] || nt.to) + (kind ? ' · ' + kind : '');
-}
+// Auto-approval request ke Approver (persisten, TIDAK bisa dihapus). 2 jenis: Rilis ke Checker & Reject by Bank.
+// Data tetap hidup di tab tujuan (checker/hold); di Approver hanya tercatat sebagai request yang auto-approve.
+var AUTOREQ_LABEL = { rilis: 'Rilis ke Checker', rejectbybank: 'Reject by Bank' };
+var AUTOREQ_TAB = { checker: 'Checker', hold: 'Hold', reject: 'Reject', settle: 'Settle', pending: 'Approver' };
+function autoReqText(a) { return a ? ('Otomatis ' + (AUTOREQ_TAB[a.from] || a.from) + ' → ' + (AUTOREQ_TAB[a.to] || a.to)) : ''; }
 // Alasan hold — dari holdScope yang persist (agar ledger yang sudah rilis tetap ada isinya).
 function holdAlasan(g) { var s = st(g.groupId); return s.holdScope || (s.request || {}).scope || null; }
 // §3: badge gabung pada settlement induk yang menyerap transaksi dibawah min norek sama.
@@ -164,7 +162,7 @@ function buildSeedPool() {
             state.updatedTs = uts;
             if (state.approvedTs === '__ts') state.approvedTs = uts;
             if (state.request && state.request.ts === '__ts') state.request.ts = uts;
-            if (state.notify && state.notify.ts === '__ts') state.notify.ts = uts;
+            if (state.autoReq && state.autoReq.ts === '__ts') state.autoReq.ts = uts;
             delete state.__changed;
         }
         for (var m = 0; m < midCount; m++) {
@@ -235,18 +233,18 @@ function buildSeedPool() {
     //    Akumulasi norek ≥ Rp10.000 → split berstatus "Siap Release"; saat base di-settle & approve → digabung.
     for (i = 0; i < 40; i++) addMergeCase();
     // 8) NOTIFIKASI APPROVER (contoh, ~5 tiap kasus): perpindahan data → notif read-only di tab Approver.
-    //    3 kasus: hold→checker (rilis), reject→checker (rilis), settle→hold (reject by bank).
+    //    3 kasus: hold→checker (rilis), reject→checker (rilis), settle→hold (reject by bank). Semua AUTO-APPROVE, persisten.
     for (i = 0; i < 5; i++) {
-        // (a) hold → checker via Rilis: sudah di Checker (released), Approver ter-notif.
+        // (a) hold → checker via Rilis: sudah di Checker (released), tercatat auto-approve di Approver.
         add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', everHeld: true, released: true, holdScope: 'all', holdReason: _pick(GEN_REASONS, _gi++), request: null,
-            notify: { kind: 'rilis', from: 'hold', to: 'checker', ts: '__ts' }, __changed: true });
-        // (b) reject → checker via Rilis: sudah di Checker, Approver ter-notif.
+            autoReq: { type: 'rilis', from: 'hold', to: 'checker', ts: '__ts' }, __changed: true });
+        // (b) reject → checker via Rilis: sudah di Checker, tercatat auto-approve di Approver.
         add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', released: true, request: null,
-            notify: { kind: 'rilis', from: 'reject', to: 'checker', ts: '__ts' }, __changed: true });
-        // (c) settle → hold via Reject by Bank: di Hold (status Reject by Bank), Approver ter-notif.
+            autoReq: { type: 'rilis', from: 'reject', to: 'checker', ts: '__ts' }, __changed: true });
+        // (c) settle → hold via Reject by Bank: di Hold (status Reject by Bank), tercatat auto-approve di Approver.
         add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'hold', everHeld: true, settleStatus: 'rejectbybank', holdScope: 'rejectbybank', holdReason: 'Reject by Bank: nomor rekening ditolak bank', approvedTs: '__ts', approvedBy: 'dion@paydia.id',
             request: { type: 'hold', scope: 'rejectbybank', prevStatus: 'settle', reason: 'Reject by Bank: nomor rekening ditolak bank', bukti: '', ts: '__ts' },
-            notify: { kind: 'rejectbybank', from: 'settle', to: 'hold', ts: '__ts' }, __changed: true });
+            autoReq: { type: 'rejectbybank', from: 'settle', to: 'hold', ts: '__ts' }, __changed: true });
     }
     return rows;
 }
@@ -261,7 +259,7 @@ function seedStatuses() {
             channel: ss.channel || '', bukti: '', settleStatus: ss.settleStatus || null,
             approvedTs: ss.approvedTs || null, approvedBy: ss.approvedBy || null,
             metodeSettlement: ss.metodeSettlement || null, everHeld: !!ss.everHeld,
-            updatedTs: ss.updatedTs || null, released: !!ss.released, notify: ss.notify || null,
+            updatedTs: ss.updatedTs || null, released: !!ss.released, autoReq: ss.autoReq || null,
             holdScope: ss.holdScope || null, holdReason: ss.holdReason || null };
     });
     saveItems();
@@ -365,8 +363,8 @@ function tabGroups(tab) {
         var s = st(g.groupId);
         // §3: baris yang sudah digabung ke settlement lain tidak tampil terpisah.
         if (s.mergedInto) return false;
-        // Approver menampilkan request pending + notifikasi perpindahan data (status non-pending).
-        if (tab === 'pending') { if (s.status !== 'pending' && !s.notify) return false; }
+        // Approver menampilkan request pending (manual) + request auto-approve (Rilis/Reject by Bank) yang persisten.
+        if (tab === 'pending') { if (s.status !== 'pending' && !s.autoReq) return false; }
         // §4.5 Hold = ledger permanen: semua yang pernah di-hold tetap tampil (walau sudah pindah tab).
         else if (tab === 'hold') { if (s.status !== 'hold' && !s.everHeld) return false; }
         else if (s.status !== tab) return false;
@@ -382,6 +380,10 @@ function tabGroups(tab) {
             if (f.req === 'holdmin' && !(rq.type === 'hold' && rq.scope === 'min')) return false;
             if (f.req === 'reject' && rq.type !== 'reject') return false;
             if (f.req === 'settle' && rq.type !== 'settle') return false;
+            if (f.req === 'rilis' && !(s.autoReq && s.autoReq.type === 'rilis')) return false;
+            if (f.req === 'rejectbybank' && !(s.autoReq && s.autoReq.type === 'rejectbybank')) return false;
+            // filter request manual biasa tidak boleh ikut menampilkan baris auto-approve
+            if (f.req !== 'rilis' && f.req !== 'rejectbybank' && s.autoReq) return false;
         }
         if (tab === 'hold') {
             if (f.holdAlasan && holdAlasan(g) !== f.holdAlasan) return false;
@@ -488,7 +490,7 @@ function renderCounts() {
     ['checker', 'pending', 'hold', 'reject', 'settle'].forEach(function (tab) {
         var id = tab === 'pending' ? 'cnt-approver' : 'cnt-' + tab;
         var el = document.getElementById(id);
-        if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.notify) : tab === 'hold' ? (s.status === 'hold' || s.everHeld) : s.status === tab; }).length;
+        if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.autoReq) : tab === 'hold' ? (s.status === 'hold' || s.everHeld) : s.status === tab; }).length;
     });
 }
 
@@ -568,8 +570,9 @@ function renderTable() {
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>';
         c += '<td>' + esc(g.namaRek) + accountBadge(g) + '</td>';
         if (activeTab === 'pending') {
-            if (s.notify) {
-                c += '<td><span class="as-req-badge" style="background:#0891b222;color:#0e7490;white-space:normal;display:inline-block;line-height:1.3;"><i class="fas fa-bell"></i> Notifikasi · ' + esc(notifyLabel(s.notify)) + '</span></td>';
+            if (s.autoReq) {
+                var acol = s.autoReq.type === 'rejectbybank' ? '#7c3aed' : '#0e7490';
+                c += '<td><span class="as-req-badge" style="background:' + acol + '22;color:' + acol + ';white-space:normal;display:inline-block;line-height:1.3;">' + esc(AUTOREQ_LABEL[s.autoReq.type] || s.autoReq.type) + '</span></td>';
             } else {
                 var rq = s.request || {};
                 var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309'));
@@ -627,8 +630,10 @@ function actionButtons(g) {
     // §4: saat Bulk Aksi aktif, tombol aksi single dinonaktifkan di semua kolom.
     var disabled = 'opacity:.4;pointer-events:none;cursor:not-allowed;';
     if (activeTab === 'pending') {
-        if (st(g.groupId).notify) {
-            return '<button class="as-notify-ack btn" data-id="' + g.groupId + '" ' + (bulkMode ? 'disabled' : '') + ' style="margin:0;background:#fff;color:var(--text-secondary);border:1px solid var(--border-color);font-size:0.78rem;font-weight:600;padding:6px 14px;' + (bulkMode ? disabled : '') + '">Tandai Dibaca</button>';
+        var ar = st(g.groupId).autoReq;
+        // Rilis ke Checker & Reject by Bank = auto-approve → tak ada tombol, hanya teks status perpindahan (data tetap ada).
+        if (ar) {
+            return '<span style="font-size:0.76rem;font-weight:600;color:#0e7490;white-space:nowrap;"><i class="fas fa-bolt" style="margin-right:5px;"></i>' + esc(autoReqText(ar)) + '</span>';
         }
         return '<button class="as-approval-btn btn" data-id="' + g.groupId + '" ' + (bulkMode ? 'disabled' : '') + ' style="margin:0;background:var(--primary);color:#fff;border:none;font-size:0.78rem;font-weight:600;padding:6px 14px;' + (bulkMode ? disabled : '') + '">Approval</button>';
     }
@@ -1238,7 +1243,7 @@ function openRejectByBankItem(g) {
             // §6.2: langsung ke Hold (tanpa approval), + notifikasi ke Approver (mirip Rilis ke Checker).
             s.status = 'hold'; s.settleStatus = 'rejectbybank'; s.everHeld = true; s.updatedTs = todayProc();
             s.request = { type: 'hold', scope: 'rejectbybank', prevStatus: 'settle', reason: reason, bukti: bk.name, ts: todayProc() };
-            s.notify = { kind: 'rejectbybank', from: 'settle', to: 'hold', ts: todayProc() };
+            s.autoReq = { type: 'rejectbybank', from: 'settle', to: 'hold', ts: todayProc() };
             saveItems(); closeModal(); render();
             showToast('Dipindah ke Hold', g.groupId + ' → Hold (Reject by Bank). Approver ter-notifikasi.');
             writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject by Bank ' + g.groupId + ' → pindah ke Hold (notifikasi Approver)\ncatatan : ' + reason + (bk.name ? '\nbukti : ' + bk.name : ''));
@@ -1636,7 +1641,7 @@ function openRilis(g) {
         { label: 'Rilis ke Checker', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var s = st(g.groupId); var from = s.status; // 'hold' atau 'reject'
             s.status = 'checker'; s.request = null; s.settleStatus = null; s.released = true;
-            s.notify = { kind: 'rilis', from: from, to: 'checker', ts: todayProc() }; // notif read-only ke Approver
+            s.autoReq = { type: 'rilis', from: from, to: 'checker', ts: todayProc() }; // auto-approve, tercatat persisten di Approver
             s.updatedTs = todayProc();
             saveItems(); closeModal(); render();
             showToast('Dirilis ke Checker', g.groupId + ' digabung ke settlement berjalan. Approver ter-notifikasi.');
@@ -1698,8 +1703,6 @@ function onTableClick(e) {
     if (d) { var g = groupById(d.dataset.id); if (g) showSettlementDetail(g); return; }
     var ap = e.target.closest('.as-approval-btn');
     if (ap) { var g3 = groupById(ap.dataset.id); if (g3) openApproverModal(g3); return; }
-    var nk = e.target.closest('.as-notify-ack');
-    if (nk) { var gn = groupById(nk.dataset.id); if (gn) { var gs = st(gn.groupId); var glbl = notifyLabel(gs.notify); gs.notify = null; saveItems(); render(); showToast('Notifikasi Dibaca', gn.groupId + ' — ' + glbl + ' sudah ditandai.'); } return; }
     var k = e.target.closest('.as-kebab');
     if (k) { var g2 = groupById(k.dataset.id); if (g2) openKebab(k, g2); return; }
 }
@@ -1819,7 +1822,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-08-approver-notif';
+    var SEED_VER = '2026-07-08-approver-autoreq';
     var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
     if (fresh) {
         localStorage.removeItem('paydia_as_items');

@@ -8,7 +8,13 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.11.0', date: '2026-07-08', deployed: true, title: 'Notifikasi perpindahan data ke Approver (read-only)', changes: [
+        { v: '1.12.0', date: '2026-07-08', deployed: true, title: 'Auto-approval request (Rilis ke Checker & Reject by Bank) di Approver — persisten', changes: [
+            'FIX FATAL: notifikasi "Tandai Dibaca" dihapus — dulu klik itu membuat baris hilang dari Approver. Sekarang data tidak bisa hilang',
+            'Tambah 2 jenis request auto-approve di tab Approver: "Rilis ke Checker" & "Reject by Bank" — muncul di kolom Request dan bisa difilter',
+            'Khusus 2 jenis ini, kolom Aksi berisi teks "Otomatis {tab asal} → {tab tujuan}" (mis. Otomatis Hold → Checker) — tanpa tombol',
+            'Rilis ke Checker & Reject by Bank bersifat auto-approval (tidak perlu approve manual); record-nya tetap tercatat permanen di Approver'
+        ] },
+        { v: '1.11.0', date: '2026-07-08', deployed: false, title: 'Notifikasi perpindahan data ke Approver (read-only)', changes: [
             'Tab Approver kini menerima notifikasi perpindahan data (read-only) untuk 3 kasus: hold→Checker (rilis), reject→Checker (rilis), dan settle→Hold (Reject by Bank)',
             'Baris notifikasi hanya bisa "Tandai Dibaca" — tidak ada aksi Approve/Reject (sifatnya pemberitahuan)',
             'Tab Reject aksinya jadi hanya "Rilis ke Checker" + "Lihat Bukti" (sama seperti tab Hold), bulk dimatikan',
