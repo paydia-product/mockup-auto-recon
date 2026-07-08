@@ -504,9 +504,11 @@ function renderSummary() {
     if (summaryPage > pages) summaryPage = pages;
     if (summaryPage < 1) summaryPage = 1;
     var pageBanks = banks.slice((summaryPage - 1) * SUMMARY_PER_PAGE, summaryPage * SUMMARY_PER_PAGE);
-    var body = pageBanks.map(function (b) {
+    var body = pageBanks.map(function (b, i) {
         var d = byBank[b], end = d.awal - d.admin + d.cbP - d.cbM;
+        var no = (summaryPage - 1) * SUMMARY_PER_PAGE + i + 1;
         return '<tr style="border-top:1px solid var(--border-color);">' +
+            '<td style="padding:7px 12px;color:var(--text-muted);">' + no + '</td>' +
             '<td style="padding:7px 12px;font-weight:600;">' + esc(b) + '</td>' +
             '<td style="' + tdR + 'color:var(--text-muted);">' + d.count + '</td>' +
             '<td style="' + tdR + '">' + num(d.awal) + '</td>' +
@@ -516,6 +518,7 @@ function renderSummary() {
             '<td style="' + tdR + 'font-weight:700;">' + num(end) + '</td></tr>';
     }).join('');
     var totalRow = '<tr style="border-top:2px solid #c7d2fe;background:#eef2ff;">' +
+        '<td style="padding:9px 12px;"></td>' +
         '<td style="padding:9px 12px;font-weight:800;color:#4f46e5;">Total Semua Bank</td>' +
         '<td style="' + tdR + 'font-weight:800;color:#4f46e5;">' + tCount + '</td>' +
         '<td style="' + tdR + 'font-weight:800;">' + num(tAwal) + '</td>' +
@@ -533,6 +536,7 @@ function renderSummary() {
     // §3: panel tetap tampil walau data kosong (isi kosong).
     var inner = banks.length
         ? '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.78rem;border-collapse:collapse;min-width:640px;"><thead><tr>' +
+            '<th style="padding:8px 12px;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-align:left;">No</th>' +
             '<th style="padding:8px 12px;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-align:left;">Bank Tujuan</th>' +
             '<th style="' + th + '">Rekening</th><th style="' + th + '">Nominal Awal (Rp)</th><th style="' + th + '">Admin (Rp)</th>' +
             '<th style="' + th + '">Chargeback (+) (Rp)</th><th style="' + th + '">Chargeback (−) (Rp)</th><th style="' + th + '">Nominal Ending (Rp)</th>' +

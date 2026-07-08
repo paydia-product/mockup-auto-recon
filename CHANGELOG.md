@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.15.2] — 2026-07-08
+### Added
+- **Kolom No** pada tabel **Ringkasan Nominal per Bank Tujuan** (nomor urut lanjut antar-halaman; baris Total dikosongkan).
+
 ## [1.15.1] — 2026-07-08
 ### Fixed
 - **Filter nominal berbasis Total Settle (Rp)**: filter `> Rp250.000.000` dulu keliru membandingkan **Nominal Awal** — sekarang semua filter nominal (`< Rp10.000`, range, `> Rp250jt`) memakai **Total Settle** (`totalOf`).

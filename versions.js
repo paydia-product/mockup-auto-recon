@@ -8,7 +8,10 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.15.1', date: '2026-07-08', deployed: true, title: 'Bugfix filter nominal (berbasis Total Settle + range Rp10.000–Rp250jt)', changes: [
+        { v: '1.15.2', date: '2026-07-08', deployed: true, title: 'Tabel Ringkasan per Bank: tambah kolom No', changes: [
+            'Kolom No ditambahkan di tabel Ringkasan Nominal per Bank Tujuan (nomor urut lanjut antar-halaman)'
+        ] },
+        { v: '1.15.1', date: '2026-07-08', deployed: false, title: 'Bugfix filter nominal (berbasis Total Settle + range Rp10.000–Rp250jt)', changes: [
             'Semua filter nominal kini berbasis Total Settle (Rp), termasuk filter > Rp250jt (dulu keliru pakai Nominal Awal)',
             'Range menengah diperbaiki jadi Rp10.000 – Rp250.000.000 (dulu keliru Rp10jt) — kini menampilkan ribuan data yang sebelumnya tersembunyi',
             'Ketiga filter nominal jadi partisi bersih: <Rp10.000 / Rp10.000–Rp250jt / >Rp250jt'
