@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.13.1] — 2026-07-08
+### Changed
+- **Header kolom nominal diberi label "(Rp)"** agar jelas satuannya rupiah — di tabel utama (semua tab): Nominal Awal, Admin, Adjustment Chargeback (+), Adjustment Chargeback (−), Total Settle; juga di tabel **Ringkasan per Bank** (termasuk Nominal Ending), tabel **detail settlement**, dan header **ekspor**. Kolom ekspor segregasi bank (`SEG_COLS`) sengaja tidak diubah karena mengikuti format file yang dikonsumsi bank.
+
 ## [1.13.0] — 2026-07-08
 ### Changed
 - **Filter multi-pilih**: filter **Tipe Request** (tab Approver) dan **Alasan** (tab Hold) diubah dari dropdown single-select menjadi **checklist** yang bisa memilih lebih dari satu nilai sekaligus (logika OR).

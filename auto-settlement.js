@@ -21,8 +21,8 @@ var SETTLE_STATUS_COLOR = { pending: '#b45309', success: '#16a34a', fail: '#dc26
 var PER_PAGE = 50;
 
 // Base columns shared by every tab (in order). Unit = settlement group (per norek).
-var BASE_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Settlement', 'Nominal Awal', 'Admin',
-    'Adjustment Chargeback (+)', 'Adjustment Chargeback (−)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
+var BASE_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Settlement', 'Nominal Awal (Rp)', 'Admin (Rp)',
+    'Adjustment Chargeback (+) (Rp)', 'Adjustment Chargeback (−) (Rp)', 'Total Settle (Rp)', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
 
 var STATUS_LABEL = { checker: 'Checker', pending: 'Approver', hold: 'Hold', reject: 'Reject', settle: 'Settle' };
 
@@ -455,8 +455,8 @@ function renderSummary() {
         '<span style="font-size:0.7rem;color:var(--text-muted);">Mengikuti filter aktif · ending = awal − admin + chargeback</span></div>' +
         '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.78rem;border-collapse:collapse;min-width:640px;"><thead><tr>' +
         '<th style="padding:8px 12px;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-align:left;">Bank Tujuan</th>' +
-        '<th style="' + th + '">Rekening</th><th style="' + th + '">Nominal Awal</th><th style="' + th + '">Admin</th>' +
-        '<th style="' + th + '">Chargeback (+)</th><th style="' + th + '">Chargeback (−)</th><th style="' + th + '">Nominal Ending</th>' +
+        '<th style="' + th + '">Rekening</th><th style="' + th + '">Nominal Awal (Rp)</th><th style="' + th + '">Admin (Rp)</th>' +
+        '<th style="' + th + '">Chargeback (+) (Rp)</th><th style="' + th + '">Chargeback (−) (Rp)</th><th style="' + th + '">Nominal Ending (Rp)</th>' +
         '</tr></thead><tbody>' + body + totalRow + '</tbody></table></div></div>';
 }
 
@@ -750,7 +750,7 @@ function detailBodyHTML(g) {
     var thR = thS + 'text-align:right;';
     var thC = thS + 'text-align:center;';
     var listHead = '<tr><th style="' + thS + '">No</th><th style="' + thS + '">Merchant</th><th style="' + thC + '">Jumlah Transaksi</th>' +
-        '<th style="' + thR + '">Nominal Settle (Rp)</th><th style="' + thR + '">Adjustment Chargeback (+)</th><th style="' + thR + '">Adjustment Chargeback (−)</th>' +
+        '<th style="' + thR + '">Nominal Settle (Rp)</th><th style="' + thR + '">Adjustment Chargeback (+) (Rp)</th><th style="' + thR + '">Adjustment Chargeback (−) (Rp)</th>' +
         '<th style="' + thS + '">Tipe Settlement</th></tr>';
     var wb = ' style="word-break:break-word;overflow-wrap:anywhere;"';
     var lines = midTipeSummary(g);
@@ -1337,7 +1337,7 @@ function openDetailModal(g) {
 }
 
 // ── export current tab ──
-var EXPORT_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Settlement', 'Nominal Awal', 'Admin', 'Adjustment Chargeback (+)', 'Adjustment Chargeback (-)', 'Total Settle', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
+var EXPORT_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Settlement', 'Nominal Awal (Rp)', 'Admin (Rp)', 'Adjustment Chargeback (+) (Rp)', 'Adjustment Chargeback (-) (Rp)', 'Total Settle (Rp)', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
 
 function exportCols() {
     if (activeTab === 'pending') return EXPORT_COLS.concat(['Request']);

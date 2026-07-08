@@ -8,7 +8,11 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.13.0', date: '2026-07-08', deployed: true, title: 'Filter multi-pilih (Tipe Request & Alasan) + rapikan lebar tabel', changes: [
+        { v: '1.13.1', date: '2026-07-08', deployed: true, title: 'Tambah label "(Rp)" pada header kolom nominal', changes: [
+            'Header kolom uang diberi "(Rp)": Nominal Awal, Admin, Adjustment Chargeback (+)/(−), Total Settle di tabel utama semua tab',
+            'Juga di tabel Ringkasan per Bank (termasuk Nominal Ending), tabel detail settlement, dan header ekspor'
+        ] },
+        { v: '1.13.0', date: '2026-07-08', deployed: false, title: 'Filter multi-pilih (Tipe Request & Alasan) + rapikan lebar tabel', changes: [
             'Filter "Tipe Request" (tab Approver) & "Alasan" (tab Hold) diubah dari dropdown jadi checklist — bisa pilih lebih dari satu (OR)',
             'Wording "Request" diganti jadi "Tipe Request"',
             'Kolom Aksi (teks Otomatis ... → ...) kini membungkus rapi sehingga tabel Approver muat tanpa scroll ke samping'
