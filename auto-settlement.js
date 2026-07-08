@@ -82,6 +82,13 @@ function holdStatusChip(g) {
     var m = { belum: ['#b4530922', '#b45309'], siap: ['#16a34a22', '#15803d'], released: ['#0891b222', '#0e7490'] }[k];
     return '<span style="font-size:0.68rem;font-weight:700;border-radius:5px;padding:2px 8px;white-space:nowrap;background:' + m[0] + ';color:' + m[1] + ';">' + HOLD_STATUS_LABEL[k] + '</span>';
 }
+// Notifikasi perpindahan data ke Approver (read-only). Label dinamis per-kasus (rilis hold/reject → checker, reject by bank settle → hold).
+function notifyLabel(nt) {
+    if (!nt) return '';
+    var L = { checker: 'Checker', hold: 'Hold', reject: 'Reject', settle: 'Settle' };
+    var kind = nt.kind === 'rejectbybank' ? 'Reject by Bank' : (nt.kind === 'rilis' ? 'Rilis ke Checker' : (nt.kind || ''));
+    return (L[nt.from] || nt.from) + ' → ' + (L[nt.to] || nt.to) + (kind ? ' · ' + kind : '');
+}
 // Alasan hold — dari holdScope yang persist (agar ledger yang sudah rilis tetap ada isinya).
 function holdAlasan(g) { var s = st(g.groupId); return s.holdScope || (s.request || {}).scope || null; }
 // §3: badge gabung pada settlement induk yang menyerap transaksi dibawah min norek sama.
@@ -157,6 +164,7 @@ function buildSeedPool() {
             state.updatedTs = uts;
             if (state.approvedTs === '__ts') state.approvedTs = uts;
             if (state.request && state.request.ts === '__ts') state.request.ts = uts;
+            if (state.notify && state.notify.ts === '__ts') state.notify.ts = uts;
             delete state.__changed;
         }
         for (var m = 0; m < midCount; m++) {
@@ -226,6 +234,20 @@ function buildSeedPool() {
     // 7) CASE GABUNG (~40): 1 norek+bank = base (checker ≥10k) + split hold Dibawah Min (<10k) via splits.
     //    Akumulasi norek ≥ Rp10.000 → split berstatus "Siap Release"; saat base di-settle & approve → digabung.
     for (i = 0; i < 40; i++) addMergeCase();
+    // 8) NOTIFIKASI APPROVER (contoh, ~5 tiap kasus): perpindahan data → notif read-only di tab Approver.
+    //    3 kasus: hold→checker (rilis), reject→checker (rilis), settle→hold (reject by bank).
+    for (i = 0; i < 5; i++) {
+        // (a) hold → checker via Rilis: sudah di Checker (released), Approver ter-notif.
+        add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', everHeld: true, released: true, holdScope: 'all', holdReason: _pick(GEN_REASONS, _gi++), request: null,
+            notify: { kind: 'rilis', from: 'hold', to: 'checker', ts: '__ts' }, __changed: true });
+        // (b) reject → checker via Rilis: sudah di Checker, Approver ter-notif.
+        add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', released: true, request: null,
+            notify: { kind: 'rilis', from: 'reject', to: 'checker', ts: '__ts' }, __changed: true });
+        // (c) settle → hold via Reject by Bank: di Hold (status Reject by Bank), Approver ter-notif.
+        add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'hold', everHeld: true, settleStatus: 'rejectbybank', holdScope: 'rejectbybank', holdReason: 'Reject by Bank: nomor rekening ditolak bank', approvedTs: '__ts', approvedBy: 'dion@paydia.id',
+            request: { type: 'hold', scope: 'rejectbybank', prevStatus: 'settle', reason: 'Reject by Bank: nomor rekening ditolak bank', bukti: '', ts: '__ts' },
+            notify: { kind: 'rejectbybank', from: 'settle', to: 'hold', ts: '__ts' }, __changed: true });
+    }
     return rows;
 }
 function norekSafe(i) { return String(1000 + i); }
@@ -439,7 +461,7 @@ function renderAccumSticky() {
     if (!(n > 0 && activeTab === 'checker')) { el.style.display = 'none'; el.innerHTML = ''; return; }
     el.style.cssText = 'position:sticky;top:0;z-index:20;margin-bottom:12px;background:#ecfdf5;border:1px solid #16a34a;border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;';
     el.innerHTML = '<i class="fas fa-circle-check" style="color:#16a34a;"></i>' +
-        '<div style="font-size:0.82rem;color:#065f46;line-height:1.4;"><b>Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis.</b> Nominal norek-nya sudah memenuhi minimum transaksi (≥ Rp10.000) — buka tab Hold, lalu rilis ke Checker.</div>';
+        '<div style="font-size:0.82rem;color:#065f46;line-height:1.4;"><b>Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis</b> — buka tab Hold, lalu rilis ke Checker.</div>';
     el.style.display = 'flex';
 }
 
@@ -487,8 +509,8 @@ function renderTable() {
     var thead = document.getElementById('asThead');
     var tbody = document.getElementById('asTableBody');
     var cols = columnsFor(activeTab);
-    // Bulk mode: Checker / Reject / Approver. Hold & Settle tanpa bulk.
-    var hasCb = (activeTab === 'checker' || activeTab === 'reject' || activeTab === 'pending') && bulkMode;
+    // Bulk mode: Checker / Approver. Hold & Reject & Settle tanpa bulk (per-baris saja).
+    var hasCb = (activeTab === 'checker' || activeTab === 'pending') && bulkMode;
     var headHtml = '<tr>';
     if (hasCb) headHtml += '<th style="width:38px;text-align:center;"><input type="checkbox" id="asSelectAll"></th>';
     cols.forEach(function (c) {
@@ -547,7 +569,7 @@ function renderTable() {
         c += '<td>' + esc(g.namaRek) + accountBadge(g) + '</td>';
         if (activeTab === 'pending') {
             if (s.notify) {
-                c += '<td><span class="as-req-badge" style="background:#0891b222;color:#0e7490;white-space:normal;display:inline-block;line-height:1.3;"><i class="fas fa-bell"></i> Notifikasi · Reject by Bank → Hold</span></td>';
+                c += '<td><span class="as-req-badge" style="background:#0891b222;color:#0e7490;white-space:normal;display:inline-block;line-height:1.3;"><i class="fas fa-bell"></i> Notifikasi · ' + esc(notifyLabel(s.notify)) + '</span></td>';
             } else {
                 var rq = s.request || {};
                 var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309'));
@@ -591,7 +613,8 @@ function actionMenuItems(g) {
     if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
     // §4.5 Hold ledger: baris aktif bisa dirilis; baris yang sudah diproses (pindah tab) view-only.
     if (activeTab === 'hold') return (st(g.groupId).status === 'hold') ? [['rilis', 'Rilis ke Checker'], ['catatan', 'Lihat Bukti']] : [['catatan', 'Lihat Bukti']];
-    if (activeTab === 'reject') return [['hold', 'Hold'], ['settle', 'Settle'], ['catatan', 'Lihat Bukti']];
+    // Tab Reject sama seperti Hold: hanya bisa Rilis ke Checker + Lihat Bukti (rilis kirim notif ke Approver).
+    if (activeTab === 'reject') return [['rilis', 'Rilis ke Checker'], ['catatan', 'Lihat Bukti']];
     if (activeTab === 'settle') {
         var acts = [['detail', 'Lihat Detail']];
         // Reject by Bank hanya tersedia untuk item dengan Metode Settlement = Manual.
@@ -630,8 +653,8 @@ function renderToolbarActions() {
     var box = document.getElementById('asTabActions');
     box.innerHTML = '';
     var bulkBtn = '<button class="btn" id="asBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-check-double"></i> ' + (bulkMode ? 'Tutup Bulk Aksi' : 'Bulk Aksi') + '</button>';
-    // §2: tab Hold tanpa bulk — hanya rilis ke Checker per baris.
-    if (activeTab === 'checker' || activeTab === 'reject' || activeTab === 'pending') {
+    // §2: tab Hold & Reject tanpa bulk — hanya rilis ke Checker per baris.
+    if (activeTab === 'checker' || activeTab === 'pending') {
         box.innerHTML = bulkBtn;
         // §7: Approver — toggle simulasi 2FA salah.
         if (activeTab === 'pending') {
@@ -658,13 +681,13 @@ function renderToolbarActions() {
 
 function renderBulkBar() {
     var bar = document.getElementById('asBulkBar');
-    var bulkTabs = ['checker', 'reject', 'pending'];
+    var bulkTabs = ['checker', 'pending'];
     if (bulkTabs.indexOf(activeTab) === -1 || !bulkMode) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     document.getElementById('asBulkCount').textContent = selected.size;
     var show = selected.size > 0;
     // §1.6/§5.3: aksi bulk per tab. Approver (pending): Approve/Reject (2FA).
-    var avail = { checker: ['hold', 'reject', 'settle'], reject: ['hold', 'settle'], pending: ['approve', 'rejectreq'] }[activeTab] || [];
+    var avail = { checker: ['hold', 'reject', 'settle'], pending: ['approve', 'rejectreq'] }[activeTab] || [];
     var setBtn = function (id, act) { document.getElementById(id).style.display = (show && avail.indexOf(act) >= 0) ? 'inline-flex' : 'none'; };
     setBtn('asBulkApprove', 'approve');
     setBtn('asBulkRejectReq', 'rejectreq');
@@ -1611,10 +1634,13 @@ function openRilis(g) {
     openModal('Rilis ke Checker', body, [
         { label: 'Tetap Hold', onClick: closeModal },
         { label: 'Rilis ke Checker', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
-            var s = st(g.groupId); s.status = 'checker'; s.request = null; s.settleStatus = null; s.released = true;
+            var s = st(g.groupId); var from = s.status; // 'hold' atau 'reject'
+            s.status = 'checker'; s.request = null; s.settleStatus = null; s.released = true;
+            s.notify = { kind: 'rilis', from: from, to: 'checker', ts: todayProc() }; // notif read-only ke Approver
+            s.updatedTs = todayProc();
             saveItems(); closeModal(); render();
-            showToast('Dirilis ke Checker', g.groupId + ' digabung ke settlement berjalan.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Rilis hold ke Checker ' + g.groupId);
+            showToast('Dirilis ke Checker', g.groupId + ' digabung ke settlement berjalan. Approver ter-notifikasi.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Rilis ' + from + ' ke Checker ' + g.groupId + ' (notifikasi Approver)');
         } }
     ]);
 }
@@ -1673,7 +1699,7 @@ function onTableClick(e) {
     var ap = e.target.closest('.as-approval-btn');
     if (ap) { var g3 = groupById(ap.dataset.id); if (g3) openApproverModal(g3); return; }
     var nk = e.target.closest('.as-notify-ack');
-    if (nk) { var gn = groupById(nk.dataset.id); if (gn) { st(gn.groupId).notify = null; saveItems(); render(); showToast('Notifikasi Dibaca', gn.groupId + ' — perpindahan ke Hold sudah ditandai.'); } return; }
+    if (nk) { var gn = groupById(nk.dataset.id); if (gn) { var gs = st(gn.groupId); var glbl = notifyLabel(gs.notify); gs.notify = null; saveItems(); render(); showToast('Notifikasi Dibaca', gn.groupId + ' — ' + glbl + ' sudah ditandai.'); } return; }
     var k = e.target.closest('.as-kebab');
     if (k) { var g2 = groupById(k.dataset.id); if (g2) openKebab(k, g2); return; }
 }
@@ -1793,7 +1819,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-07-stress-1k-c';
+    var SEED_VER = '2026-07-08-approver-notif';
     var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
     if (fresh) {
         localStorage.removeItem('paydia_as_items');

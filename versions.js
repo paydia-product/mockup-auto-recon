@@ -8,7 +8,16 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.10.1', date: '2026-07-07', deployed: true, title: 'Sticky message pindah ke tab Checker', changes: [
+        { v: '1.11.0', date: '2026-07-08', deployed: true, title: 'Notifikasi perpindahan data ke Approver (read-only)', changes: [
+            'Tab Approver kini menerima notifikasi perpindahan data (read-only) untuk 3 kasus: hold→Checker (rilis), reject→Checker (rilis), dan settle→Hold (Reject by Bank)',
+            'Baris notifikasi hanya bisa "Tandai Dibaca" — tidak ada aksi Approve/Reject (sifatnya pemberitahuan)',
+            'Tab Reject aksinya jadi hanya "Rilis ke Checker" + "Lihat Bukti" (sama seperti tab Hold), bulk dimatikan',
+            'Rilis dari Hold/Reject ke Checker kini mengirim notifikasi ke Approver',
+            'Label badge notifikasi jadi dinamis (arah from→to + jenis)',
+            'Seed data: ditambah 5 contoh tiap kasus notifikasi agar tampil di tab Approver',
+            'Sticky message tab Checker dipersingkat'
+        ] },
+        { v: '1.10.1', date: '2026-07-07', deployed: false, title: 'Sticky message pindah ke tab Checker', changes: [
             'Pesan "Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis" dipindah ke tab Checker, di bawah tombol filter'
         ] },
         { v: '1.10.0', date: '2026-07-07', deployed: false, title: 'Filter hold, pecah & gabung saat approve, search versi', changes: [

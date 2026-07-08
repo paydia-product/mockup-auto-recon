@@ -4,7 +4,7 @@
     {
       "name": "ar-mockup",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "/Users/dionscholus/Documents/paydia auto recon mockup", "--no-port-switching"],
+      "runtimeArgs": ["serve", "/Users/dionscholus/Documents/claude/Paydia/paydia auto recon mockup", "--no-port-switching"],
       "port": 3000,
       "autoPort": true
     }

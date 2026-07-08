@@ -7,6 +7,16 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.11.0] — 2026-07-08
+### Added
+- **Notifikasi perpindahan data ke Approver** (read-only): tab Approver kini menampilkan notifikasi untuk 3 kasus perpindahan status — **hold → Checker** (rilis), **reject → Checker** (rilis), dan **settle → Hold** (Reject by Bank). Baris notifikasi **hanya bisa "Tandai Dibaca"**, tanpa aksi Approve/Reject (sifatnya pemberitahuan ke Approver).
+- **Seed contoh notifikasi**: 5 contoh tiap kasus (15 total) agar langsung tampil di tab Approver.
+### Changed
+- **Tab Reject** aksinya kini **hanya "Rilis ke Checker" + "Lihat Bukti"** (sama seperti tab Hold); bulk aksi dimatikan di tab Reject.
+- **Rilis ke Checker** (dari Hold maupun Reject) kini **mengirim notifikasi ke Approver**.
+- **Label badge notifikasi** jadi **dinamis** (arah `from → to` + jenis), menggantikan teks hardcode "Reject by Bank → Hold".
+- **Sticky message** tab Checker dipersingkat: "Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis — buka tab Hold, lalu rilis ke Checker."
+
 ## [1.10.1] — 2026-07-07
 ### Changed
 - **Sticky message** "Beberapa Settlement Hold Dibawah Min. Transaksi sudah bisa dirilis…" dipindah dari tab Hold ke tab **Checker** (di bawah tombol Filter/Export/Bulk/Search), sesuai koreksi.
