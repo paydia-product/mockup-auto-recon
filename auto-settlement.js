@@ -119,6 +119,12 @@ function holdStatusChip(g) {
 var AUTOREQ_LABEL = { rilis: 'Rilis ke Checker', rejectbybank: 'Reject by Bank' };
 var AUTOREQ_TAB = { checker: 'Checker', hold: 'Hold', reject: 'Reject', settle: 'Settle', pending: 'Approver' };
 function autoReqText(a) { return a ? ('Otomatis ' + (AUTOREQ_TAB[a.from] || a.from) + ' → ' + (AUTOREQ_TAB[a.to] || a.to)) : ''; }
+// Label MID yang dihold (Hold Partial). Bila per-nominal, tampilkan jumlah yang dihold tiap MID.
+function partialMidsLabel(rq) {
+    return (rq.partialMids || []).map(function (m) {
+        return (rq.holdAmounts && rq.holdAmounts[m] != null) ? (m + ' (Rp ' + num(rq.holdAmounts[m]) + ')') : m;
+    }).join(', ');
+}
 // Alasan hold — dari holdScope yang persist (agar ledger yang sudah rilis tetap ada isinya).
 function holdAlasan(g) { var s = st(g.groupId); return s.holdScope || (s.request || {}).scope || null; }
 // §3: badge gabung pada settlement induk yang menyerap transaksi dibawah min norek sama.
@@ -383,14 +389,34 @@ function buildGroups() {
         var txns = byKey[k];
         var bank = txns[0].bankCode, norek = txns[0].bankAccount;
         var mySplits = splits.filter(function (s) { return s.norek === norek && (s.bank || bank) === bank; });
-        var heldMids = {};
+        var heldMids = {}, remainder = 0;
         mySplits.forEach(function (sp) {
             var stx = txns.filter(function (t) { return sp.mids.indexOf(t.mid) >= 0; });
-            if (stx.length) { groups.push(makeGroup(sp.id, norek, stx)); }
+            if (stx.length) {
+                var gg = makeGroup(sp.id, norek, stx);
+                // Hold Partial per-nominal: group hanya menampilkan dana yang dihold; sisa MID balik ke Checker.
+                if (sp.holdAmounts) {
+                    var held = 0;
+                    sp.mids.forEach(function (m) {
+                        var full = stx.reduce(function (a, t) { return a + (t.mid === m ? t.nominalSettle : 0); }, 0);
+                        var h = (sp.holdAmounts[m] != null) ? sp.holdAmounts[m] : full;
+                        held += h; remainder += (full - h);
+                    });
+                    gg.nominalAwal = held; gg.adjPlus = 0; gg.adjMinus = 0;
+                }
+                groups.push(gg);
+            }
             sp.mids.forEach(function (m) { heldMids[m] = true; });
         });
         var baseTx = txns.filter(function (t) { return !heldMids[t.mid]; });
-        if (baseTx.length) { groups.push(makeGroup(baseIdFor(bank, norek), norek, baseTx)); }
+        if (baseTx.length) {
+            var bg = makeGroup(baseIdFor(bank, norek), norek, baseTx);
+            bg.nominalAwal += remainder; // sisa dana partial-hold tetap di Checker
+            groups.push(bg);
+        } else if (remainder > 0) {
+            var meta = txns[0];
+            groups.push(makeGroup(baseIdFor(bank, norek), norek, [{ txId: 'TX-' + norek + '-sisa', mid: '(sisa)', merchantName: 'Sisa dana (partial hold)', bankCode: bank, bankAccount: norek, bankAccountName: meta.bankAccountName, nominalSettle: remainder, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: meta.procISO, procDisplay: meta.procDisplay }]));
+        }
     });
     groups.forEach(function (g) {
         var s = st(g.groupId);
@@ -932,8 +958,14 @@ function openHold(g) {
         '<label style="font-weight:500;display:block;"><input type="radio" name="asHoldScope" value="all" checked> Hold Semua</label>' +
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="partial"> Hold Partial (pilih MID)</label>' +
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="min"> Hold Dibawah Min. Transaksi <span style="font-weight:400;color:var(--text-muted);">(hold seluruh settlement norek ini)</span></label></div>' +
-        '<div class="as-fld" id="asPartialWrap" style="display:none;"><label>Pilih MID yang dihold <span style="font-weight:400;color:var(--text-muted);">(seluruh transaksi MID terpilih akan dihold)</span></label><div class="as-partial-list" id="asPartialList">' +
-        midSummary(g).map(function (m, i) { return '<label><input type="checkbox" class="as-pp" value="' + esc(m.mid) + '" ' + (i === 0 ? 'checked' : '') + '> ' + esc(m.merchant) + ' · ' + esc(m.mid) + ' · ' + m.count + ' transaksi · ' + rupiah(m.total) + '</label>'; }).join('') +
+        '<div class="as-fld" id="asPartialWrap" style="display:none;"><label>Pilih MID & nominal yang dihold <span style="font-weight:400;color:var(--text-muted);">(kosongkan nominal = hold seluruh dana MID)</span></label><div class="as-partial-list" id="asPartialList">' +
+        midSummary(g).map(function (m, i) {
+            var maxHold = m.total - 1;
+            return '<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;">' +
+                '<label style="display:flex;align-items:flex-start;gap:8px;font-weight:500;font-size:0.82rem;"><input type="checkbox" class="as-pp" value="' + esc(m.mid) + '" data-total="' + m.total + '" ' + (i === 0 ? 'checked' : '') + '> <span>' + esc(m.merchant) + ' · ' + esc(m.mid) + ' · ' + m.count + ' transaksi · <b>' + rupiah(m.total) + '</b></span></label>' +
+                '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 0 24px;font-size:0.78rem;color:var(--text-secondary);">Hold Rp <input type="number" class="as-pp-amt" data-mid="' + esc(m.mid) + '" min="1" max="' + maxHold + '" placeholder="penuh" style="width:130px;padding:5px 8px;border:1px solid var(--border-color);border-radius:6px;font-size:0.8rem;"> <span style="font-size:0.72rem;">maks ' + rupiah(maxHold) + ' · kosong = penuh</span></div>' +
+                '</div>';
+        }).join('') +
         '</div></div>' + noteField(true) + fileField('(opsional — maks 25 MB, PDF/JPG/JPEG/PNG, bisa menyusul di tab Hold)');
     openModal('Hold Settlement', body, [
         { label: 'Batal', onClick: closeModal },
@@ -947,10 +979,25 @@ function submitHold(g) {
     var scope = document.querySelector('input[name=asHoldScope]:checked').value;
     var reason = document.getElementById('asReason').value.trim();
     if (!reason) { showToast('Catatan Wajib', 'Isi catatan hold.'); return; }
-    var picked = null;
+    var picked = null, holdAmounts = null;
     if (scope === 'partial') {
-        picked = Array.from(document.querySelectorAll('.as-pp:checked')).map(function (c) { return c.value; });
+        var boxes = Array.from(document.querySelectorAll('.as-pp:checked'));
+        picked = boxes.map(function (c) { return c.value; });
         if (!picked.length) { showToast('Pilih MID', 'Pilih minimal satu MID untuk hold partial.'); return; }
+        // Nominal hold per MID: kosong = hold penuh; isi = partial (Rp1 … total−1).
+        var amts = {}, anyPartial = false, bad = null;
+        boxes.forEach(function (cb) {
+            if (bad) return;
+            var mid = cb.value, total = +cb.getAttribute('data-total');
+            var amtEl = document.querySelector('.as-pp-amt[data-mid="' + mid + '"]');
+            var raw = (amtEl && amtEl.value || '').trim();
+            if (raw === '') { amts[mid] = total; return; } // hold seluruh dana MID
+            var n = Math.floor(Number(raw));
+            if (!(n >= 1 && n <= total - 1)) { bad = { mid: mid, total: total }; return; }
+            amts[mid] = n; anyPartial = true;
+        });
+        if (bad) { showToast('Nominal Hold Tidak Valid', 'Nominal hold ' + bad.mid + ' harus Rp1 – ' + rupiah(bad.total - 1) + ', atau kosongkan untuk hold seluruh dana MID.'); return; }
+        holdAmounts = anyPartial ? amts : null;
     }
     var bk = validateBukti(null); // §3.2: bukti opsional semua jenis hold (boleh menyusul di tab Hold).
     if (!bk) return;
@@ -958,9 +1005,9 @@ function submitHold(g) {
         // Pecah: MID yang dihold jadi settlement baru terpisah; sisa MID tetap di Checker.
         var seq = splits.filter(function (x) { return x.norek === g.norek && (x.bank || g.bank) === g.bank; }).length + 1;
         var splitId = g.groupId + '-P' + seq;
-        splits.push({ id: splitId, norek: g.norek, bank: g.bank, mids: picked, createdTs: todayProc() });
+        splits.push({ id: splitId, norek: g.norek, bank: g.bank, mids: picked, holdAmounts: holdAmounts, createdTs: todayProc() });
         items[splitId] = { status: 'pending', adjPlus: 0, adjMinus: 0, note: '', channel: '', bukti: '', settleStatus: null, approvedTs: null, approvedBy: null, metodeSettlement: null,
-            request: { type: 'hold', scope: 'partial', partialMids: picked, prevStatus: 'checker', reason: reason, bukti: bk.name, ts: todayProc() } };
+            request: { type: 'hold', scope: 'partial', partialMids: picked, holdAmounts: holdAmounts, prevStatus: 'checker', reason: reason, bukti: bk.name, ts: todayProc() } };
         saveSplits(); buildGroups(); closeModal(); render();
         showToast('Hold Partial Diajukan', 'Dibuat settlement baru ' + splitId + ' (' + picked.length + ' MID) menunggu approval. Sisa MID tetap di Checker.');
         writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Hold Partial (' + picked.join(', ') + ') dari ' + g.groupId + ' → settlement baru ' + splitId);
@@ -1211,7 +1258,7 @@ function openApproverModal(g) {
         : '<span style="color:var(--text-muted);">tidak ada</span>';
     var reqSection = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Detail Request</div>' +
         kv('Tipe Request', esc(reqLabel)) +
-        (rq.type === 'hold' && rq.scope === 'partial' && rq.partialMids ? kv('MID Dihold', esc(rq.partialMids.join(', '))) : '') +
+        (rq.type === 'hold' && rq.scope === 'partial' && rq.partialMids ? kv('MID Dihold', esc(partialMidsLabel(rq))) : '') +
         kv('Status Sebelumnya', esc(STATUS_LABEL[rq.prevStatus] || 'Checker')) +
         (rq.metodeSettlement ? kv('Metode Settlement', esc(rq.metodeSettlement)) : '') +
         kv('Channel Payment', esc(rq.channel || '-')) + kv('Metode Transfer', esc(rq.metode || '-')) +
@@ -1774,7 +1821,7 @@ function openCatatanModal(g) {
     var reqLine = (activeTab === 'hold') ? kv('Alasan', esc(reqLbl)) : '';
     var body = kv('ID Settlement', '<span style="font-family:monospace;">' + esc(g.groupId) + '</span>') +
         reqLine +
-        (rq.type === 'hold' && rq.scope === 'partial' && rq.partialMids ? kv('MID Dihold', esc(rq.partialMids.join(', '))) : '') +
+        (rq.type === 'hold' && rq.scope === 'partial' && rq.partialMids ? kv('MID Dihold', esc(partialMidsLabel(rq))) : '') +
         kv('Catatan', rq.reason ? '<span style="white-space:pre-wrap;">' + esc(rq.reason) + '</span>' : '<span style="color:var(--text-muted);">-</span>') +
         kv('Bukti', buktiVal) +
         kv('Waktu Diajukan', esc(rq.ts || '-')) +

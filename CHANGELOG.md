@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.16.0] — 2026-07-08
+### Added
+- **Hold Partial — nominal hold per MID**: selain memilih MID (checklist), user kini bisa **mengisi nominal yang dihold per MID**. Validasi **min Rp1** dan **maks (dana MID − Rp1)**; **mengosongkan** input = **hold seluruh dana MID**. Dana yang dihold masuk ke settlement baru (menunggu approval), **sisa dana MID tetap di Checker** sehingga nominal rekonsiliasi.
+
 ## [1.15.2] — 2026-07-08
 ### Added
 - **Kolom No** pada tabel **Ringkasan Nominal per Bank Tujuan** (nomor urut lanjut antar-halaman; baris Total dikosongkan).
