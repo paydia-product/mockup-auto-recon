@@ -8,7 +8,11 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.17.0', date: '2026-07-08', deployed: true, title: 'Hold Partial: kunci data menunggu approval + rekonsiliasi setelah approve', changes: [
+        { v: '1.17.1', date: '2026-07-08', deployed: true, title: 'Hold Partial: transaksi dispute/chargeback tetap di base', changes: [
+            'Transaksi dispute/chargeback tidak bisa dihold — chargeback tetap tinggal di settlement Checker (base)',
+            'Yang dihold hanya dana settle; sisa dana + seluruh chargeback tetap di base (rekonsiliasi benar)'
+        ] },
+        { v: '1.17.0', date: '2026-07-08', deployed: false, title: 'Hold Partial: kunci data menunggu approval + rekonsiliasi setelah approve', changes: [
             'Settlement yang diajukan Hold Partial DIKUNCI di Checker (aksi hold/reject/settle → "Data di lock menunggu approval")',
             'Sebelum approve: detail & nominal settlement tetap utuh; hanya setelah approve nominal norek berkurang sesuai hold partial',
             'Detail settlement tidak lagi menampilkan "Sisa dana (partial hold)/(sisa)" — nama & MID asli tetap tampil (nominal berkurang)',

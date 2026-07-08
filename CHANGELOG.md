@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.17.1] — 2026-07-08
+### Fixed
+- **Hold Partial — transaksi dispute/chargeback tetap di base**: transaksi dispute tidak bisa dihold, jadi **chargeback tetap tinggal di settlement Checker (base)**, tidak ikut dihold dan tidak hilang. Yang dihold hanya **dana settle**; sisa dana settle + seluruh transaksi chargeback tetap di base (nominal rekonsiliasi benar).
+
 ## [1.17.0] — 2026-07-08
 ### Fixed
 - **Hold Partial — lock menunggu approval**: settlement yang sudah diajukan Hold Partial kini **dikunci di Checker**. Klik aksi **hold/reject/settle** pada data terkunci menampilkan **"Data di lock menunggu approval"**.
