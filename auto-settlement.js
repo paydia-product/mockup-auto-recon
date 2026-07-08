@@ -962,8 +962,9 @@ function openHold(g) {
         midSummary(g).map(function (m, i) {
             var maxHold = m.total - 1;
             return '<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;">' +
-                '<label style="display:flex;align-items:flex-start;gap:8px;font-weight:500;font-size:0.82rem;"><input type="checkbox" class="as-pp" value="' + esc(m.mid) + '" data-total="' + m.total + '" ' + (i === 0 ? 'checked' : '') + '> <span>' + esc(m.merchant) + ' · ' + esc(m.mid) + ' · ' + m.count + ' transaksi · <b>' + rupiah(m.total) + '</b></span></label>' +
+                '<label style="display:flex;align-items:flex-start;gap:8px;font-weight:500;font-size:0.82rem;"><input type="checkbox" class="as-pp" value="' + esc(m.mid) + '" data-total="' + m.total + '" ' + (i === 0 ? 'checked' : '') + '> <span>' + esc(m.merchant) + ' · ' + esc(m.mid) + ' · <b>' + rupiah(m.total) + '</b></span></label>' +
                 '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 0 24px;font-size:0.78rem;color:var(--text-secondary);">Hold Rp <input type="number" class="as-pp-amt" data-mid="' + esc(m.mid) + '" min="1" max="' + maxHold + '" placeholder="penuh" style="width:130px;padding:5px 8px;border:1px solid var(--border-color);border-radius:6px;font-size:0.8rem;"> <span style="font-size:0.72rem;">maks ' + rupiah(maxHold) + ' · kosong = penuh</span></div>' +
+                '<div class="as-pp-err" data-mid="' + esc(m.mid) + '" style="display:none;color:#dc2626;font-size:0.72rem;margin:4px 0 0 24px;"></div>' +
                 '</div>';
         }).join('') +
         '</div></div>' + noteField(true) + fileField('(opsional — maks 25 MB, PDF/JPG/JPEG/PNG, bisa menyusul di tab Hold)');
@@ -974,6 +975,24 @@ function openHold(g) {
     document.querySelectorAll('input[name=asHoldScope]').forEach(function (rb) {
         rb.addEventListener('change', function () { document.getElementById('asPartialWrap').style.display = (this.value === 'partial') ? 'block' : 'none'; });
     });
+    document.querySelectorAll('.as-pp-amt').forEach(function (el) {
+        el.addEventListener('input', function () { validatePartialAmt(el); });
+    });
+}
+// Validasi inline nominal Hold Partial (real-time). Kosong = penuh (valid). Return true bila valid.
+function validatePartialAmt(el) {
+    var max = +el.getAttribute('max');
+    var errEl = document.querySelector('.as-pp-err[data-mid="' + el.getAttribute('data-mid') + '"]');
+    var raw = (el.value || '').trim();
+    var msg = '';
+    if (raw !== '') {
+        var n = Number(raw);
+        if (isNaN(n) || n < 1) msg = 'Minimal Rp1.';
+        else if (n > max) msg = 'Maksimal Rp' + num(max) + ' (kosongkan untuk hold seluruh dana MID).';
+    }
+    el.style.borderColor = msg ? '#dc2626' : 'var(--border-color)';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = msg ? 'block' : 'none'; }
+    return !msg;
 }
 function submitHold(g) {
     var scope = document.querySelector('input[name=asHoldScope]:checked').value;

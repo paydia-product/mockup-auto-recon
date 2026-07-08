@@ -7,6 +7,11 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.16.1] — 2026-07-08
+### Changed
+- **Hold Partial — baris MID**: hilangkan teks jumlah transaksi (mis. "· 1 transaksi") pada tiap baris MID.
+- **Hold Partial — validasi nominal inline**: pesan error nominal per MID kini muncul **real-time saat mengetik** (di bawah input, border merah), tidak perlu klik **Ajukan Hold** dulu.
+
 ## [1.16.0] — 2026-07-08
 ### Added
 - **Hold Partial — nominal hold per MID**: selain memilih MID (checklist), user kini bisa **mengisi nominal yang dihold per MID**. Validasi **min Rp1** dan **maks (dana MID − Rp1)**; **mengosongkan** input = **hold seluruh dana MID**. Dana yang dihold masuk ke settlement baru (menunggu approval), **sisa dana MID tetap di Checker** sehingga nominal rekonsiliasi.

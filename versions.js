@@ -8,7 +8,11 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.16.0', date: '2026-07-08', deployed: true, title: 'Hold Partial: input nominal hold per MID', changes: [
+        { v: '1.16.1', date: '2026-07-08', deployed: true, title: 'Hold Partial: rapikan label MID + validasi nominal inline', changes: [
+            'Baris MID di Hold Partial tidak lagi menampilkan jumlah transaksi',
+            'Validasi nominal hold per MID jadi inline/real-time (muncul saat mengetik, tanpa harus klik Ajukan)'
+        ] },
+        { v: '1.16.0', date: '2026-07-08', deployed: false, title: 'Hold Partial: input nominal hold per MID', changes: [
             'Hold Partial kini bisa input nominal yang dihold per MID (bukan hanya pilih MID)',
             'Validasi: min Rp1, maks (dana MID − 1); kosongkan input = hold seluruh dana MID',
             'Dana yang dihold masuk settlement baru; sisa dana MID tetap di Checker (rekonsiliasi)'
