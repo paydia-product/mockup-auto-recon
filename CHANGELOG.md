@@ -7,6 +7,17 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-07-08
+### Added
+- **Ringkasan per Bank — collapsible + pagination**: tabel Ringkasan Nominal per Bank Tujuan bisa **dilipat** (klik header) dan **dipaginasi maks 10 bank per halaman** (baris Total tetap total semua bank).
+- **Notifikasi deteksi rekening di ikon lonceng** (header): badge jumlah + dropdown. Dua jenis pesan — (1) *"Merchant {MID} dengan nomor rekening {norek} dan nama pemilik rekening {nama} terdeteksi baru pertama kali melakukan transaksi"*, (2) *"Terdeteksi perubahan data merchant {MID}: dari {field lama} ke {field baru}, …"* (norek/nama/bank yang berubah). Seed 3 contoh (baru / perubahan norek / anomali norek+nama).
+### Changed
+- **Ringkasan tetap tampil di tab Checker walau data kosong** (isi "Tidak ada data untuk ditampilkan").
+- **Anomali rekening — auto-hold DIHAPUS**: data anomali/perubahan rekening **tidak lagi otomatis di-hold**; tetap di Checker untuk direview & di-hold manual bila perlu.
+- Wording sticky Checker: "…buka tab Hold, lalu **filter status Siap Release**."
+### Removed
+- **Badge visual** deteksi rekening (Baru / Norek berubah / Anomali Rekening) di kolom tabel — dipindah ke notifikasi lonceng.
+
 ## [1.13.1] — 2026-07-08
 ### Changed
 - **Header kolom nominal diberi label "(Rp)"** agar jelas satuannya rupiah — di tabel utama (semua tab): Nominal Awal, Admin, Adjustment Chargeback (+), Adjustment Chargeback (−), Total Settle; juga di tabel **Ringkasan per Bank** (termasuk Nominal Ending), tabel **detail settlement**, dan header **ekspor**. Kolom ekspor segregasi bank (`SEG_COLS`) sengaja tidak diubah karena mengikuti format file yang dikonsumsi bank.

@@ -71,6 +71,19 @@
         /* Export sim: sheet lebar → scroll ke samping (jangan bungkus/berdesakan). */
         #asExportTable td, #asExportTable th { white-space: nowrap; vertical-align: top; }
         #asTable { width: 100%; }
+        /* Notifikasi deteksi rekening (lonceng header) */
+        .notif-dropdown { position: absolute; top: calc(100% + 8px); right: 0; width: 380px; max-width: 90vw;
+            max-height: 440px; overflow-y: auto; background: #fff; border: 1px solid var(--border-color);
+            border-radius: 10px; box-shadow: 0 12px 32px rgba(15,23,42,0.16); z-index: 200; }
+        .notif-dropdown-head { padding: 12px 14px; border-bottom: 1px solid var(--border-color); font-weight: 700;
+            font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+        .notif-item { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; display: flex; gap: 10px; align-items: flex-start; }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-item .ni-ico { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 0.72rem; margin-top: 1px; }
+        .notif-item .ni-body { font-size: 0.78rem; line-height: 1.4; color: var(--text-primary); }
+        .notif-item .ni-mid { font-weight: 700; }
+        .notif-empty { padding: 24px 14px; text-align: center; color: var(--text-muted); font-size: 0.82rem; }
     </style>
 
 <script src="boot.js?v=20260624-v14"></script>
@@ -154,7 +167,10 @@
             </div>
             <div class="topbar-right">
                 <div id="versionPicker" style="margin-right:12px;"></div>
-                <button class="topbar-icon" id="notificationBtn" aria-label="Notifications"><i class="fas fa-bell"></i><span class="notification-badge">3</span></button>
+                <div class="notif-wrap" style="position:relative;">
+                    <button class="topbar-icon" id="notificationBtn" aria-label="Notifications"><i class="fas fa-bell"></i><span class="notification-badge" id="notifBadge" style="display:none;">0</span></button>
+                    <div id="notifDropdown" class="notif-dropdown" style="display:none;"></div>
+                </div>
                 <button class="topbar-icon" id="logoutBtn" aria-label="Logout" title="Logout" style="margin-right: 12px; color: #ef4444;"><i class="fas fa-sign-out-alt"></i></button>
                 <div class="topbar-user">
                     <img src="https://ui-avatars.com/api/?name=Dion&background=4f46e5&color=fff&size=32" alt="User" class="topbar-avatar">

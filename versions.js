@@ -8,7 +8,15 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.13.1', date: '2026-07-08', deployed: true, title: 'Tambah label "(Rp)" pada header kolom nominal', changes: [
+        { v: '1.14.0', date: '2026-07-08', deployed: true, title: 'Ringkasan collapsible + pagination, notifikasi deteksi rekening di lonceng', changes: [
+            'Tabel Ringkasan Nominal per Bank Tujuan kini bisa dilipat (collapsible) + pagination maks 10 bank per halaman',
+            'Ringkasan tetap tampil di tab Checker walau data kosong (isi "Tidak ada data")',
+            'Anomali rekening: auto-hold DIHAPUS — data anomali tetap di Checker untuk direview manual',
+            'Notifikasi deteksi rekening pindah ke ikon lonceng header (badge + dropdown); badge di tabel dihapus',
+            'Notifikasi: (1) merchant baru pertama kali transaksi, (2) perubahan data merchant (norek/nama/bank) dari nilai lama ke baru',
+            'Wording sticky Checker: "filter status Siap Release"'
+        ] },
+        { v: '1.13.1', date: '2026-07-08', deployed: false, title: 'Tambah label "(Rp)" pada header kolom nominal', changes: [
             'Header kolom uang diberi "(Rp)": Nominal Awal, Admin, Adjustment Chargeback (+)/(−), Total Settle di tabel utama semua tab',
             'Juga di tabel Ringkasan per Bank (termasuk Nominal Ending), tabel detail settlement, dan header ekspor'
         ] },
