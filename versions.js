@@ -8,7 +8,13 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.14.0', date: '2026-07-08', deployed: true, title: 'Ringkasan collapsible + pagination, notifikasi deteksi rekening di lonceng', changes: [
+        { v: '1.15.0', date: '2026-07-08', deployed: true, title: 'Filter nominal 10jt–250jt + seed skenario dibawah min transaksi', changes: [
+            'Filter Nominal ditambah opsi "Rp10.000.000 – Rp250.000.000" (berlaku di semua tab)',
+            'Seed data <Rp10.000 ke bank BCA/Mandiri/BRI: tetap di Checker (tidak auto-hold)',
+            'Seed 10+ data skenario dibawah min: akumulasi hold-min per norek ≥Rp10rb → Siap Release + notif Checker',
+            'Skenario B: hold-min + settlement Checker >Rp10rb pada norek sama → hold jadi Siap Release, base tetap Checker'
+        ] },
+        { v: '1.14.0', date: '2026-07-08', deployed: false, title: 'Ringkasan collapsible + pagination, notifikasi deteksi rekening di lonceng', changes: [
             'Tabel Ringkasan Nominal per Bank Tujuan kini bisa dilipat (collapsible) + pagination maks 10 bank per halaman',
             'Ringkasan tetap tampil di tab Checker walau data kosong (isi "Tidak ada data")',
             'Anomali rekening: auto-hold DIHAPUS — data anomali tetap di Checker untuk direview manual',

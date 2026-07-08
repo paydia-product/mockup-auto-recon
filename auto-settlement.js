@@ -147,7 +147,7 @@ var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpper
 var todayProc = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 var todayISO = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
 // Dokumentasi: default filter = SEMUA tanggal (start/end kosong). User bisa mempersempit via panel Filter.
-function defaultFilters() { return { start: '', end: '', banks: new Set(), big: false, small: false, reqs: new Set(), settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasans: new Set(), holdStatuses: new Set() }; }
+function defaultFilters() { return { start: '', end: '', banks: new Set(), big: false, mid: false, small: false, reqs: new Set(), settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasans: new Set(), holdStatuses: new Set() }; }
 // Cocokkan 1 nilai filter Tipe Request ke state group (dipakai multi-select OR).
 function reqMatchesValue(v, s) {
     var rq = s.request || {};
@@ -299,6 +299,37 @@ function buildSeedPool() {
     addDetect('MID-W001', '8810000000111', 'BCA', 'Kopi Senja Nusantara');   // baru (pertama kali transaksi)
     addDetect('MID-W002', '8810000000200', 'BCA', 'PT Notif Merchant');       // perubahan norek (ada pemberitahuan)
     addDetect('MID-W003', '8810000000300', 'BCA', 'Fathurroji Wijaya');       // anomali: perubahan norek + nama tanpa pemberitahuan
+    // 10) SKENARIO DIBAWAH MIN. TRANSAKSI (demo 10+ data). Tiap split = 1 settlement terpisah pada 1 norek.
+    //     Bank non-core → admin Rp6.500 → totalOf = nominal − 6.500. computeReleasable menjumlah totalOf per norek.
+    function addMinScenario(norek, bank, splitAmts, baseAmt) {
+        var owner = 'Merchant ' + norek.slice(-4);
+        var iso = _isoDaysAgo(_int(_gi++, 2, 18)), disp = _disp(iso, _gi++);
+        var idx = 0;
+        splitAmts.forEach(function (amt, i) {
+            var mid = 'MID-' + norek.slice(-6) + '-' + (idx++);
+            rows.push({ txId: 'TX-' + norek + '-' + idx, tanggal: disp, merchantName: 'Gerai ' + norek.slice(-3), mid: mid, bankCode: bank, bankAccount: norek, bankAccountName: owner, nominalSettle: amt, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp });
+            _seedSplitsOut.push({ id: 'STL-' + norek + '-P' + (i + 1), norek: norek, bank: bank, mids: [mid], createdTs: disp });
+        });
+        if (baseAmt) { // base >Rp10.000 → tetap di Checker (skenario B)
+            var bmid = 'MID-' + norek.slice(-6) + '-' + (idx++);
+            rows.push({ txId: 'TX-' + norek + '-' + idx, tanggal: disp, merchantName: 'Gerai ' + norek.slice(-3), mid: bmid, bankCode: bank, bankAccount: norek, bankAccountName: owner, nominalSettle: baseAmt, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp });
+        }
+    }
+    // Skenario A — akumulasi hold-min per norek (nominal 10.500 → totalOf 4.000 tiap split):
+    addMinScenario('8830000000001', 'OCBC', [10500, 10500, 10500]);        // A lengkap: 3×4.000 = 12.000 ≥10rb → semua Siap Release
+    addMinScenario('8830000000002', 'NOBU', [10500, 10500, 10500, 10500]); // A lengkap: 4×4.000 = 16.000 → semua Siap Release
+    addMinScenario('8830000000003', 'MEGA', [10500, 10500]);               // A belum: 2×4.000 = 8.000 <10rb → Belum Diproses
+    // Skenario B — 1 hold-min (<10rb) + 1 base checker (>10rb) pada norek sama → hold-min jadi Siap Release, base tetap Checker:
+    addMinScenario('8830000000004', 'OCBC', [10500], 60000);               // split 4.000 + base 53.500 = 57.500 → Siap Release
+    addMinScenario('8830000000005', 'BSI', [10500], 35000);                // split 4.000 + base 28.500 = 32.500 → Siap Release
+    // Task 2 — settlement <Rp10.000 ke bank BCA/Mandiri/BRI (core): TIDAK auto-hold, tetap di Checker.
+    function addCoreSmall(norek, bank, amt) {
+        var iso = _isoDaysAgo(_int(_gi++, 2, 18)), disp = _disp(iso, _gi++);
+        rows.push({ txId: 'TX-' + norek + '-0', tanggal: disp, merchantName: 'Gerai ' + norek.slice(-3), mid: 'MID-' + norek.slice(-6) + '-0', bankCode: bank, bankAccount: norek, bankAccountName: 'Merchant ' + norek.slice(-4), nominalSettle: amt, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp, seedState: { status: 'checker' } });
+    }
+    addCoreSmall('8830000000011', 'BCA', 8000);
+    addCoreSmall('8830000000012', 'MANDIRI', 6500);
+    addCoreSmall('8830000000013', 'BRI', 9000);
     return rows;
 }
 function norekSafe(i) { return String(1000 + i); }
@@ -422,6 +453,7 @@ function tabGroups(tab) {
         if (f.end && g.procISO > f.end) return false;
         if (f.banks && f.banks.size > 0 && !f.banks.has(g.bank)) return false;
         if (f.big && g.nominalAwal <= BIG_THRESHOLD) return false;
+        if (f.mid && !(totalOf(g) >= 10000000 && totalOf(g) <= BIG_THRESHOLD)) return false;
         if (f.small && totalOf(g) >= AUTO_HOLD_MIN) return false;
         if (tab === 'pending' && f.reqs && f.reqs.size > 0) {
             // multi-select (OR): baris lolos bila cocok salah satu Tipe Request yang dicentang.
@@ -1785,6 +1817,7 @@ function syncFilterInputs() {
     document.getElementById('asFilterStart').value = filters.start || '';
     document.getElementById('asFilterEnd').value = filters.end || '';
     document.getElementById('asFilterBig').checked = !!filters.big;
+    document.getElementById('asFilterMid').checked = !!filters.mid;
     document.getElementById('asFilterSmall').checked = !!filters.small;
     renderBankFilter();
     document.querySelectorAll('.as-fbank').forEach(function (cb) { cb.checked = filters.banks.has(cb.value); });
@@ -1816,6 +1849,7 @@ function applyFilterPanel() {
     filters.start = document.getElementById('asFilterStart').value;
     filters.end = document.getElementById('asFilterEnd').value;
     filters.big = document.getElementById('asFilterBig').checked;
+    filters.mid = document.getElementById('asFilterMid').checked;
     filters.small = document.getElementById('asFilterSmall').checked;
     filters.banks = new Set(Array.from(document.querySelectorAll('.as-fbank:checked')).map(function (c) { return c.value; }));
     filters.reqs = (activeTab === 'pending') ? new Set(Array.from(document.querySelectorAll('.as-freq:checked')).map(function (c) { return c.value; })) : new Set();
@@ -1886,7 +1920,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-08-acct-detect-notif';
+    var SEED_VER = '2026-07-08-minhold-scenarios';
     var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
     if (fresh) {
         localStorage.removeItem('paydia_as_items');

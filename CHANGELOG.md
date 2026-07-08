@@ -7,6 +7,16 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.15.0] — 2026-07-08
+### Added
+- **Filter Nominal Rp10.000.000 – Rp250.000.000** di panel Filter (berlaku di **semua tab**), melengkapi filter `> Rp250jt` dan `< Rp10.000`.
+- **Seed skenario Dibawah Min. Transaksi (10+ data)** untuk mendemokan akumulasi per norek:
+  - **Skenario A**: beberapa hold-min pada 1 norek (bank non-BCA/Mandiri/BRI). Bila **akumulasi totalOf ≥ Rp10.000** → semua berstatus **Siap Release** + wording notifikasi di tab Checker; bila masih < Rp10.000 → **Belum Diproses**.
+  - **Skenario B**: 1 hold-min (< Rp10.000) + 1 settlement Checker (> Rp10.000) pada **norek sama** → hold-min jadi **Siap Release**, settlement Checker tetap di Checker.
+- **Seed data < Rp10.000 ke bank BCA/Mandiri/BRI** (core): **tidak** auto-hold — tetap di tab Checker.
+### Notes
+- Logika akumulasi Siap Release (`computeReleasable`) sudah menjumlah Checker + hold-min per norek — skenario A & B berjalan tanpa perubahan logika (hanya penambahan seed + filter).
+
 ## [1.14.0] — 2026-07-08
 ### Added
 - **Ringkasan per Bank — collapsible + pagination**: tabel Ringkasan Nominal per Bank Tujuan bisa **dilipat** (klik header) dan **dipaginasi maks 10 bank per halaman** (baris Total tetap total semua bank).
