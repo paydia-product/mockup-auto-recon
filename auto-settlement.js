@@ -115,7 +115,19 @@ var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpper
 var todayProc = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 var todayISO = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
 // Dokumentasi: default filter = SEMUA tanggal (start/end kosong). User bisa mempersempit via panel Filter.
-function defaultFilters() { return { start: '', end: '', banks: new Set(), big: false, small: false, req: '', settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasan: '', holdStatuses: new Set() }; }
+function defaultFilters() { return { start: '', end: '', banks: new Set(), big: false, small: false, reqs: new Set(), settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasans: new Set(), holdStatuses: new Set() }; }
+// Cocokkan 1 nilai filter Tipe Request ke state group (dipakai multi-select OR).
+function reqMatchesValue(v, s) {
+    var rq = s.request || {};
+    if (v === 'hold') return rq.type === 'hold' && rq.scope === 'all';
+    if (v === 'holdpartial') return rq.type === 'hold' && rq.scope === 'partial';
+    if (v === 'holdmin') return rq.type === 'hold' && rq.scope === 'min';
+    if (v === 'reject') return rq.type === 'reject';
+    if (v === 'settle') return rq.type === 'settle';
+    if (v === 'rilis') return !!(s.autoReq && s.autoReq.type === 'rilis');
+    if (v === 'rejectbybank') return !!(s.autoReq && s.autoReq.type === 'rejectbybank');
+    return false;
+}
 
 function loadItems() { try { items = JSON.parse(localStorage.getItem('paydia_as_items')) || {}; } catch (e) { items = {}; } }
 function saveItems() { localStorage.setItem('paydia_as_items', JSON.stringify(items)); }
@@ -373,20 +385,14 @@ function tabGroups(tab) {
         if (f.banks && f.banks.size > 0 && !f.banks.has(g.bank)) return false;
         if (f.big && g.nominalAwal <= BIG_THRESHOLD) return false;
         if (f.small && totalOf(g) >= AUTO_HOLD_MIN) return false;
-        if (tab === 'pending' && f.req) {
-            var rq = s.request || {};
-            if (f.req === 'hold' && !(rq.type === 'hold' && rq.scope === 'all')) return false;
-            if (f.req === 'holdpartial' && !(rq.type === 'hold' && rq.scope === 'partial')) return false;
-            if (f.req === 'holdmin' && !(rq.type === 'hold' && rq.scope === 'min')) return false;
-            if (f.req === 'reject' && rq.type !== 'reject') return false;
-            if (f.req === 'settle' && rq.type !== 'settle') return false;
-            if (f.req === 'rilis' && !(s.autoReq && s.autoReq.type === 'rilis')) return false;
-            if (f.req === 'rejectbybank' && !(s.autoReq && s.autoReq.type === 'rejectbybank')) return false;
-            // filter request manual biasa tidak boleh ikut menampilkan baris auto-approve
-            if (f.req !== 'rilis' && f.req !== 'rejectbybank' && s.autoReq) return false;
+        if (tab === 'pending' && f.reqs && f.reqs.size > 0) {
+            // multi-select (OR): baris lolos bila cocok salah satu Tipe Request yang dicentang.
+            var reqOk = false;
+            f.reqs.forEach(function (v) { if (reqMatchesValue(v, s)) reqOk = true; });
+            if (!reqOk) return false;
         }
         if (tab === 'hold') {
-            if (f.holdAlasan && holdAlasan(g) !== f.holdAlasan) return false;
+            if (f.holdAlasans && f.holdAlasans.size > 0 && !f.holdAlasans.has(holdAlasan(g))) return false;
             if (f.holdStatuses && f.holdStatuses.size > 0 && !f.holdStatuses.has(holdStatusKey(g))) return false;
         }
         if (tab === 'settle') {
@@ -633,7 +639,7 @@ function actionButtons(g) {
         var ar = st(g.groupId).autoReq;
         // Rilis ke Checker & Reject by Bank = auto-approve → tak ada tombol, hanya teks status perpindahan (data tetap ada).
         if (ar) {
-            return '<span style="font-size:0.76rem;font-weight:600;color:#0e7490;white-space:nowrap;"><i class="fas fa-bolt" style="margin-right:5px;"></i>' + esc(autoReqText(ar)) + '</span>';
+            return '<span style="font-size:0.74rem;font-weight:600;color:#0e7490;white-space:normal;line-height:1.3;display:inline-block;"><i class="fas fa-bolt" style="margin-right:5px;"></i>' + esc(autoReqText(ar)) + '</span>';
         }
         return '<button class="as-approval-btn btn" data-id="' + g.groupId + '" ' + (bulkMode ? 'disabled' : '') + ' style="margin:0;background:var(--primary);color:#fff;border:none;font-size:0.78rem;font-weight:600;padding:6px 14px;' + (bulkMode ? disabled : '') + '">Approval</button>';
     }
@@ -1726,7 +1732,7 @@ function syncFilterInputs() {
     document.getElementById('asFilterSmall').checked = !!filters.small;
     renderBankFilter();
     document.querySelectorAll('.as-fbank').forEach(function (cb) { cb.checked = filters.banks.has(cb.value); });
-    document.getElementById('asFilterReq').value = filters.req || '';
+    document.querySelectorAll('.as-freq').forEach(function (cb) { cb.checked = (filters.reqs || new Set()).has(cb.value); });
     document.getElementById('asFilterReqSection').style.display = (activeTab === 'pending') ? 'block' : 'none';
     // Settle-specific filters
     document.querySelectorAll('.as-fss').forEach(function (cb) { cb.checked = (filters.settleStatuses || new Set()).has(cb.value); });
@@ -1747,7 +1753,7 @@ function syncFilterInputs() {
     var hsEl = document.getElementById('asFilterHoldStatusSection');
     if (haEl) haEl.style.display = isHold ? 'block' : 'none';
     if (hsEl) hsEl.style.display = isHold ? 'block' : 'none';
-    var haSel = document.getElementById('asFilterHoldAlasan'); if (haSel) haSel.value = filters.holdAlasan || '';
+    document.querySelectorAll('.as-falasan').forEach(function (cb) { cb.checked = (filters.holdAlasans || new Set()).has(cb.value); });
     document.querySelectorAll('.as-fhs').forEach(function (cb) { cb.checked = (filters.holdStatuses || new Set()).has(cb.value); });
 }
 function applyFilterPanel() {
@@ -1756,14 +1762,13 @@ function applyFilterPanel() {
     filters.big = document.getElementById('asFilterBig').checked;
     filters.small = document.getElementById('asFilterSmall').checked;
     filters.banks = new Set(Array.from(document.querySelectorAll('.as-fbank:checked')).map(function (c) { return c.value; }));
-    filters.req = (activeTab === 'pending') ? document.getElementById('asFilterReq').value : '';
+    filters.reqs = (activeTab === 'pending') ? new Set(Array.from(document.querySelectorAll('.as-freq:checked')).map(function (c) { return c.value; })) : new Set();
     filters.settleStatuses = new Set(Array.from(document.querySelectorAll('.as-fss:checked')).map(function (c) { return c.value; }));
     var metodeEl = document.getElementById('asFilterMetode');
     filters.metodeSettle = metodeEl ? metodeEl.value : '';
     var channelEl = document.getElementById('asFilterChannel');
     filters.channel = channelEl ? channelEl.value : '';
-    var haSel = document.getElementById('asFilterHoldAlasan');
-    filters.holdAlasan = (activeTab === 'hold' && haSel) ? haSel.value : '';
+    filters.holdAlasans = (activeTab === 'hold') ? new Set(Array.from(document.querySelectorAll('.as-falasan:checked')).map(function (c) { return c.value; })) : new Set();
     filters.holdStatuses = new Set(Array.from(document.querySelectorAll('.as-fhs:checked')).map(function (c) { return c.value; }));
     page = 1; render();
     document.getElementById('asFilterPanel').style.display = 'none';

@@ -8,7 +8,12 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.12.0', date: '2026-07-08', deployed: true, title: 'Auto-approval request (Rilis ke Checker & Reject by Bank) di Approver — persisten', changes: [
+        { v: '1.13.0', date: '2026-07-08', deployed: true, title: 'Filter multi-pilih (Tipe Request & Alasan) + rapikan lebar tabel', changes: [
+            'Filter "Tipe Request" (tab Approver) & "Alasan" (tab Hold) diubah dari dropdown jadi checklist — bisa pilih lebih dari satu (OR)',
+            'Wording "Request" diganti jadi "Tipe Request"',
+            'Kolom Aksi (teks Otomatis ... → ...) kini membungkus rapi sehingga tabel Approver muat tanpa scroll ke samping'
+        ] },
+        { v: '1.12.0', date: '2026-07-08', deployed: false, title: 'Auto-approval request (Rilis ke Checker & Reject by Bank) di Approver — persisten', changes: [
             'FIX FATAL: notifikasi "Tandai Dibaca" dihapus — dulu klik itu membuat baris hilang dari Approver. Sekarang data tidak bisa hilang',
             'Tambah 2 jenis request auto-approve di tab Approver: "Rilis ke Checker" & "Reject by Bank" — muncul di kolom Request dan bisa difilter',
             'Khusus 2 jenis ini, kolom Aksi berisi teks "Otomatis {tab asal} → {tab tujuan}" (mis. Otomatis Hold → Checker) — tanpa tombol',

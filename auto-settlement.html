@@ -225,27 +225,25 @@
                                         </label>
                                     </div>
                                     <div class="filter-section" id="asFilterReqSection" style="margin-top:16px; display:none;">
-                                        <span class="filter-section-title">Request</span>
-                                        <select id="asFilterReq" style="padding:8px; font-size:0.8rem; width:100%; border:1px solid var(--border-color); border-radius:6px;">
-                                            <option value="">Semua Request</option>
-                                            <option value="hold">Hold</option>
-                                            <option value="holdpartial">Hold Partial</option>
-                                            <option value="holdmin">Hold Dibawah Min. Transaksi</option>
-                                            <option value="reject">Reject</option>
-                                            <option value="settle">Settle</option>
-                                            <option value="rilis">Rilis ke Checker (Otomatis)</option>
-                                            <option value="rejectbybank">Reject by Bank (Otomatis)</option>
-                                        </select>
+                                        <span class="filter-section-title">Tipe Request</span>
+                                        <div style="display:flex; flex-direction:column; gap:8px;">
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="hold"> Hold</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="holdpartial"> Hold Partial</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="holdmin"> Hold Dibawah Min. Transaksi</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="reject"> Reject</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="settle"> Settle</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="rilis"> Rilis ke Checker (Otomatis)</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="rejectbybank"> Reject by Bank (Otomatis)</label>
+                                        </div>
                                     </div>
                                     <div class="filter-section" id="asFilterHoldAlasanSection" style="margin-top:16px; display:none;">
                                         <span class="filter-section-title">Alasan</span>
-                                        <select id="asFilterHoldAlasan" style="padding:8px; font-size:0.8rem; width:100%; border:1px solid var(--border-color); border-radius:6px;">
-                                            <option value="">Semua Alasan</option>
-                                            <option value="rejectbybank">Reject by Bank</option>
-                                            <option value="min">Hold Dibawah Min. Transaksi</option>
-                                            <option value="all">Hold Semua</option>
-                                            <option value="partial">Hold Partial</option>
-                                        </select>
+                                        <div style="display:flex; flex-direction:column; gap:8px;">
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-falasan" value="rejectbybank"> Reject by Bank</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-falasan" value="min"> Hold Dibawah Min. Transaksi</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-falasan" value="all"> Hold Semua</label>
+                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-falasan" value="partial"> Hold Partial</label>
+                                        </div>
                                     </div>
                                     <div class="filter-section" id="asFilterHoldStatusSection" style="margin-top:16px; display:none;">
                                         <span class="filter-section-title">Status</span>

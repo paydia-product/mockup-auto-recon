@@ -7,6 +7,12 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.13.0] — 2026-07-08
+### Changed
+- **Filter multi-pilih**: filter **Tipe Request** (tab Approver) dan **Alasan** (tab Hold) diubah dari dropdown single-select menjadi **checklist** yang bisa memilih lebih dari satu nilai sekaligus (logika OR).
+- **Wording**: label filter **"Request" → "Tipe Request"**.
+- **Lebar tabel Approver**: teks kolom **Aksi** (`Otomatis {asal} → {tujuan}`) kini **membungkus** (tidak lagi `nowrap`), sehingga seluruh tabel muat tanpa **scroll ke samping** dan teks aksi langsung terlihat.
+
 ## [1.12.0] — 2026-07-08
 ### Fixed
 - **FATAL**: hilangkan tombol **"Tandai Dibaca"** pada notifikasi Approver. Sebelumnya mengklik tombol itu meng-`null`-kan penanda sehingga **baris hilang dari tab Approver** — dianggap kehilangan data. Sekarang record perpindahan **persisten** dan tidak bisa dihapus.
