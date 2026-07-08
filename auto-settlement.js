@@ -452,8 +452,9 @@ function tabGroups(tab) {
         if (f.start && g.procISO < f.start) return false;
         if (f.end && g.procISO > f.end) return false;
         if (f.banks && f.banks.size > 0 && !f.banks.has(g.bank)) return false;
-        if (f.big && g.nominalAwal <= BIG_THRESHOLD) return false;
-        if (f.mid && !(totalOf(g) >= 10000000 && totalOf(g) <= BIG_THRESHOLD)) return false;
+        // Semua filter nominal berbasis Total Settle (totalOf). Partisi: <10rb / 10rb–250jt / >250jt.
+        if (f.big && totalOf(g) <= BIG_THRESHOLD) return false;
+        if (f.mid && !(totalOf(g) >= AUTO_HOLD_MIN && totalOf(g) <= BIG_THRESHOLD)) return false;
         if (f.small && totalOf(g) >= AUTO_HOLD_MIN) return false;
         if (tab === 'pending' && f.reqs && f.reqs.size > 0) {
             // multi-select (OR): baris lolos bila cocok salah satu Tipe Request yang dicentang.

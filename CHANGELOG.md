@@ -7,6 +7,11 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.15.1] — 2026-07-08
+### Fixed
+- **Filter nominal berbasis Total Settle (Rp)**: filter `> Rp250.000.000` dulu keliru membandingkan **Nominal Awal** — sekarang semua filter nominal (`< Rp10.000`, range, `> Rp250jt`) memakai **Total Settle** (`totalOf`).
+- **Range menengah**: lower bound diperbaiki dari **Rp10.000.000** menjadi **Rp10.000** (label jadi "Rp10.000 – Rp250.000.000"). Sebelumnya filter ini hanya menangkap ~10 data; kini menampilkan ribuan data yang benar berada dalam rentang. Ketiga filter nominal kini menjadi partisi yang bersih: `< Rp10.000` / `Rp10.000 – Rp250jt` / `> Rp250jt`.
+
 ## [1.15.0] — 2026-07-08
 ### Added
 - **Filter Nominal Rp10.000.000 – Rp250.000.000** di panel Filter (berlaku di **semua tab**), melengkapi filter `> Rp250jt` dan `< Rp10.000`.

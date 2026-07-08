@@ -8,7 +8,12 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.15.0', date: '2026-07-08', deployed: true, title: 'Filter nominal 10jt–250jt + seed skenario dibawah min transaksi', changes: [
+        { v: '1.15.1', date: '2026-07-08', deployed: true, title: 'Bugfix filter nominal (berbasis Total Settle + range Rp10.000–Rp250jt)', changes: [
+            'Semua filter nominal kini berbasis Total Settle (Rp), termasuk filter > Rp250jt (dulu keliru pakai Nominal Awal)',
+            'Range menengah diperbaiki jadi Rp10.000 – Rp250.000.000 (dulu keliru Rp10jt) — kini menampilkan ribuan data yang sebelumnya tersembunyi',
+            'Ketiga filter nominal jadi partisi bersih: <Rp10.000 / Rp10.000–Rp250jt / >Rp250jt'
+        ] },
+        { v: '1.15.0', date: '2026-07-08', deployed: false, title: 'Filter nominal 10jt–250jt + seed skenario dibawah min transaksi', changes: [
             'Filter Nominal ditambah opsi "Rp10.000.000 – Rp250.000.000" (berlaku di semua tab)',
             'Seed data <Rp10.000 ke bank BCA/Mandiri/BRI: tetap di Checker (tidak auto-hold)',
             'Seed 10+ data skenario dibawah min: akumulasi hold-min per norek ≥Rp10rb → Siap Release + notif Checker',
