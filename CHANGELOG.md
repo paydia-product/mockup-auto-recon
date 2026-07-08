@@ -7,6 +7,13 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.17.0] — 2026-07-08
+### Fixed
+- **Hold Partial — lock menunggu approval**: settlement yang sudah diajukan Hold Partial kini **dikunci di Checker**. Klik aksi **hold/reject/settle** pada data terkunci menampilkan **"Data di lock menunggu approval"**.
+- **Detail settlement tidak lagi menampilkan "Sisa dana (partial hold)" / "(sisa)"** — nama pemilik & MID asli tetap tampil (nominal berkurang sesuai porsi yang dihold).
+### Changed
+- **Split ditunda sampai approve**: sebelum request disetujui, **detail & nominal settlement tetap utuh** (data tidak dipecah). **Setelah approve**, nominal settlement untuk norek terkait **berkurang** sesuai nominal Hold Partial, dan porsi yang dihold menjadi settlement Hold tersendiri. **Reject** membuka kunci dan mengembalikan data utuh di Checker.
+
 ## [1.16.1] — 2026-07-08
 ### Changed
 - **Hold Partial — baris MID**: hilangkan teks jumlah transaksi (mis. "· 1 transaksi") pada tiap baris MID.

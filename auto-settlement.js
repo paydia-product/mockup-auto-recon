@@ -389,34 +389,43 @@ function buildGroups() {
         var txns = byKey[k];
         var bank = txns[0].bankCode, norek = txns[0].bankAccount;
         var mySplits = splits.filter(function (s) { return s.norek === norek && (s.bank || bank) === bank; });
-        var heldMids = {}, remainder = 0;
+        var heldMids = {}, reduceByMid = {}; // heldMids: MID keluar penuh dari base; reduceByMid: MID partial, base berkurang.
         mySplits.forEach(function (sp) {
             var stx = txns.filter(function (t) { return sp.mids.indexOf(t.mid) >= 0; });
-            if (stx.length) {
-                var gg = makeGroup(sp.id, norek, stx);
-                // Hold Partial per-nominal: group hanya menampilkan dana yang dihold; sisa MID balik ke Checker.
-                if (sp.holdAmounts) {
-                    var held = 0;
-                    sp.mids.forEach(function (m) {
-                        var full = stx.reduce(function (a, t) { return a + (t.mid === m ? t.nominalSettle : 0); }, 0);
-                        var h = (sp.holdAmounts[m] != null) ? sp.holdAmounts[m] : full;
-                        held += h; remainder += (full - h);
-                    });
-                    gg.nominalAwal = held; gg.adjPlus = 0; gg.adjMinus = 0;
-                }
-                groups.push(gg);
+            if (!stx.length) { sp.mids.forEach(function (m) { heldMids[m] = true; }); return; }
+            var gg;
+            if (sp.holdAmounts) {
+                // Held per MID: nama & MID asli, nominal = dana yang dihold.
+                var heldTxns = [];
+                sp.mids.forEach(function (m) {
+                    var mt = stx.filter(function (t) { return t.mid === m; });
+                    if (!mt.length) return;
+                    var full = mt.reduce(function (a, t) { return a + t.nominalSettle; }, 0);
+                    var held = (sp.holdAmounts[m] != null) ? sp.holdAmounts[m] : full;
+                    if (held >= full) heldMids[m] = true; else reduceByMid[m] = (reduceByMid[m] || 0) + held;
+                    heldTxns.push({ txId: 'TX-' + norek + '-h-' + m, mid: m, merchantName: mt[0].merchantName, bankCode: bank, bankAccount: norek, bankAccountName: mt[0].bankAccountName, nominalSettle: held, tipeSettlement: mt[0].tipeSettlement, adjPlus: 0, adjMinus: 0, procISO: mt[0].procISO, procDisplay: mt[0].procDisplay });
+                });
+                gg = makeGroup(sp.id, norek, heldTxns);
+            } else {
+                gg = makeGroup(sp.id, norek, stx);
+                sp.mids.forEach(function (m) { heldMids[m] = true; });
             }
-            sp.mids.forEach(function (m) { heldMids[m] = true; });
+            groups.push(gg);
         });
-        var baseTx = txns.filter(function (t) { return !heldMids[t.mid]; });
-        if (baseTx.length) {
-            var bg = makeGroup(baseIdFor(bank, norek), norek, baseTx);
-            bg.nominalAwal += remainder; // sisa dana partial-hold tetap di Checker
-            groups.push(bg);
-        } else if (remainder > 0) {
-            var meta = txns[0];
-            groups.push(makeGroup(baseIdFor(bank, norek), norek, [{ txId: 'TX-' + norek + '-sisa', mid: '(sisa)', merchantName: 'Sisa dana (partial hold)', bankCode: bank, bankAccount: norek, bankAccountName: meta.bankAccountName, nominalSettle: remainder, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: meta.procISO, procDisplay: meta.procDisplay }]));
-        }
+        // Base: MID dihold penuh dikeluarkan; MID partial berkurang (nama & MID asli tetap tampil).
+        var baseByMid = {};
+        txns.forEach(function (t) { if (heldMids[t.mid]) return; (baseByMid[t.mid] = baseByMid[t.mid] || []).push(t); });
+        var baseTxns = [];
+        Object.keys(baseByMid).forEach(function (mid) {
+            var mt = baseByMid[mid];
+            if (reduceByMid[mid]) {
+                var full = mt.reduce(function (a, t) { return a + t.nominalSettle; }, 0);
+                baseTxns.push({ txId: 'TX-' + norek + '-b-' + mid, mid: mid, merchantName: mt[0].merchantName, bankCode: bank, bankAccount: norek, bankAccountName: mt[0].bankAccountName, nominalSettle: full - reduceByMid[mid], tipeSettlement: mt[0].tipeSettlement, adjPlus: 0, adjMinus: 0, procISO: mt[0].procISO, procDisplay: mt[0].procDisplay });
+            } else {
+                mt.forEach(function (t) { baseTxns.push(t); });
+            }
+        });
+        if (baseTxns.length) groups.push(makeGroup(baseIdFor(bank, norek), norek, baseTxns));
     });
     groups.forEach(function (g) {
         var s = st(g.groupId);
@@ -471,7 +480,7 @@ function tabGroups(tab) {
         // §3: baris yang sudah digabung ke settlement lain tidak tampil terpisah.
         if (s.mergedInto) return false;
         // Approver menampilkan request pending (manual) + request auto-approve (Rilis/Reject by Bank) yang persisten.
-        if (tab === 'pending') { if (s.status !== 'pending' && !s.autoReq) return false; }
+        if (tab === 'pending') { if (s.status !== 'pending' && !s.autoReq && !(s.request && s.request.partialPending)) return false; }
         // §4.5 Hold = ledger permanen: semua yang pernah di-hold tetap tampil (walau sudah pindah tab).
         else if (tab === 'hold') { if (s.status !== 'hold' && !s.everHeld) return false; }
         else if (s.status !== tab) return false;
@@ -615,7 +624,7 @@ function renderCounts() {
     ['checker', 'pending', 'hold', 'reject', 'settle'].forEach(function (tab) {
         var id = tab === 'pending' ? 'cnt-approver' : 'cnt-' + tab;
         var el = document.getElementById(id);
-        if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.autoReq) : tab === 'hold' ? (s.status === 'hold' || s.everHeld) : s.status === tab; }).length;
+        if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.autoReq || (s.request && s.request.partialPending)) : tab === 'hold' ? (s.status === 'hold' || s.everHeld) : s.status === tab; }).length;
     });
 }
 
@@ -1021,15 +1030,14 @@ function submitHold(g) {
     var bk = validateBukti(null); // §3.2: bukti opsional semua jenis hold (boleh menyusul di tab Hold).
     if (!bk) return;
     if (scope === 'partial') {
-        // Pecah: MID yang dihold jadi settlement baru terpisah; sisa MID tetap di Checker.
-        var seq = splits.filter(function (x) { return x.norek === g.norek && (x.bank || g.bank) === g.bank; }).length + 1;
-        var splitId = g.groupId + '-P' + seq;
-        splits.push({ id: splitId, norek: g.norek, bank: g.bank, mids: picked, holdAmounts: holdAmounts, createdTs: todayProc() });
-        items[splitId] = { status: 'pending', adjPlus: 0, adjMinus: 0, note: '', channel: '', bukti: '', settleStatus: null, approvedTs: null, approvedBy: null, metodeSettlement: null,
-            request: { type: 'hold', scope: 'partial', partialMids: picked, holdAmounts: holdAmounts, prevStatus: 'checker', reason: reason, bukti: bk.name, ts: todayProc() } };
-        saveSplits(); buildGroups(); closeModal(); render();
-        showToast('Hold Partial Diajukan', 'Dibuat settlement baru ' + splitId + ' (' + picked.length + ' MID) menunggu approval. Sisa MID tetap di Checker.');
-        writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Hold Partial (' + picked.join(', ') + ') dari ' + g.groupId + ' → settlement baru ' + splitId);
+        // Data settlement TETAP utuh di Checker (nominal tidak berubah) tapi DIKUNCI selama menunggu approval.
+        // Split (pemecahan dana) baru dimaterialisasi saat request di-approve.
+        var s = st(g.groupId);
+        s.request = { type: 'hold', scope: 'partial', partialMids: picked, holdAmounts: holdAmounts, prevStatus: 'checker', reason: reason, bukti: bk.name, ts: todayProc(), partialPending: true };
+        s.partialLock = true;
+        saveItems(); closeModal(); render();
+        showToast('Hold Partial Diajukan', g.groupId + ' menunggu approval. Data dikunci di Checker sampai disetujui.');
+        writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Hold Partial (' + picked.join(', ') + ') dari ' + g.groupId + ' → menunggu approval (data dikunci di Checker)');
         return;
     }
     var s = st(g.groupId); var prev = s.status; s.status = 'pending';
@@ -1330,6 +1338,26 @@ function confirmApprover(g, approve) {
 function approverDecide(g, approve) {
     var s = st(g.groupId); var rq = s.request || {};
     s.updatedTs = todayProc(); // record berubah → perbarui Tanggal Perubahan Terakhir
+    // Hold Partial: base tetap di Checker (dikunci). Approve → materialisasi split (dana dihold, base berkurang). Reject → buka kunci.
+    if (rq.scope === 'partial' && rq.partialPending) {
+        if (approve) {
+            var seq = splits.filter(function (x) { return x.norek === g.norek && (x.bank || g.bank) === g.bank; }).length + 1;
+            var splitId = g.groupId + '-P' + seq;
+            splits.push({ id: splitId, norek: g.norek, bank: g.bank, mids: rq.partialMids, holdAmounts: rq.holdAmounts, createdTs: todayProc() });
+            items[splitId] = { status: 'hold', everHeld: true, adjPlus: 0, adjMinus: 0, note: '', channel: '', bukti: rq.bukti || '', settleStatus: null, approvedTs: todayProc(), approvedBy: 'dion@paydia.id', metodeSettlement: null, holdScope: 'partial',
+                request: { type: 'hold', scope: 'partial', partialMids: rq.partialMids, holdAmounts: rq.holdAmounts, prevStatus: 'checker', reason: rq.reason, bukti: rq.bukti || '', ts: rq.ts } };
+            s.request = null; s.partialLock = false;
+            saveSplits(); saveItems(); buildGroups(); render();
+            showToast('Hold Partial Disetujui', g.groupId + ' → sebagian dana dihold (' + splitId + '); sisa tetap di Checker.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Approve Hold Partial ' + g.groupId + ' → ' + splitId);
+        } else {
+            s.request = null; s.partialLock = false;
+            saveItems(); render();
+            showToast('Hold Partial Ditolak', g.groupId + ' dibuka kembali di Checker (data utuh).');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Reject Hold Partial ' + g.groupId);
+        }
+        return;
+    }
     if (approve) {
         if (rq.type === 'rejectbybank') {
             // §6.2: Reject by Bank = kategori HOLD → masuk tab Hold (untuk besok).
@@ -1788,6 +1816,10 @@ function writeLog(type, detail) {
 }
 
 function runAction(act, g) {
+    // Settlement yang sedang menunggu approval Hold Partial dikunci — tidak bisa hold/reject/settle.
+    if ((act === 'hold' || act === 'reject' || act === 'settle') && st(g.groupId).partialLock) {
+        showToast('Data Terkunci', 'Data di lock menunggu approval.'); return;
+    }
     if (act === 'hold') openHold(g);
     else if (act === 'reject') openReject(g);
     else if (act === 'settle') openSettle(g);
@@ -1991,7 +2023,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-08-minhold-scenarios';
+    var SEED_VER = '2026-07-08-partial-lock-approve';
     var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
     if (fresh) {
         localStorage.removeItem('paydia_as_items');
