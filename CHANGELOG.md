@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.18.1] — 2026-07-08
+### Removed
+- **Segmen Response Data** dihapus dari modal Lihat Detail tab Settle (segmen Request Data & Log Callback tetap ada). Fungsi `mockResJson` yang jadi tak terpakai ikut dibersihkan.
+
 ## [1.18.0] — 2026-07-08
 ### Added
 - **Log Callback bank** di modal Lihat Detail settlement **Otomatis** (di bawah segmen Response Data). Menampilkan alur async proses bank — **SUBMITTED → ACCOUNT_INQUIRY → QUEUED → FORWARDED → BANK_CALLBACK** — karena request ke bank tidak langsung transfer (ada antrian → diproses → callback). Tiap proses: nama (kiri), **status** Sukses/Pending/Gagal (tengah), **timestamp** (kanan), dan **expandable** ke JSON response proses tersebut. Status akhir mengikuti status settlement (success/pending/fail). Hanya untuk Metode Settlement Otomatis (Manual tanpa callback).

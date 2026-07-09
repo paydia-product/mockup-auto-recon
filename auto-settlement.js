@@ -1526,16 +1526,6 @@ function mockReqJson(g) {
         metode_settlement: s.metodeSettlement || '-'
     }, null, 2);
 }
-function mockResJson(g) {
-    var ds = displaySettleStatus(g);
-    if (ds === 'success') return JSON.stringify({ status: true, data: { transaction_id: 'TRX-' + g.groupId.replace('STL-', ''), status: 'success', message: 'Transfer berhasil diproses.' } }, null, 2);
-    // Fail = gagal by sistem (timeout / server bank bermasalah). Request bisa timeout, atau sudah kekirim ke bank tapi dapat respon gagal.
-    if (ds === 'fail') return JSON.stringify({ status: false, error: { type: 'error.system', code: 'GATEWAY_TIMEOUT', message: 'Gagal oleh sistem: request timeout / server bank tujuan bermasalah.' } }, null, 2);
-    // Reject by Bank = request sudah kekirim ke bank tapi dapat balikan ditolak (norek tidak terdaftar / dibekukan).
-    if (ds === 'rejectbybank') return JSON.stringify({ status: false, error: { type: 'error.bank', code: 'REJECTED_BY_BANK', message: 'Ditolak oleh bank: nomor rekening tidak terdaftar / rekening dibekukan.' } }, null, 2);
-    // Pending: belum ada respons dari bank → response data kosong.
-    return '';
-}
 // Tambah N detik ke timestamp "DD-MM-YYYY HH:MM[:SS]" → "DD-MM-YYYY HH:MM:SS".
 function tsPlus(base, secs) {
     var m = String(base || '').match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})(?::(\d{2}))?/);
@@ -1613,7 +1603,6 @@ function openDetailModal(g) {
         // Metode Manual tidak mengirim apa pun ke luar → tanpa segmen Request/Response.
         (s.metodeSettlement === 'Manual' ? '' :
             expandSection('REQUEST DATA', '<span style="font-family:monospace;font-size:0.9rem;">&lt;&gt;</span> ', mockReqJson(g), false) +
-            expandSection('RESPONSE DATA', '<span style="font-family:monospace;font-size:0.9rem;">{}</span> ', mockResJson(g), true) +
             // §: Log Callback hanya untuk Metode Settlement Otomatis (proses async antri → bank → callback).
             (s.metodeSettlement === 'Otomatis' ? callbackSegment(g) : ''));
     openModal('Lihat Detail', body, [{ label: 'Tutup', onClick: closeModal }]);

@@ -8,7 +8,10 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.18.0', date: '2026-07-08', deployed: true, title: 'Log Callback bank (settle Otomatis) + picker Hold Partial jadi tabel', changes: [
+        { v: '1.18.1', date: '2026-07-08', deployed: true, title: 'Detail settle: hapus segmen Response Data', changes: [
+            'Modal Lihat Detail tab Settle: segmen Response Data dihapus (tetap ada Request Data & Log Callback)'
+        ] },
+        { v: '1.18.0', date: '2026-07-08', deployed: false, title: 'Log Callback bank (settle Otomatis) + picker Hold Partial jadi tabel', changes: [
             'Detail settlement Otomatis: tambah segmen Log Callback (alur async bank: submit → account inquiry → antri → diteruskan → callback), tiap proses ada status (Sukses/Pending/Gagal) + timestamp, expandable ke JSON',
             'Modal Hold Partial: picker MID diubah jadi tabel proper (kolom No, pagination maks 10/halaman, search by MID & nama merchant); pilihan & nominal konsisten lintas halaman/search'
         ] },
