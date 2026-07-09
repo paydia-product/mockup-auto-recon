@@ -8,7 +8,10 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.18.1', date: '2026-07-08', deployed: true, title: 'Detail settle: hapus segmen Response Data', changes: [
+        { v: '1.18.2', date: '2026-07-08', deployed: true, title: 'Detail Request: tambah field Diajukan Oleh', changes: [
+            'Modal Detail Request (Approver): tambah field "Diajukan Oleh" (nama user) di bawah "Waktu Diajukan"'
+        ] },
+        { v: '1.18.1', date: '2026-07-08', deployed: false, title: 'Detail settle: hapus segmen Response Data', changes: [
             'Modal Lihat Detail tab Settle: segmen Response Data dihapus (tetap ada Request Data & Log Callback)'
         ] },
         { v: '1.18.0', date: '2026-07-08', deployed: false, title: 'Log Callback bank (settle Otomatis) + picker Hold Partial jadi tabel', changes: [

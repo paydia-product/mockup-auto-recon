@@ -1330,7 +1330,8 @@ function openApproverModal(g) {
         kv('Status Sebelumnya', esc(STATUS_LABEL[rq.prevStatus] || 'Checker')) +
         (rq.metodeSettlement ? kv('Metode Settlement', esc(rq.metodeSettlement)) : '') +
         kv('Channel Payment', esc(rq.channel || '-')) + kv('Metode Transfer', esc(rq.metode || '-')) +
-        kv('Catatan', esc(rq.reason || '-')) + kv('Bukti', buktiVal) + kv('Waktu Diajukan', esc(rq.ts || '-'));
+        kv('Catatan', esc(rq.reason || '-')) + kv('Bukti', buktiVal) + kv('Waktu Diajukan', esc(rq.ts || '-')) +
+        kv('Diajukan Oleh', esc(rq.by || 'dion@paydia.id'));
     // §3: notice GABUNG — data belum digabung saat approval (ada kemungkinan reject); digabung setelah approve.
     if (rq.type === 'settle') {
         var relMin = groups.filter(function (x) { var xs = st(x.groupId); return x.norek === g.norek && x.bank === g.bank && x.groupId !== g.groupId && !xs.mergedInto && xs.holdScope === 'min' && (xs.status === 'checker' || xs.status === 'hold'); });

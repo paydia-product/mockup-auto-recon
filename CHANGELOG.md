@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.18.2] — 2026-07-08
+### Added
+- **Field "Diajukan Oleh"** (nama user pengaju) di modal **Detail Request** (Approver), tepat **di bawah "Waktu Diajukan"**.
+
 ## [1.18.1] — 2026-07-08
 ### Removed
 - **Segmen Response Data** dihapus dari modal Lihat Detail tab Settle (segmen Request Data & Log Callback tetap ada). Fungsi `mockResJson` yang jadi tak terpakai ikut dibersihkan.
