@@ -7,6 +7,13 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.18.0] — 2026-07-08
+### Added
+- **Log Callback bank** di modal Lihat Detail settlement **Otomatis** (di bawah segmen Response Data). Menampilkan alur async proses bank — **SUBMITTED → ACCOUNT_INQUIRY → QUEUED → FORWARDED → BANK_CALLBACK** — karena request ke bank tidak langsung transfer (ada antrian → diproses → callback). Tiap proses: nama (kiri), **status** Sukses/Pending/Gagal (tengah), **timestamp** (kanan), dan **expandable** ke JSON response proses tersebut. Status akhir mengikuti status settlement (success/pending/fail). Hanya untuk Metode Settlement Otomatis (Manual tanpa callback).
+- **Seed norek multi-MID** (15 & 23 MID) untuk mendemokan pagination & search picker Hold Partial.
+### Changed
+- **Modal Hold Settlement — picker Hold Partial jadi tabel proper**: kolom **No**, **pagination maks 10 MID/halaman**, dan **search by MID & nama merchant**. Pilihan MID dan nominal hold tetap konsisten saat pindah halaman / mencari (disimpan di state, bukan DOM).
+
 ## [1.17.2] — 2026-07-08
 ### Reverted
 - **Revert v1.17.1** (chargeback tetap di base saat Hold Partial). Alasan: settlement dispute bisa **tidak diproses settle** melalui **Hold Semua / Hold Dibawah Min. Transaksi / Reject** — **bukan** lewat Hold Partial. Jadi penanganan khusus dispute di Hold Partial tidak diperlukan; logika `buildGroups` dikembalikan **persis ke kondisi v1.17.0**.

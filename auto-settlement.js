@@ -39,6 +39,9 @@ var bulkMode = false;
 var summaryCollapsed = false; // §1.3: panel Ringkasan per Bank bisa dilipat
 var summaryPage = 1;          // pagination Ringkasan per Bank
 var SUMMARY_PER_PAGE = 10;
+// Hold Partial picker (tabel: pilih MID + nominal, search, pagination). State disimpan agar konsisten antar-halaman/search.
+var _holdG = null, holdPickerPage = 1, holdPickerSearch = '', holdPickerChecked = null, holdPickerAmt = null;
+var HOLD_PICKER_PER_PAGE = 10;
 var simMode = null; // null | 'success' | 'pending' | 'fail' | 'rejectbybank' (settle tab simulation)
 var sim2faWrong = false; // §7: Approver — bila aktif, verifikasi 2FA selalu gagal (uji error path)
 
@@ -336,6 +339,9 @@ function buildSeedPool() {
     addCoreSmall('8830000000011', 'BCA', 8000);
     addCoreSmall('8830000000012', 'MANDIRI', 6500);
     addCoreSmall('8830000000013', 'BRI', 9000);
+    // Norek banyak MID (multi-outlet) — demo pagination & search picker Hold Partial.
+    add('BCA', 15, 0, 0, { status: 'checker' }, '8830000000021');
+    add('MANDIRI', 23, 0, 0, { status: 'checker' }, '8830000000022');
     return rows;
 }
 function norekSafe(i) { return String(1000 + i); }
@@ -967,16 +973,12 @@ function openHold(g) {
         '<label style="font-weight:500;display:block;"><input type="radio" name="asHoldScope" value="all" checked> Hold Semua</label>' +
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="partial"> Hold Partial (pilih MID)</label>' +
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="min"> Hold Dibawah Min. Transaksi <span style="font-weight:400;color:var(--text-muted);">(hold seluruh settlement norek ini)</span></label></div>' +
-        '<div class="as-fld" id="asPartialWrap" style="display:none;"><label>Pilih MID & nominal yang dihold <span style="font-weight:400;color:var(--text-muted);">(kosongkan nominal = hold seluruh dana MID)</span></label><div class="as-partial-list" id="asPartialList">' +
-        midSummary(g).map(function (m, i) {
-            var maxHold = m.total - 1;
-            return '<div style="padding:7px 0;border-bottom:1px solid #f1f5f9;">' +
-                '<label style="display:flex;align-items:flex-start;gap:8px;font-weight:500;font-size:0.82rem;"><input type="checkbox" class="as-pp" value="' + esc(m.mid) + '" data-total="' + m.total + '" ' + (i === 0 ? 'checked' : '') + '> <span>' + esc(m.merchant) + ' · ' + esc(m.mid) + ' · <b>' + rupiah(m.total) + '</b></span></label>' +
-                '<div style="display:flex;align-items:center;gap:6px;margin:6px 0 0 24px;font-size:0.78rem;color:var(--text-secondary);">Hold Rp <input type="number" class="as-pp-amt" data-mid="' + esc(m.mid) + '" min="1" max="' + maxHold + '" placeholder="penuh" style="width:130px;padding:5px 8px;border:1px solid var(--border-color);border-radius:6px;font-size:0.8rem;"> <span style="font-size:0.72rem;">maks ' + rupiah(maxHold) + ' · kosong = penuh</span></div>' +
-                '<div class="as-pp-err" data-mid="' + esc(m.mid) + '" style="display:none;color:#dc2626;font-size:0.72rem;margin:4px 0 0 24px;"></div>' +
-                '</div>';
-        }).join('') +
-        '</div></div>' + noteField(true) + fileField('(opsional — maks 25 MB, PDF/JPG/JPEG/PNG, bisa menyusul di tab Hold)');
+        '<div class="as-fld" id="asPartialWrap" style="display:none;"><label>Pilih MID & nominal yang dihold <span style="font-weight:400;color:var(--text-muted);">(kosongkan nominal = hold seluruh dana MID)</span></label>' +
+        '<input type="text" id="asPartialSearch" placeholder="Cari MID / nama merchant" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.82rem;margin-bottom:8px;">' +
+        '<div id="asPartialTable"></div></div>' + noteField(true) + fileField('(opsional — maks 25 MB, PDF/JPG/JPEG/PNG, bisa menyusul di tab Hold)');
+    // reset state picker; default pilih MID pertama.
+    _holdG = g; holdPickerPage = 1; holdPickerSearch = ''; holdPickerChecked = new Set(); holdPickerAmt = {};
+    var ms0 = midSummary(g); if (ms0[0]) holdPickerChecked.add(ms0[0].mid);
     openModal('Hold Settlement', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Ajukan Hold', style: 'background:#b45309;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () { submitHold(g); } }
@@ -984,9 +986,48 @@ function openHold(g) {
     document.querySelectorAll('input[name=asHoldScope]').forEach(function (rb) {
         rb.addEventListener('change', function () { document.getElementById('asPartialWrap').style.display = (this.value === 'partial') ? 'block' : 'none'; });
     });
-    document.querySelectorAll('.as-pp-amt').forEach(function (el) {
-        el.addEventListener('input', function () { validatePartialAmt(el); });
-    });
+    var sb = document.getElementById('asPartialSearch');
+    if (sb) sb.addEventListener('input', function () { holdPickerSearch = sb.value; holdPickerPage = 1; renderHoldPicker(); });
+    renderHoldPicker();
+}
+// Render tabel picker Hold Partial (No · Pilih · Merchant · MID · Dana · Hold Rp) + search + pagination 10/hal.
+function renderHoldPicker() {
+    var el = document.getElementById('asPartialTable'); if (!el || !_holdG) return;
+    var mids = midSummary(_holdG);
+    var q = holdPickerSearch.trim().toLowerCase();
+    var filtered = q ? mids.filter(function (m) { return (m.mid + ' ' + m.merchant).toLowerCase().indexOf(q) >= 0; }) : mids;
+    var PER = HOLD_PICKER_PER_PAGE;
+    var pages = Math.max(1, Math.ceil(filtered.length / PER));
+    if (holdPickerPage > pages) holdPickerPage = pages;
+    if (holdPickerPage < 1) holdPickerPage = 1;
+    var pageRows = filtered.slice((holdPickerPage - 1) * PER, holdPickerPage * PER);
+    var th = 'padding:8px 10px;font-size:0.68rem;font-weight:600;color:var(--text-secondary);text-align:left;white-space:nowrap;';
+    var body = pageRows.map(function (m) {
+        var no = filtered.indexOf(m) + 1, maxHold = m.total - 1;
+        var checked = holdPickerChecked.has(m.mid) ? 'checked' : '';
+        var amtVal = (holdPickerAmt[m.mid] != null) ? esc(holdPickerAmt[m.mid]) : '';
+        return '<tr style="border-top:1px solid #f1f5f9;">' +
+            '<td style="padding:7px 10px;color:var(--text-muted);">' + no + '</td>' +
+            '<td style="padding:7px 10px;text-align:center;"><input type="checkbox" class="as-pp" value="' + esc(m.mid) + '" data-total="' + m.total + '" ' + checked + '></td>' +
+            '<td style="padding:7px 10px;">' + esc(m.merchant) + '</td>' +
+            '<td style="padding:7px 10px;font-variant-numeric:tabular-nums;">' + esc(m.mid) + '</td>' +
+            '<td style="padding:7px 10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">' + num(m.total) + '</td>' +
+            '<td style="padding:7px 10px;"><input type="number" class="as-pp-amt" data-mid="' + esc(m.mid) + '" min="1" max="' + maxHold + '" placeholder="penuh" value="' + amtVal + '" style="width:120px;padding:5px 8px;border:1px solid var(--border-color);border-radius:6px;font-size:0.8rem;"><div class="as-pp-err" data-mid="' + esc(m.mid) + '" style="display:none;color:#dc2626;font-size:0.7rem;margin-top:3px;"></div></td>' +
+            '</tr>';
+    }).join('');
+    if (!pageRows.length) body = '<tr><td colspan="6" style="padding:18px;text-align:center;color:var(--text-muted);font-size:0.8rem;">MID tidak ditemukan.</td></tr>';
+    var pager = '';
+    if (filtered.length > PER) {
+        pager = '<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 4px 0;font-size:0.74rem;color:var(--text-secondary);">' +
+            '<span>Halaman ' + holdPickerPage + ' dari ' + pages + ' · ' + filtered.length + ' MID</span>' +
+            '<button type="button" class="as-hp-pg" data-pg="' + (holdPickerPage - 1) + '" ' + (holdPickerPage <= 1 ? 'disabled' : '') + ' style="padding:3px 10px;border:1px solid var(--border-color);border-radius:6px;background:#fff;cursor:pointer;' + (holdPickerPage <= 1 ? 'opacity:.4;cursor:not-allowed;' : '') + '">&lt;</button>' +
+            '<button type="button" class="as-hp-pg" data-pg="' + (holdPickerPage + 1) + '" ' + (holdPickerPage >= pages ? 'disabled' : '') + ' style="padding:3px 10px;border:1px solid var(--border-color);border-radius:6px;background:#fff;cursor:pointer;' + (holdPickerPage >= pages ? 'opacity:.4;cursor:not-allowed;' : '') + '">&gt;</button></div>';
+    }
+    el.innerHTML = '<div style="border:1px solid var(--border-color);border-radius:8px;overflow:hidden;"><div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.8rem;min-width:520px;"><thead><tr style="background:#f8fafc;">' +
+        '<th style="' + th + '">No</th><th style="' + th + 'text-align:center;">Pilih</th><th style="' + th + '">Merchant</th><th style="' + th + '">MID</th><th style="' + th + 'text-align:right;">Dana (Rp)</th><th style="' + th + '">Hold (Rp) · kosong = penuh</th></tr></thead><tbody>' + body + '</tbody></table></div></div>' + pager;
+    el.querySelectorAll('.as-pp').forEach(function (cb) { cb.addEventListener('change', function () { if (cb.checked) holdPickerChecked.add(cb.value); else holdPickerChecked.delete(cb.value); }); });
+    el.querySelectorAll('.as-pp-amt').forEach(function (inp) { inp.addEventListener('input', function () { holdPickerAmt[inp.getAttribute('data-mid')] = inp.value; validatePartialAmt(inp); }); validatePartialAmt(inp); });
+    el.querySelectorAll('.as-hp-pg').forEach(function (b) { b.addEventListener('click', function () { holdPickerPage = +b.dataset.pg; renderHoldPicker(); }); });
 }
 // Validasi inline nominal Hold Partial (real-time). Kosong = penuh (valid). Return true bila valid.
 function validatePartialAmt(el) {
@@ -1009,16 +1050,16 @@ function submitHold(g) {
     if (!reason) { showToast('Catatan Wajib', 'Isi catatan hold.'); return; }
     var picked = null, holdAmounts = null;
     if (scope === 'partial') {
-        var boxes = Array.from(document.querySelectorAll('.as-pp:checked'));
-        picked = boxes.map(function (c) { return c.value; });
+        // Baca dari state picker (bukan DOM) — pilihan & nominal konsisten lintas halaman/search.
+        picked = Array.from(holdPickerChecked || []);
         if (!picked.length) { showToast('Pilih MID', 'Pilih minimal satu MID untuk hold partial.'); return; }
+        var totalByMid = {}; midSummary(g).forEach(function (m) { totalByMid[m.mid] = m.total; });
         // Nominal hold per MID: kosong = hold penuh; isi = partial (Rp1 … total−1).
         var amts = {}, anyPartial = false, bad = null;
-        boxes.forEach(function (cb) {
+        picked.forEach(function (mid) {
             if (bad) return;
-            var mid = cb.value, total = +cb.getAttribute('data-total');
-            var amtEl = document.querySelector('.as-pp-amt[data-mid="' + mid + '"]');
-            var raw = (amtEl && amtEl.value || '').trim();
+            var total = totalByMid[mid]; if (total == null) return;
+            var raw = (holdPickerAmt[mid] != null ? String(holdPickerAmt[mid]) : '').trim();
             if (raw === '') { amts[mid] = total; return; } // hold seluruh dana MID
             var n = Math.floor(Number(raw));
             if (!(n >= 1 && n <= total - 1)) { bad = { mid: mid, total: total }; return; }
@@ -1495,6 +1536,62 @@ function mockResJson(g) {
     // Pending: belum ada respons dari bank → response data kosong.
     return '';
 }
+// Tambah N detik ke timestamp "DD-MM-YYYY HH:MM[:SS]" → "DD-MM-YYYY HH:MM:SS".
+function tsPlus(base, secs) {
+    var m = String(base || '').match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})(?::(\d{2}))?/);
+    var d = m ? new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +(m[6] || 0)) : new Date();
+    d = new Date(d.getTime() + secs * 1000);
+    var p = function (x) { return String(x).padStart(2, '0'); };
+    return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+// §: Log callback bank untuk settlement OTOMATIS. Request ke bank tidak langsung transfer — ada antrian → diproses → callback.
+// Alur: submit → account inquiry → antri → diteruskan ke jaringan bank → callback status akhir.
+function callbackEvents(g) {
+    var s = st(g.groupId); var rq = s.request || {};
+    var ds = displaySettleStatus(g); // success | pending | fail | rejectbybank
+    var base = s.approvedTs || rq.ts || g.procDisplay;
+    var ref = 'DISB-' + g.groupId.replace('STL-', '');
+    var amt = totalOf(g);
+    var evs = [
+        { name: 'DISBURSEMENT.SUBMITTED', st: 'sukses', off: 0, body: { event: 'disbursement.submitted', reference_id: ref, status: 'ACCEPTED', http_code: 202, channel: rq.metode || 'BI-FAST', amount: amt, message: 'Instruksi disbursement diterima payment gateway, masuk proses.' } },
+        { name: 'DISBURSEMENT.ACCOUNT_INQUIRY', st: 'sukses', off: 9, body: { event: 'disbursement.account_inquiry', reference_id: ref, status: 'VALID', bank_code: g.bank, account_number: g.norek, account_name: g.namaRek, message: 'Validasi nama & nomor rekening tujuan berhasil.' } },
+        { name: 'DISBURSEMENT.QUEUED', st: 'sukses', off: 17, body: { event: 'disbursement.queued', reference_id: ref, status: 'QUEUED', channel: rq.metode || 'BI-FAST', message: 'Transaksi masuk antrian menunggu window proses bank.' } },
+        { name: 'DISBURSEMENT.FORWARDED', st: 'sukses', off: 43, body: { event: 'disbursement.forwarded', reference_id: ref, status: 'PROCESSING', message: 'Diteruskan ke jaringan bank tujuan, menunggu penyelesaian.' } }
+    ];
+    // Callback status akhir dari bank mengikuti status settlement.
+    if (ds === 'success') {
+        evs.push({ name: 'DISBURSEMENT.BANK_CALLBACK', st: 'sukses', off: 96, body: { event: 'disbursement.completed', reference_id: ref, status: 'COMPLETED', bank_reference: 'FT' + g.groupId.replace(/\D/g, '').slice(-10), settled_amount: amt, settled_at: tsPlus(base, 96), message: 'Dana berhasil diterima rekening tujuan.' } });
+    } else if (ds === 'fail') {
+        evs.push({ name: 'DISBURSEMENT.BANK_CALLBACK', st: 'gagal', off: 96, body: { event: 'disbursement.failed', reference_id: ref, status: 'FAILED', error_code: 'BANK_NETWORK_TIMEOUT', message: 'Gagal: timeout jaringan bank tujuan / server bank bermasalah. Dana dikembalikan.' } });
+    } else if (ds === 'rejectbybank') {
+        evs.push({ name: 'DISBURSEMENT.BANK_CALLBACK', st: 'gagal', off: 96, body: { event: 'disbursement.rejected', reference_id: ref, status: 'REJECTED', error_code: 'REJECTED_BY_BANK', message: 'Ditolak bank: rekening tidak terdaftar / dibekukan.' } });
+    } else { // pending
+        evs.push({ name: 'DISBURSEMENT.BANK_CALLBACK', st: 'pending', off: 96, body: { event: 'disbursement.pending', reference_id: ref, status: 'PENDING', message: 'Menunggu callback status akhir dari bank tujuan.' } });
+    }
+    return evs.map(function (e) { return { name: e.name, st: e.st, ts: tsPlus(base, e.off), json: JSON.stringify(e.body, null, 2) }; });
+}
+function callbackSegment(g) {
+    var evs = callbackEvents(g);
+    var SL = { sukses: ['Sukses', '#15803d', '#16a34a22'], gagal: ['Gagal', '#dc2626', '#dc262622'], pending: ['Pending', '#b45309', '#b4530922'] };
+    var uid = 'asexp' + (++_expCnt);
+    var inner = evs.map(function (ev) {
+        var iid = 'ascb' + (++_expCnt); var m = SL[ev.st];
+        return '<div style="border:1px solid #e2e8f0;border-radius:8px;margin-top:8px;overflow:hidden;background:#fff;">' +
+            '<div data-expid="' + iid + '" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none;">' +
+            '<i class="fas fa-chevron-down" id="ici_' + iid + '" style="font-size:0.7rem;color:var(--text-muted);"></i>' +
+            '<span style="font-family:monospace;font-size:0.78rem;font-weight:700;color:var(--text-primary);">' + esc(ev.name) + '</span>' +
+            '<span style="font-size:0.64rem;font-weight:700;border-radius:5px;padding:2px 8px;background:' + m[2] + ';color:' + m[1] + ';white-space:nowrap;">' + m[0] + '</span>' +
+            '<span style="margin-left:auto;font-size:0.73rem;color:var(--text-muted);white-space:nowrap;"><i class="far fa-calendar" style="margin-right:5px;"></i>' + esc(ev.ts) + '</span>' +
+            '</div>' +
+            '<div id="' + iid + '" style="display:none;padding:14px;background:#f8fafc;border-top:1px solid #e2e8f0;"><pre style="margin:0;font-size:0.76rem;font-family:monospace;white-space:pre-wrap;word-break:break-all;color:var(--text-primary);">' + esc(ev.json) + '</pre></div>' +
+            '</div>';
+    }).join('');
+    return '<div style="border:1px solid #e2e8f0;border-radius:8px;margin-top:12px;overflow:hidden;">' +
+        '<div data-expid="' + uid + '" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:#f8fafc;border-bottom:1px solid #e2e8f0;user-select:none;">' +
+        '<span style="display:flex;align-items:center;gap:8px;font-size:0.8rem;font-weight:700;color:#4f46e5;"><i class="fas fa-list-check"></i> LOG CALLBACK</span>' +
+        '<i class="fas fa-chevron-up" id="ici_' + uid + '" style="font-size:0.75rem;color:var(--text-muted);"></i></div>' +
+        '<div id="' + uid + '" style="display:block;padding:8px 16px 14px;background:#f8fafc;">' + inner + '</div></div>';
+}
 function openDetailModal(g) {
     var s = st(g.groupId); var rq = s.request || {};
     var ds = displaySettleStatus(g);
@@ -1516,7 +1613,9 @@ function openDetailModal(g) {
         // Metode Manual tidak mengirim apa pun ke luar → tanpa segmen Request/Response.
         (s.metodeSettlement === 'Manual' ? '' :
             expandSection('REQUEST DATA', '<span style="font-family:monospace;font-size:0.9rem;">&lt;&gt;</span> ', mockReqJson(g), false) +
-            expandSection('RESPONSE DATA', '<span style="font-family:monospace;font-size:0.9rem;">{}</span> ', mockResJson(g), true));
+            expandSection('RESPONSE DATA', '<span style="font-family:monospace;font-size:0.9rem;">{}</span> ', mockResJson(g), true) +
+            // §: Log Callback hanya untuk Metode Settlement Otomatis (proses async antri → bank → callback).
+            (s.metodeSettlement === 'Otomatis' ? callbackSegment(g) : ''));
     openModal('Lihat Detail', body, [{ label: 'Tutup', onClick: closeModal }]);
     setupExpanders(document.getElementById('asModalBody'));
     var bb = document.getElementById('asBuktiBtn');
@@ -2023,7 +2122,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-08-partial-revert-1170';
+    var SEED_VER = '2026-07-08-callback-picker-table';
     var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
     if (fresh) {
         localStorage.removeItem('paydia_as_items');

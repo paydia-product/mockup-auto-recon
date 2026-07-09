@@ -8,7 +8,11 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.17.2', date: '2026-07-08', deployed: true, title: 'Revert v1.17.1 (chargeback base) — kembali ke logic v1.17.0', changes: [
+        { v: '1.18.0', date: '2026-07-08', deployed: true, title: 'Log Callback bank (settle Otomatis) + picker Hold Partial jadi tabel', changes: [
+            'Detail settlement Otomatis: tambah segmen Log Callback (alur async bank: submit → account inquiry → antri → diteruskan → callback), tiap proses ada status (Sukses/Pending/Gagal) + timestamp, expandable ke JSON',
+            'Modal Hold Partial: picker MID diubah jadi tabel proper (kolom No, pagination maks 10/halaman, search by MID & nama merchant); pilihan & nominal konsisten lintas halaman/search'
+        ] },
+        { v: '1.17.2', date: '2026-07-08', deployed: false, title: 'Revert v1.17.1 (chargeback base) — kembali ke logic v1.17.0', changes: [
             'Revert perubahan v1.17.1: hold partial tidak mengubah dispute (dispute hanya bisa tidak-di-settle lewat Hold Semua / Hold Dibawah Min / Reject, bukan Hold Partial)',
             'Logic Hold Partial kembali persis ke kondisi v1.17.0'
         ] },
