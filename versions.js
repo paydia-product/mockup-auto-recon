@@ -8,7 +8,11 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.18.2', date: '2026-07-08', deployed: true, title: 'Detail Request: tambah field Diajukan Oleh', changes: [
+        { v: '1.18.3', date: '2026-07-08', deployed: true, title: 'Sinkron Panduan Halaman dengan logic terkini + doc referensi settlement', changes: [
+            'Panduan Halaman Auto Settlement di-update agar sesuai logic terkini (status hold, filter nominal/Tipe Request, Hold Partial lock+nominal per MID, notifikasi lonceng deteksi rekening, Log Callback, Reject by Bank auto, dll)',
+            'Tambah dokumen SETTLEMENT-REFERENCE.md (referensi lengkap logic/flow/fitur untuk AI agent lain)'
+        ] },
+        { v: '1.18.2', date: '2026-07-08', deployed: false, title: 'Detail Request: tambah field Diajukan Oleh', changes: [
             'Modal Detail Request (Approver): tambah field "Diajukan Oleh" (nama user) di bawah "Waktu Diajukan"'
         ] },
         { v: '1.18.1', date: '2026-07-08', deployed: false, title: 'Detail settle: hapus segmen Response Data', changes: [

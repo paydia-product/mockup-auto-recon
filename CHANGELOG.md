@@ -7,6 +7,12 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.18.3] — 2026-07-08
+### Changed
+- **Panduan Halaman Auto Settlement** (`page-guide.js`) disinkronkan dengan logic terkini: status Hold (Belum Diproses / Siap Release / Sudah Release Checker), filter Nominal 3-opsi berbasis Total Settle, filter Tipe Request multi-select, Hold Partial (picker tabel + nominal per MID + lock sampai approve), notifikasi deteksi rekening di ikon lonceng (bukan auto-hold/badge), Log Callback + hapus Response Data, Reject by Bank per-item auto (tanpa approval), Rilis/auto-approve records di Approver, Diajukan Oleh, akumulasi Siap Release, Ringkasan per Bank collapsible/paginated.
+### Added
+- **`SETTLEMENT-REFERENCE.md`** — dokumen referensi lengkap (data model, konstanta, alur tab, logic inti, modal, filter, export, state) untuk AI agent lain.
+
 ## [1.18.2] — 2026-07-08
 ### Added
 - **Field "Diajukan Oleh"** (nama user pengaju) di modal **Detail Request** (Approver), tepat **di bawah "Waktu Diajukan"**.
