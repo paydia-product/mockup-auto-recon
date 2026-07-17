@@ -24,7 +24,7 @@ var PER_PAGE = 50;
 var BASE_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Settlement', 'Nominal Awal (Rp)', 'Admin (Rp)',
     'Adjustment Chargeback (+) (Rp)', 'Adjustment Chargeback (−) (Rp)', 'Total Settle (Rp)', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening'];
 
-var STATUS_LABEL = { checker: 'Checker', pending: 'Approver', hold: 'Hold', reject: 'Reject', settle: 'Settle' };
+var STATUS_LABEL = { checker: 'Checker', pending: 'Approver', hold: 'Hold', settle: 'Settle' };
 
 var pool = [];        // per-transaction facts
 var groups = [];      // per-rekening settlement entries (the row unit)
@@ -89,19 +89,35 @@ function buildAcctNotifs() {
     });
     return out;
 }
+// §Reminder bell (mock — riil via Telegram): hold tanpa bukti & belum settle > H+3.
+var SETTLE_DEADLINE_DAYS = 3;
+function buildReminderNotifs() {
+    var noBukti = 0, late = 0, cutoff = _isoDaysAgo(SETTLE_DEADLINE_DAYS);
+    groups.forEach(function (g) {
+        var s = st(g.groupId);
+        if (s.mergedInto) return;
+        if (s.status === 'hold' && !(s.request && s.request.bukti)) noBukti++;
+        if (s.status === 'checker' && g.procISO <= cutoff) late++;
+    });
+    var out = [];
+    if (noBukti) out.push({ kind: 'nobukti', text: noBukti + ' settlement Hold belum memiliki bukti — lengkapi via aksi "Lihat Bukti" di tab Hold.' });
+    if (late) out.push({ kind: 'late', text: late + ' settlement belum di-settle > ' + SETTLE_DEADLINE_DAYS + ' hari sejak Tanggal Recon — proses di tab Checker.' });
+    return out;
+}
 // Render lonceng notifikasi (badge + dropdown).
 function renderNotifBell() {
-    var notifs = buildAcctNotifs();
+    var notifs = buildAcctNotifs().concat(buildReminderNotifs());
     var badge = document.getElementById('notifBadge');
     if (badge) { badge.textContent = notifs.length; badge.style.display = notifs.length ? 'flex' : 'none'; }
     var dd = document.getElementById('notifDropdown');
     if (!dd) return;
     var body = notifs.length ? notifs.map(function (nt) {
-        var col = nt.kind === 'anomaly' ? '#dc2626' : (nt.kind === 'baru' ? '#2563eb' : '#b45309');
-        var ico = nt.kind === 'anomaly' ? 'fa-triangle-exclamation' : (nt.kind === 'baru' ? 'fa-user-plus' : 'fa-pen-to-square');
+        var col = nt.kind === 'anomaly' ? '#dc2626' : (nt.kind === 'baru' ? '#2563eb' : (nt.kind === 'nobukti' ? '#b45309' : (nt.kind === 'late' ? '#dc2626' : '#b45309')));
+        var ico = nt.kind === 'anomaly' ? 'fa-triangle-exclamation' : (nt.kind === 'baru' ? 'fa-user-plus' : (nt.kind === 'nobukti' ? 'fa-file-circle-exclamation' : (nt.kind === 'late' ? 'fa-clock' : 'fa-pen-to-square')));
         return '<div class="notif-item"><span class="ni-ico" style="background:' + col + '22;color:' + col + ';"><i class="fas ' + ico + '"></i></span><span class="ni-body">' + esc(nt.text) + '</span></div>';
     }).join('') : '<div class="notif-empty">Tidak ada notifikasi.</div>';
-    dd.innerHTML = '<div class="notif-dropdown-head"><span>Notifikasi Deteksi Rekening</span><span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">' + notifs.length + ' notifikasi</span></div>' + body;
+    dd.innerHTML = '<div class="notif-dropdown-head"><span>Notifikasi</span><span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">' + notifs.length + ' notifikasi</span></div>' + body +
+        '<div style="padding:8px 14px;font-size:0.68rem;color:var(--text-muted);border-top:1px solid #f1f5f9;">Reminder bersifat mock — implementasi riil dikirim di luar dashboard (mis. Telegram).</div>';
 }
 // §1.5: status akumulasi norek yang punya hold <Rp10.000.
 // §1/§2: status hold sesuai filter — Belum Diproses / Siap Release / Sudah Release Checker.
@@ -120,7 +136,7 @@ function holdStatusChip(g) {
 // Auto-approval request ke Approver (persisten, TIDAK bisa dihapus). 2 jenis: Rilis ke Checker & Reject by Bank.
 // Data tetap hidup di tab tujuan (checker/hold); di Approver hanya tercatat sebagai request yang auto-approve.
 var AUTOREQ_LABEL = { rilis: 'Rilis ke Checker', rejectbybank: 'Reject by Bank' };
-var AUTOREQ_TAB = { checker: 'Checker', hold: 'Hold', reject: 'Reject', settle: 'Settle', pending: 'Approver' };
+var AUTOREQ_TAB = { checker: 'Checker', hold: 'Hold', settle: 'Settle', pending: 'Approver' };
 function autoReqText(a) { return a ? ('Otomatis ' + (AUTOREQ_TAB[a.from] || a.from) + ' → ' + (AUTOREQ_TAB[a.to] || a.to)) : ''; }
 // Label MID yang dihold (Hold Partial). Bila per-nominal, tampilkan jumlah yang dihold tiap MID.
 function partialMidsLabel(rq) {
@@ -139,14 +155,19 @@ function mergeBadge(g) {
 // (checker + hold min) ≥ Rp10.000. Dihitung sekali per render (O(n)) lalu di-cache.
 var _releasableNoreks = {};
 function computeReleasable() {
-    var tot = {}, minNorek = {};
+    // Ambang efektif = AUTO_HOLD_MIN + admin yang akan dikenakan setelah rilis (adminOf berhenti
+    // mengecualikan admin begitu status bukan 'hold' lagi) — supaya tidak balik ke Hold pasca-rilis.
+    var tot = {}, minNorek = {}, adminForNorek = {};
     groups.forEach(function (g) {
         var s = st(g.groupId), sc = (s.request || {}).scope;
         if (s.status === 'checker' || (s.status === 'hold' && sc === 'min')) tot[g.norek] = (tot[g.norek] || 0) + totalOf(g);
-        if (s.status === 'hold' && sc === 'min') minNorek[g.norek] = 1;
+        if (s.status === 'hold' && sc === 'min') {
+            minNorek[g.norek] = 1;
+            adminForNorek[g.norek] = isFeeExempt(g) ? 0 : (isOther(g.bank) ? ADMIN_FEE_OTHER : 0);
+        }
     });
     _releasableNoreks = {};
-    Object.keys(minNorek).forEach(function (nr) { if ((tot[nr] || 0) >= AUTO_HOLD_MIN) _releasableNoreks[nr] = 1; });
+    Object.keys(minNorek).forEach(function (nr) { if ((tot[nr] || 0) >= AUTO_HOLD_MIN + (adminForNorek[nr] || 0)) _releasableNoreks[nr] = 1; });
 }
 function accumReleasableCount() { return Object.keys(_releasableNoreks).length; }
 function isReleasableMinHold(g) { var s = st(g.groupId); return s.status === 'hold' && (s.request || {}).scope === 'min' && !!_releasableNoreks[g.norek]; }
@@ -155,15 +176,14 @@ var isOther = function (b) { return CORE_BANKS.indexOf(String(b).toUpperCase()) 
 var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpperCase().replace('MANDIRI', 'Mandiri'); };
 var todayProc = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 var todayISO = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
-// Dokumentasi: default filter = SEMUA tanggal (start/end kosong). User bisa mempersempit via panel Filter.
-function defaultFilters() { return { start: '', end: '', banks: new Set(), big: false, mid: false, small: false, reqs: new Set(), settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasans: new Set(), holdStatuses: new Set() }; }
+// Dokumentasi: default filter = HARI BERJALAN (start/end = hari ini). User bisa memperlebar via panel Filter.
+function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: new Set(), big: false, mid: false, small: false, reqs: new Set(), settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasans: new Set(), holdStatuses: new Set() }; }
 // Cocokkan 1 nilai filter Tipe Request ke state group (dipakai multi-select OR).
 function reqMatchesValue(v, s) {
     var rq = s.request || {};
     if (v === 'hold') return rq.type === 'hold' && rq.scope === 'all';
     if (v === 'holdpartial') return rq.type === 'hold' && rq.scope === 'partial';
     if (v === 'holdmin') return rq.type === 'hold' && rq.scope === 'min';
-    if (v === 'reject') return rq.type === 'reject';
     if (v === 'settle') return rq.type === 'settle';
     if (v === 'rilis') return !!(s.autoReq && s.autoReq.type === 'rilis');
     if (v === 'rejectbybank') return !!(s.autoReq && s.autoReq.type === 'rejectbybank');
@@ -195,7 +215,8 @@ function _pick(a, s) { return a[Math.floor(_r(s) * a.length) % a.length]; }
 function _int(s, lo, hi) { return Math.floor(_r(s) * (hi - lo + 1)) + lo; }
 function _pad2(x) { return String(x).padStart(2, '0'); }
 function _isoDaysAgo(n) { var d = new Date(); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); }
-function _isoAdd(iso, n) { var d = new Date(iso); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); }
+// Clamp ke hari ini — offset seed tidak boleh menghasilkan tanggal masa depan (updatedTs/approvedTs).
+function _isoAdd(iso, n) { var d = new Date(iso); d.setDate(d.getDate() + n); var r = d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); var today = todayISO(); return r > today ? today : r; }
 function _disp(iso, s) { var p = iso.split('-'); return p[2] + '-' + p[1] + '-' + p[0] + ' ' + _pad2(_int(s, 8, 17)) + ':' + _pad2(_int(s + 1, 0, 59)) + ':' + _pad2(_int(s + 2, 0, 59)); }
 
 var _seedSplitsOut = [];
@@ -211,7 +232,9 @@ function buildSeedPool() {
         var iso = forceISO || _isoDaysAgo(_int(_gi++, 3, 120));
         var disp = _disp(iso, _gi++);
         if (state && state.__changed) {
-            var uts = _disp(_isoAdd(iso, _int(_gi++, 1, 20)), _gi++);
+            // Baris hari-ini: updatedTs = hari ini juga (offset 0), bukan masa depan.
+            var updOff = (iso === _isoDaysAgo(0)) ? 0 : _int(_gi++, 1, 20);
+            var uts = _disp(_isoAdd(iso, updOff), _gi++);
             state.updatedTs = uts;
             if (state.approvedTs === '__ts') state.approvedTs = uts;
             if (state.request && state.request.ts === '__ts') state.request.ts = uts;
@@ -236,8 +259,8 @@ function buildSeedPool() {
     function addMergeCase() {
         var norek = nextNorek(), bank = 'OCBC';
         var owner = _pick(GEN_NAMES, _gi++) + ' ' + norek.slice(-4);
-        var iso = _isoDaysAgo(_int(_gi++, 3, 120)), disp = _disp(iso, _gi++);
-        var uts = _disp(_isoAdd(iso, _int(_gi++, 1, 15)), _gi++);
+        var iso = _r(_gi++) < 0.5 ? _isoDaysAgo(0) : _isoDaysAgo(_int(_gi++, 3, 120)), disp = _disp(iso, _gi++);
+        var uts = _disp(_isoAdd(iso, (iso === _isoDaysAgo(0)) ? 0 : _int(_gi++, 1, 15)), _gi++);
         var base = norek.slice(-6);
         var midA = 'MID-' + base + '-0', midB = 'MID-' + base + '-1';
         rows.push({ txId: 'TX-' + norek + '-0', tanggal: disp, merchantName: 'Gerai ' + norek.slice(-3), mid: midA, bankCode: bank, bankAccount: norek, bankAccountName: owner, nominalSettle: _int(_gi++, 18000, 30000), tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp, seedState: { status: 'checker' } });
@@ -248,14 +271,13 @@ function buildSeedPool() {
     var dc = function (n) { return _r(_gi++) < 0.35 ? Math.min(n, _int(_gi++, 1, 2)) : 0; };                // ~35% punya dispute
     var i, n;
     // 1) CHECKER (~1000): variasi bank, multi-MID, dispute, sebagian nominal besar (>250jt)
-    for (i = 0; i < 1000; i++) { var big = (i % 40 === 0); n = big ? 1 : mc(); add(_pick(GEN_BANKS, _gi++), n, dc(n), big ? 280000000 : 0, { status: 'checker' }); }
-    // 2) APPROVER/pending (~1000): request settle / hold(all,partial,min) / reject
+    for (i = 0; i < 1000; i++) { var big = (i % 40 === 0); n = big ? 1 : mc(); add(_pick(GEN_BANKS, _gi++), n, dc(n), big ? 280000000 : 0, { status: 'checker' }, null, (i % 5 === 0) ? _isoDaysAgo(0) : null); }
+    // 2) APPROVER/pending (~1000): request settle / hold(all,partial,min)
     for (i = 0; i < 1000; i++) {
         n = mc(); var t = _r(_gi++), req;
-        if (t < 0.4) req = { type: 'settle', metodeSettlement: 'Manual', channel: _pick(CHANNELS, _gi++), metode: _pick(METODE_TRANSFER, _gi++), prevStatus: 'checker', reason: '', bukti: '', ts: '__ts' };
-        else if (t < 0.7) req = { type: 'hold', scope: _pick(['all', 'partial', 'min'], _gi++), prevStatus: 'checker', reason: _pick(GEN_REASONS, _gi++), bukti: '', ts: '__ts' };
-        else req = { type: 'reject', prevStatus: 'checker', reason: _pick(GEN_REASONS, _gi++), bukti: '', ts: '__ts' };
-        add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'pending', request: req, __changed: true });
+        if (t < 0.5) req = { type: 'settle', metodeSettlement: 'Manual', channel: _pick(CHANNELS, _gi++), metode: _pick(METODE_TRANSFER, _gi++), prevStatus: 'checker', reason: '', bukti: '', ts: '__ts' };
+        else req = { type: 'hold', scope: _pick(['all', 'partial', 'min'], _gi++), prevStatus: 'checker', reason: _pick(GEN_REASONS, _gi++), bukti: '', ts: '__ts' };
+        add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'pending', request: req, __changed: true }, null, (i % 5 === 0) ? _isoDaysAgo(0) : null);
     }
     // 3) HOLD aktif (~1000): 4 alasan (Hold Semua / Partial / Dibawah Min / Reject by Bank)
     for (i = 0; i < 1000; i++) {
@@ -266,34 +288,29 @@ function buildSeedPool() {
         var st2 = { status: 'hold', everHeld: true, holdScope: scope, holdReason: reason, approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true,
             request: { type: 'hold', scope: scope, prevStatus: scope === 'rejectbybank' ? 'settle' : 'checker', reason: reason, bukti: (i % 3 ? 'bukti_' + norekSafe(i) + '.pdf' : ''), ts: '__ts' } };
         if (scope === 'rejectbybank') st2.settleStatus = 'rejectbybank';
-        add(bk, scope === 'min' ? 1 : mc(), scope === 'min' ? 0 : dc(2), scope === 'min' ? 11000 : 0, st2);
+        add(bk, scope === 'min' ? 1 : mc(), scope === 'min' ? 0 : dc(2), scope === 'min' ? 6000 : 0, st2, null, (i % 5 === 0) ? _isoDaysAgo(0) : null);
     }
     // 4) HOLD LEDGER (~300): pernah di-hold, sudah RILIS ke Checker — tetap tampil di Hold (Sudah Release Checker)
     for (i = 0; i < 300; i++) {
         var lsc = _pick(['all', 'partial', 'min'], _gi++);
-        add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', everHeld: true, released: true, holdScope: lsc, holdReason: (lsc === 'min' ? 'Auto hold: total settle < Rp10.000' : _pick(GEN_REASONS, _gi++)), request: null, __changed: true });
+        add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', everHeld: true, released: true, holdScope: lsc, holdReason: (lsc === 'min' ? 'Auto hold: total settle < Rp10.000' : _pick(GEN_REASONS, _gi++)), request: null, __changed: true }, null, (i % 5 === 0) ? _isoDaysAgo(0) : null);
     }
-    // 5) REJECT (~1000)
-    for (i = 0; i < 1000; i++) { n = mc(); add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'reject', approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true, request: { type: 'reject', prevStatus: 'checker', reason: _pick(GEN_REASONS, _gi++), bukti: (i % 2 ? 'bukti_r' + i + '.pdf' : ''), ts: '__ts' } }); }
     // 6) SETTLE (~1000): status pending/success/fail (Reject by Bank tidak di sini — masuk Hold)
     for (i = 0; i < 1000; i++) {
         var ss = _pick(['success', 'success', 'pending', 'fail'], _gi++);
         var metode = ss === 'success' ? 'Manual' : _pick(['Manual', 'Otomatis'], _gi++);
         n = mc();
-        add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'settle', settleStatus: ss, metodeSettlement: metode, channel: _pick(CHANNELS, _gi++), approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true, request: { type: 'settle', metodeSettlement: metode, metode: _pick(METODE_TRANSFER, _gi++), channel: _pick(CHANNELS, _gi++), prevStatus: 'checker', reason: '', bukti: '', ts: '__ts' } });
+        add(_pick(GEN_BANKS, _gi++), n, dc(n), 0, { status: 'settle', settleStatus: ss, metodeSettlement: metode, channel: _pick(CHANNELS, _gi++), approvedTs: '__ts', approvedBy: 'dion@paydia.id', __changed: true, request: { type: 'settle', metodeSettlement: metode, metode: _pick(METODE_TRANSFER, _gi++), channel: _pick(CHANNELS, _gi++), prevStatus: 'checker', reason: '', bukti: '', ts: '__ts' } }, null, (i % 5 === 0) ? _isoDaysAgo(0) : null);
     }
     // 7) CASE GABUNG (~40): 1 norek+bank = base (checker ≥10k) + split hold Dibawah Min (<10k) via splits.
     //    Akumulasi norek ≥ Rp10.000 → split berstatus "Siap Release"; saat base di-settle & approve → digabung.
     for (i = 0; i < 40; i++) addMergeCase();
     // 8) NOTIFIKASI APPROVER (contoh, ~5 tiap kasus): perpindahan data → notif read-only di tab Approver.
-    //    3 kasus: hold→checker (rilis), reject→checker (rilis), settle→hold (reject by bank). Semua AUTO-APPROVE, persisten.
+    //    2 kasus: hold→checker (rilis), settle→hold (reject by bank). Semua AUTO-APPROVE, persisten.
     for (i = 0; i < 5; i++) {
         // (a) hold → checker via Rilis: sudah di Checker (released), tercatat auto-approve di Approver.
         add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', everHeld: true, released: true, holdScope: 'all', holdReason: _pick(GEN_REASONS, _gi++), request: null,
             autoReq: { type: 'rilis', from: 'hold', to: 'checker', ts: '__ts' }, __changed: true });
-        // (b) reject → checker via Rilis: sudah di Checker, tercatat auto-approve di Approver.
-        add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'checker', released: true, request: null,
-            autoReq: { type: 'rilis', from: 'reject', to: 'checker', ts: '__ts' }, __changed: true });
         // (c) settle → hold via Reject by Bank: di Hold (status Reject by Bank), tercatat auto-approve di Approver.
         add(_pick(GEN_BANKS, _gi++), mc(), 0, 0, { status: 'hold', everHeld: true, settleStatus: 'rejectbybank', holdScope: 'rejectbybank', holdReason: 'Reject by Bank: nomor rekening ditolak bank', approvedTs: '__ts', approvedBy: 'dion@paydia.id',
             request: { type: 'hold', scope: 'rejectbybank', prevStatus: 'settle', reason: 'Reject by Bank: nomor rekening ditolak bank', bukti: '', ts: '__ts' },
@@ -302,17 +319,17 @@ function buildSeedPool() {
     // 9) DETEKSI REKENING (contoh notifikasi lonceng): merchant single-MID yang cocok REF_ACCOUNTS/NEW_MIDS.
     //    Tetap di Checker (tanpa auto-hold) — Checker review manual.
     function addDetect(mid, norek, bank, nama) {
-        var iso = _isoDaysAgo(_int(_gi++, 2, 20)), disp = _disp(iso, _gi++);
+        var iso = _isoDaysAgo(0), disp = _disp(iso, _gi++);
         rows.push({ txId: 'TX-' + norek + '-0', tanggal: disp, merchantName: 'Merchant ' + norek.slice(-3), mid: mid, bankCode: bank, bankAccount: norek, bankAccountName: nama, nominalSettle: _int(_gi++, 40000, 120000), tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp, seedState: { status: 'checker' } });
     }
     addDetect('MID-W001', '8810000000111', 'BCA', 'Kopi Senja Nusantara');   // baru (pertama kali transaksi)
     addDetect('MID-W002', '8810000000200', 'BCA', 'PT Notif Merchant');       // perubahan norek (ada pemberitahuan)
     addDetect('MID-W003', '8810000000300', 'BCA', 'Fathurroji Wijaya');       // anomali: perubahan norek + nama tanpa pemberitahuan
     // 10) SKENARIO DIBAWAH MIN. TRANSAKSI (demo 10+ data). Tiap split = 1 settlement terpisah pada 1 norek.
-    //     Bank non-core → admin Rp6.500 → totalOf = nominal − 6.500. computeReleasable menjumlah totalOf per norek.
+    //     Split berstatus hold TIDAK kena admin (adminOf) — nominal split = totalOf apa adanya.
     function addMinScenario(norek, bank, splitAmts, baseAmt) {
         var owner = 'Merchant ' + norek.slice(-4);
-        var iso = _isoDaysAgo(_int(_gi++, 2, 18)), disp = _disp(iso, _gi++);
+        var iso = _isoDaysAgo(0), disp = _disp(iso, _gi++);
         var idx = 0;
         splitAmts.forEach(function (amt, i) {
             var mid = 'MID-' + norek.slice(-6) + '-' + (idx++);
@@ -324,24 +341,27 @@ function buildSeedPool() {
             rows.push({ txId: 'TX-' + norek + '-' + idx, tanggal: disp, merchantName: 'Gerai ' + norek.slice(-3), mid: bmid, bankCode: bank, bankAccount: norek, bankAccountName: owner, nominalSettle: baseAmt, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp });
         }
     }
-    // Skenario A — akumulasi hold-min per norek (nominal 10.500 → totalOf 4.000 tiap split):
-    addMinScenario('8830000000001', 'OCBC', [10500, 10500, 10500]);        // A lengkap: 3×4.000 = 12.000 ≥10rb → semua Siap Release
-    addMinScenario('8830000000002', 'NOBU', [10500, 10500, 10500, 10500]); // A lengkap: 4×4.000 = 16.000 → semua Siap Release
-    addMinScenario('8830000000003', 'MEGA', [10500, 10500]);               // A belum: 2×4.000 = 8.000 <10rb → Belum Diproses
+    // Skenario A — akumulasi hold-min per norek (hold tanpa admin → nominal split = totalOf apa adanya).
+    // Ambang efektif pasca-rilis = AUTO_HOLD_MIN(10.000) + admin norek non-core non-exempt(6.500) = 16.500.
+    addMinScenario('8830000000001', 'OCBC', [6000, 6000, 6000]);        // A lengkap: 3×6.000 = 18.000 ≥16.500 → semua Siap Release
+    addMinScenario('8830000000002', 'NOBU', [5000, 5000, 5000, 5000]);  // A lengkap: 4×5.000 = 20.000 ≥16.500 → semua Siap Release
+    addMinScenario('8830000000003', 'MEGA', [4000, 4000]);              // A belum: 2×4.000 = 8.000 <16.500 → Belum Diproses
     // Skenario B — 1 hold-min (<10rb) + 1 base checker (>10rb) pada norek sama → hold-min jadi Siap Release, base tetap Checker:
-    addMinScenario('8830000000004', 'OCBC', [10500], 60000);               // split 4.000 + base 53.500 = 57.500 → Siap Release
-    addMinScenario('8830000000005', 'BSI', [10500], 35000);                // split 4.000 + base 28.500 = 32.500 → Siap Release
+    addMinScenario('8830000000004', 'OCBC', [4000], 60000);             // split 4.000 + base 60.000 − 6.500 admin = 57.500 → Siap Release
+    addMinScenario('8830000000005', 'BSI', [4000], 35000);              // split 4.000 + base 35.000 − 6.500 admin = 32.500 → Siap Release
     // Task 2 — settlement <Rp10.000 ke bank BCA/Mandiri/BRI (core): TIDAK auto-hold, tetap di Checker.
     function addCoreSmall(norek, bank, amt) {
-        var iso = _isoDaysAgo(_int(_gi++, 2, 18)), disp = _disp(iso, _gi++);
+        var iso = _isoDaysAgo(0), disp = _disp(iso, _gi++);
         rows.push({ txId: 'TX-' + norek + '-0', tanggal: disp, merchantName: 'Gerai ' + norek.slice(-3), mid: 'MID-' + norek.slice(-6) + '-0', bankCode: bank, bankAccount: norek, bankAccountName: 'Merchant ' + norek.slice(-4), nominalSettle: amt, tipeSettlement: 'Reguler Matched', adjPlus: 0, adjMinus: 0, procISO: iso, procDisplay: disp, seedState: { status: 'checker' } });
     }
     addCoreSmall('8830000000011', 'BCA', 8000);
     addCoreSmall('8830000000012', 'MANDIRI', 6500);
     addCoreSmall('8830000000013', 'BRI', 9000);
     // Norek banyak MID (multi-outlet) — demo pagination & search picker Hold Partial.
-    add('BCA', 15, 0, 0, { status: 'checker' }, '8830000000021');
-    add('MANDIRI', 23, 0, 0, { status: 'checker' }, '8830000000022');
+    add('BCA', 15, 0, 0, { status: 'checker' }, '8830000000021', _isoDaysAgo(0));
+    add('MANDIRI', 23, 0, 0, { status: 'checker' }, '8830000000022', _isoDaysAgo(0));
+    // §Bebas Admin: yayasan di bank non-core, nominal normal — admin Rp6.500 TIDAK dikenakan.
+    add('OCBC', 2, 0, 45000, { status: 'checker' }, '8840000000001', _isoDaysAgo(0));
     return rows;
 }
 function norekSafe(i) { return String(1000 + i); }
@@ -436,6 +456,8 @@ function buildGroups() {
     groups.forEach(function (g) {
         var s = st(g.groupId);
         // Auto-hold: total settle < Rp10.000 untuk bank tujuan bukan BCA/Mandiri/BRI.
+        // Dicek saat status masih 'checker' → adminOf() termasuk admin di totalOf(); setelah jadi
+        // 'hold', totalOf() tampil tanpa admin (lihat adminOf) — perilaku ini disengaja (Item 1).
         if (s.status === 'checker' && !s.request && isOther(g.bank) && totalOf(g) < AUTO_HOLD_MIN) {
             s.status = 'hold'; s.everHeld = true;
             s.request = { type: 'hold', scope: 'min', reason: 'Auto hold: total settle < Rp10.000 (bank tujuan non-BCA/Mandiri/BRI)', bukti: '', ts: todayProc(), auto: true };
@@ -446,7 +468,22 @@ function buildGroups() {
     saveItems();
 }
 
-function totalOf(g) { return g.nominalAwal - g.admin + (g.adjPlus || 0) - (g.adjMinus || 0); }
+// §Bebas Admin: norek merchant kategori UMKM/yayasan — tidak dikenai admin Rp6.500 walau bank non-core.
+var FEE_EXEMPT_NOREKS = { '8840000000001': 'Yayasan (bebas biaya admin)' };
+function isFeeExempt(g) { return !!FEE_EXEMPT_NOREKS[g.norek]; }
+// Admin flat Rp6.500 (bank non-core) hanya untuk group yang menuju payout.
+// Group ber-status 'hold' TIDAK kena admin — admin dikenakan sekali saat
+// dana kembali/tergabung ke settlement berjalan di Checker. Norek bebas admin selalu Rp0.
+function adminOf(g) {
+    if (isFeeExempt(g)) return 0;
+    if (st(g.groupId).status === 'hold') return 0;
+    return isOther(g.bank) ? ADMIN_FEE_OTHER : 0;
+}
+function totalOf(g) { return g.nominalAwal - adminOf(g) + (g.adjPlus || 0) - (g.adjMinus || 0); }
+function feeExemptBadge(g) {
+    if (!isFeeExempt(g)) return '';
+    return ' <span title="' + esc(FEE_EXEMPT_NOREKS[g.norek]) + '" style="font-size:0.6rem;font-weight:700;border-radius:4px;padding:1px 6px;background:#16a34a22;color:#15803d;white-space:nowrap;">BEBAS ADMIN</span>';
+}
 function groupById(id) { return groups.find(function (g) { return g.groupId === id; }); }
 
 // Ringkas transaksi dalam satu group settlement per MID (untuk List Settlement & picker Hold Partial).
@@ -532,7 +569,7 @@ function renderSummary() {
     var byBank = {};
     tabGroups('checker').forEach(function (g) {
         var b = byBank[g.bank] = byBank[g.bank] || { awal: 0, admin: 0, cbP: 0, cbM: 0, count: 0 };
-        b.awal += g.nominalAwal; b.admin += g.admin; b.cbP += (g.adjPlus || 0); b.cbM += (g.adjMinus || 0); b.count++;
+        b.awal += g.nominalAwal; b.admin += adminOf(g); b.cbP += (g.adjPlus || 0); b.cbM += (g.adjMinus || 0); b.count++;
     });
     var banks = Object.keys(byBank).sort();
     var th = 'padding:8px 12px;font-size:0.7rem;font-weight:600;color:var(--text-secondary);text-align:right;';
@@ -624,10 +661,11 @@ function render() {
     // Report Manajemen = summary harian settlement — hanya relevan di tab Settle.
     var mgmtBtn = document.getElementById('asExportMgmtBtn');
     if (mgmtBtn) mgmtBtn.style.display = (activeTab === 'settle') ? '' : 'none';
+    renderNotifBell();
 }
 
 function renderCounts() {
-    ['checker', 'pending', 'hold', 'reject', 'settle'].forEach(function (tab) {
+    ['checker', 'pending', 'hold', 'settle'].forEach(function (tab) {
         var id = tab === 'pending' ? 'cnt-approver' : 'cnt-' + tab;
         var el = document.getElementById(id);
         if (el) el.textContent = groups.filter(function (g) { var s = st(g.groupId); return tab === 'pending' ? (s.status === 'pending' || s.autoReq || (s.request && s.request.partialPending)) : tab === 'hold' ? (s.status === 'hold' || s.everHeld) : s.status === tab; }).length;
@@ -651,8 +689,8 @@ function renderTable() {
     var thead = document.getElementById('asThead');
     var tbody = document.getElementById('asTableBody');
     var cols = columnsFor(activeTab);
-    // Bulk mode: Checker / Approver. Hold & Reject & Settle tanpa bulk (per-baris saja).
-    var hasCb = (activeTab === 'checker' || activeTab === 'pending') && bulkMode;
+    // Bulk mode: Checker / Approver / Hold (hanya baris Siap Release). Settle tanpa bulk (per-baris saja).
+    var hasCb = (activeTab === 'checker' || activeTab === 'pending' || activeTab === 'hold') && bulkMode;
     var headHtml = '<tr>';
     if (hasCb) headHtml += '<th style="width:38px;text-align:center;"><input type="checkbox" id="asSelectAll"></th>';
     cols.forEach(function (c) {
@@ -687,8 +725,8 @@ function renderTable() {
         var s = st(g.groupId);
         var no = (page - 1) * PER_PAGE + idx + 1;
         var c = '<tr>';
-        // Hold ledger yang sudah diproses tidak bisa di-bulk (view-only) → sel checkbox kosong.
-        var rowCb = hasCb && !(activeTab === 'hold' && s.status !== 'hold');
+        // Hold: hanya baris Siap Release yang bisa dicentang untuk Rilis & Gabung.
+        var rowCb = hasCb && (activeTab !== 'hold' || holdStatusKey(g) === 'siap');
         if (hasCb) c += '<td style="text-align:center;">' + (rowCb ? '<input type="checkbox" class="as-cb" data-id="' + g.groupId + '" ' + (selected.has(g.groupId) ? 'checked' : '') + '>' : '') + '</td>';
         c += '<td>' + no + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.procDisplay) + '</td>';
@@ -701,22 +739,22 @@ function renderTable() {
             c += '<td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">' + num(part.pAmt) + '</td>';
         } else {
             c += '<td style="text-align:right;font-variant-numeric:tabular-nums;">' + num(g.nominalAwal) + '</td>';
-            c += '<td style="text-align:right;">' + (g.admin ? num(g.admin) : '-') + '</td>';
+            c += '<td style="text-align:right;">' + (adminOf(g) ? num(adminOf(g)) : '-') + '</td>';
             c += '<td style="text-align:right;color:#16a34a;">' + (g.adjPlus ? '+' + num(g.adjPlus) : '-') + '</td>';
             c += '<td style="text-align:right;color:#dc2626;">' + (g.adjMinus ? '−' + num(g.adjMinus) : '-') + '</td>';
             c += '<td style="text-align:right;font-weight:700;font-variant-numeric:tabular-nums;">' + num(totalOf(g)) + '</td>';
         }
         c += '<td>' + esc(g.bank) + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>';
-        c += '<td>' + esc(g.namaRek) + '</td>';
+        c += '<td>' + esc(g.namaRek) + feeExemptBadge(g) + '</td>';
         if (activeTab === 'pending') {
             if (s.autoReq) {
                 var acol = s.autoReq.type === 'rejectbybank' ? '#7c3aed' : '#0e7490';
                 c += '<td><span class="as-req-badge" style="background:' + acol + '22;color:' + acol + ';white-space:normal;display:inline-block;line-height:1.3;">' + esc(AUTOREQ_LABEL[s.autoReq.type] || s.autoReq.type) + '</span></td>';
             } else {
                 var rq = s.request || {};
-                var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'reject' ? '#dc2626' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309'));
-                var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'settle' ? 'Settle' : (rq.type === 'reject' ? 'Reject' : (rq.type === 'rejectbybank' ? 'Reject by Bank' : '-')));
+                var col = rq.type === 'settle' ? '#16a34a' : (rq.type === 'rejectbybank' ? '#7c3aed' : '#b45309');
+                var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'settle' ? 'Settle' : (rq.type === 'rejectbybank' ? 'Reject by Bank' : '-'));
                 c += '<td><span class="as-req-badge" style="background:' + col + '22;color:' + col + ';white-space:normal;display:inline-block;line-height:1.3;">' + esc(lbl) + '</span></td>';
             }
         }
@@ -738,11 +776,12 @@ function renderTable() {
 
     if (hasCb) {
         var all = document.getElementById('asSelectAll');
-        var syncHeader = function () { if (all) all.checked = slice.length > 0 && slice.every(function (v) { return selected.has(v.g.groupId); }); };
+        var eligible = function (v) { return activeTab !== 'hold' || holdStatusKey(v.g) === 'siap'; };
+        var syncHeader = function () { var el2 = slice.filter(eligible); if (all) all.checked = el2.length > 0 && el2.every(function (v) { return selected.has(v.g.groupId); }); };
         syncHeader();
         if (all) all.addEventListener('change', function () {
             var on = all.checked;
-            slice.forEach(function (v) { on ? selected.add(v.g.groupId) : selected.delete(v.g.groupId); });
+            slice.forEach(function (v) { if (!eligible(v)) return; on ? selected.add(v.g.groupId) : selected.delete(v.g.groupId); });
             render();
         });
         tbody.querySelectorAll('.as-cb').forEach(function (cb) {
@@ -753,11 +792,9 @@ function renderTable() {
 }
 
 function actionMenuItems(g) {
-    if (activeTab === 'checker') return [['hold', 'Hold'], ['reject', 'Reject'], ['settle', 'Settle']];
+    if (activeTab === 'checker') return [['hold', 'Hold'], ['settle', 'Settle']];
     // §4.5 Hold ledger: baris aktif bisa dirilis; baris yang sudah diproses (pindah tab) view-only.
     if (activeTab === 'hold') return (st(g.groupId).status === 'hold') ? [['rilis', 'Rilis ke Checker'], ['catatan', 'Lihat Bukti']] : [['catatan', 'Lihat Bukti']];
-    // Tab Reject sama seperti Hold: hanya bisa Rilis ke Checker + Lihat Bukti (rilis kirim notif ke Approver).
-    if (activeTab === 'reject') return [['rilis', 'Rilis ke Checker'], ['catatan', 'Lihat Bukti']];
     if (activeTab === 'settle') {
         var acts = [['detail', 'Lihat Detail']];
         // Reject by Bank hanya tersedia untuk item dengan Metode Settlement = Manual.
@@ -808,6 +845,9 @@ function renderToolbarActions() {
         document.getElementById('asBulkBtn').addEventListener('click', function () { bulkMode = !bulkMode; if (!bulkMode) selected.clear(); render(); });
         var s2 = document.getElementById('asSim2faBtn');
         if (s2) s2.addEventListener('click', function () { sim2faWrong = !sim2faWrong; render(); });
+    } else if (activeTab === 'hold') {
+        box.innerHTML = '<button class="btn" id="asHoldBulkBtn" style="margin:0;background:' + (bulkMode ? 'var(--primary)' : '#1e293b') + ';color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:9px 14px;"><i class="fas fa-object-group"></i> ' + (bulkMode ? 'Tutup Pilih Siap Release' : 'Rilis & Gabung (Siap Release)') + '</button>';
+        document.getElementById('asHoldBulkBtn').addEventListener('click', function () { bulkMode = !bulkMode; if (!bulkMode) selected.clear(); render(); });
     } else if (activeTab === 'settle') {
         // Settle tab: satu dropdown simulasi status (menggantikan banyak tombol).
         var simOpts = [['', 'Tanpa Simulasi'], ['success', 'Simulasi Sukses'], ['pending', 'Simulasi Pending'], ['fail', 'Simulasi Fail'], ['rejectbybank', 'Simulasi Reject by Bank']];
@@ -826,19 +866,19 @@ function renderToolbarActions() {
 
 function renderBulkBar() {
     var bar = document.getElementById('asBulkBar');
-    var bulkTabs = ['checker', 'pending'];
+    var bulkTabs = ['checker', 'pending', 'hold'];
     if (bulkTabs.indexOf(activeTab) === -1 || !bulkMode) { bar.style.display = 'none'; return; }
     bar.style.display = 'flex';
     document.getElementById('asBulkCount').textContent = selected.size;
     var show = selected.size > 0;
-    // §1.6/§5.3: aksi bulk per tab. Approver (pending): Approve/Reject (2FA).
-    var avail = { checker: ['hold', 'reject', 'settle'], pending: ['approve', 'rejectreq'] }[activeTab] || [];
+    // §1.6/§5.3/§11: aksi bulk per tab. Approver (pending): Approve/Reject (2FA). Hold: Rilis & Gabung.
+    var avail = { checker: ['hold', 'settle'], pending: ['approve', 'rejectreq'], hold: ['rilisgabung'] }[activeTab] || [];
     var setBtn = function (id, act) { document.getElementById(id).style.display = (show && avail.indexOf(act) >= 0) ? 'inline-flex' : 'none'; };
     setBtn('asBulkApprove', 'approve');
     setBtn('asBulkRejectReq', 'rejectreq');
     setBtn('asBulkHold', 'hold');
-    setBtn('asBulkReject', 'reject');
     setBtn('asBulkSettle', 'settle');
+    setBtn('asBulkRilisGabung', 'rilisgabung');
     document.getElementById('asUnselectAll').style.display = show ? 'inline-flex' : 'none';
 }
 
@@ -862,12 +902,13 @@ function openModal(title, bodyHTML, footer, width) {
 }
 function closeModal() { document.getElementById('asModal').classList.remove('show'); document.body.style.overflow = 'auto'; }
 
-// Bukti viewer popup (layer di atas modal). Mock: tampilkan sample-bukti.png.
-function openBukti(name) {
-    document.getElementById('asBuktiName').textContent = name || '';
-    document.getElementById('asBuktiOverlay').classList.add('show');
+// Mock download bukti: unduh sample-bukti.png dengan nama file bukti.
+function downloadBukti(name) {
+    var a = document.createElement('a');
+    a.href = 'sample-bukti.png'; a.download = name || 'bukti.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    showToast('Download Bukti', (name || 'bukti') + ' diunduh (mock).');
 }
-function closeBukti() { document.getElementById('asBuktiOverlay').classList.remove('show'); }
 
 // ── detail modal: ID Settlement ──
 function tipeChip(t) {
@@ -898,7 +939,7 @@ function detailBodyHTML(g) {
             '<td' + wb + '>' + tipeChip(m.tipe) + '</td></tr>';
     }).join('');
     var ringkas = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Ringkasan Settlement</div>' +
-        kv('Nominal Awal', rupiah(g.nominalAwal)) + kv('Biaya Admin', g.admin ? '− ' + rupiah(g.admin) : '-') +
+        kv('Nominal Awal', rupiah(g.nominalAwal)) + kv('Biaya Admin', isFeeExempt(g) ? '<span style="color:#15803d;font-weight:700;">Bebas Admin (Rp 0)</span>' : (adminOf(g) ? '− ' + rupiah(adminOf(g)) : '-')) +
         kv('Adjustment Chargeback (+)', g.adjPlus ? '<span style="color:#16a34a;">+ ' + rupiah(g.adjPlus) + '</span>' : '-') +
         kv('Adjustment Chargeback (−)', g.adjMinus ? '<span style="color:#dc2626;">− ' + rupiah(g.adjMinus) + '</span>' : '-') +
         kv('Total Settle', '<b>' + rupiah(totalOf(g)) + '</b>');
@@ -913,17 +954,19 @@ function showSettlementDetail(g) {
 // ── action modal helpers ──
 function fileField(hint) {
     return '<div class="as-fld"><label>Upload Bukti <span style="font-weight:400;color:var(--text-muted);">' + (hint || '(opsional)') + '</span></label>' +
-        '<input type="file" id="asBukti" accept=".pdf,.jpg,.jpeg,.png" style="font-size:0.82rem;"></div>';
+        '<input type="file" id="asBukti" accept=".pdf,.jpg,.jpeg,.png,.zip,.rar" style="font-size:0.82rem;"></div>';
 }
-function noteField(required) {
-    return '<div class="as-fld"><label>Catatan' + (required ? ' <span style="color:#ef4444;">*</span>' : ' (opsional)') + '</label><textarea id="asReason" rows="3" placeholder="Tulis catatan…"></textarea></div>';
+function noteField(required, hint) {
+    return '<div class="as-fld"><label>Catatan' + (required ? ' <span style="color:#ef4444;">*</span>' : ' (opsional)') + '</label><textarea id="asReason" rows="3" placeholder="Tulis catatan…"></textarea>' +
+        (hint ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:5px;"><i class="fas fa-link"></i> ' + hint + '</div>' : '') + '</div>';
 }
 function validateBukti(requiredMsg) {
     var f = document.getElementById('asBukti');
     var file = f && f.files && f.files[0];
     if (!file) { if (requiredMsg) { showToast('Bukti Wajib', requiredMsg); return null; } return { name: '' }; }
+    if (f.files.length > 1) { showToast('Terlalu Banyak File', 'Maksimal 1 file bukti.'); return null; }
     var ext = file.name.split('.').pop().toLowerCase();
-    if (['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext) === -1) { showToast('Format Salah', 'Format bukti harus PDF, JPG, JPEG, atau PNG.'); return null; }
+    if (['pdf', 'jpg', 'jpeg', 'png', 'zip', 'rar'].indexOf(ext) === -1) { showToast('Format Salah', 'Format bukti harus PDF, JPG, JPEG, PNG, ZIP, atau RAR.'); return null; }
     if (file.size > 25 * 1024 * 1024) { showToast('File Terlalu Besar', 'Ukuran bukti maksimal 25 MB.'); return null; }
     return { name: file.name };
 }
@@ -975,7 +1018,7 @@ function openHold(g) {
         '<label style="font-weight:500;display:block;margin-top:4px;"><input type="radio" name="asHoldScope" value="min"> Hold Dibawah Min. Transaksi <span style="font-weight:400;color:var(--text-muted);">(hold seluruh settlement norek ini)</span></label></div>' +
         '<div class="as-fld" id="asPartialWrap" style="display:none;"><label>Pilih MID & nominal yang dihold <span style="font-weight:400;color:var(--text-muted);">(kosongkan nominal = hold seluruh dana MID)</span></label>' +
         '<input type="text" id="asPartialSearch" placeholder="Cari MID / nama merchant" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.82rem;margin-bottom:8px;">' +
-        '<div id="asPartialTable"></div></div>' + noteField(true) + fileField('(opsional — maks 25 MB, PDF/JPG/JPEG/PNG, bisa menyusul di tab Hold)');
+        '<div id="asPartialTable"></div></div>' + noteField(true) + fileField('(opsional — maks 25 MB, PDF/JPG/JPEG/PNG/ZIP/RAR, bisa menyusul di tab Hold)');
     // reset state picker; default pilih MID pertama.
     _holdG = g; holdPickerPage = 1; holdPickerSearch = ''; holdPickerChecked = new Set(); holdPickerAmt = {};
     var ms0 = midSummary(g); if (ms0[0]) holdPickerChecked.add(ms0[0].mid);
@@ -1088,27 +1131,12 @@ function submitHold(g) {
     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Hold (' + scope + ') ' + g.groupId);
 }
 
-function openReject(g) {
-    var body = selInfo(g) + noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
-    openModal('Reject Settlement', body, [
-        { label: 'Batal', onClick: closeModal },
-        { label: 'Ajukan Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
-            var reason = document.getElementById('asReason').value.trim();
-            if (!reason) { showToast('Catatan Wajib', 'Isi catatan reject.'); return; }
-            var bk = validateBukti(null); if (!bk) return;
-            var s = st(g.groupId); var prev = s.status; s.status = 'pending'; s.request = { type: 'reject', prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() };
-            saveItems(); closeModal(); render(); showToast('Reject Diajukan', 'Menunggu approval Approver.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Reject ' + g.groupId);
-        } }
-    ]);
-}
-
 // §5.5/§6: breakdown konfirmasi settle — grouping per BANK TUJUAN, tiap bank list norek + qty transaksi + nominal akhir.
 function settleGroupedHTML(arr) {
     var byBank = {};
     arr.forEach(function (g) {
-        var b = byBank[g.bank] = byBank[g.bank] || { rows: [], tx: 0, total: 0 };
-        b.rows.push(g); b.tx += (g.txns ? g.txns.length : 0); b.total += totalOf(g);
+        var b = byBank[g.bank] = byBank[g.bank] || { rows: [], total: 0 };
+        b.rows.push(g); b.total += totalOf(g);
     });
     var grand = arr.reduce(function (a, g) { return a + totalOf(g); }, 0);
     var blocks = Object.keys(byBank).sort().map(function (b) {
@@ -1121,7 +1149,7 @@ function settleGroupedHTML(arr) {
         return '<div style="border:1px solid var(--border-color);border-radius:8px;overflow:hidden;margin-bottom:10px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;background:#f8fafc;">' +
             '<span style="font-weight:700;font-size:0.85rem;">' + esc(b) + '</span>' +
-            '<span style="font-size:0.72rem;color:var(--text-secondary);">' + d.rows.length + ' rekening · ' + d.tx + ' transaksi · <b style="color:var(--text-primary);">' + rupiah(d.total) + '</b></span></div>' +
+            '<span style="font-size:0.72rem;color:var(--text-secondary);">' + d.rows.length + ' rekening · <b style="color:var(--text-primary);">' + rupiah(d.total) + '</b></span></div>' +
             list + '</div>';
     }).join('');
     return '<div style="font-weight:700;font-size:0.85rem;margin:12px 0 8px;">Breakdown per Bank Tujuan</div>' + blocks +
@@ -1159,7 +1187,7 @@ function splitPreviewHTML(total) {
 function openSettle(g) {
     var warn = overBifastLimit(g) ? '<p style="font-size:0.8rem;padding:8px 12px;background:#fff7ed;color:#b45309;border-radius:6px;margin-bottom:14px;"><i class="fas fa-triangle-exclamation"></i> Nominal &gt; Rp250 juta — bila pakai BI-FAST, settlement <b>dipecah otomatis</b> jadi beberapa transfer &le; Rp250 juta. Alternatif: RTGS (&gt; Rp500 juta).</p>' : '';
     var body = selInfo(g) + warn +
-        metodeSettlementField() + channelField() + metodeField() + noteField(false) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
+        metodeSettlementField() + channelField() + metodeField() + noteField(false, 'Catatan ini disiapkan untuk tertaut ke deskripsi transaksi bank (Fase API).') + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG/ZIP/RAR)');
     openModal('Settle Transaksi', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Lanjut', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
@@ -1241,21 +1269,36 @@ function openBulkHold() {
     ]);
 }
 
-// §1.6 Bulk Reject — catatan sama untuk semua, bukti opsional.
-function openBulkReject() {
-    if (selected.size === 0) { showToast('Tidak Ada Pilihan', 'Pilih minimal satu baris.'); return; }
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk Reject <b>' + selected.size + '</b> entry terpilih. Catatan berlaku untuk semua baris.</p>' +
-        noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
-    openModal('Bulk Reject', body, [
+// §Rilis & Gabung: baris Siap Release terpilih dirilis ke Checker; split hold-min
+// pada norek+bank sama dilebur kembali ke base → tampil 1 baris (grouping bank+norek).
+function openBulkRilisGabung() {
+    var arr = Array.from(selected).map(groupById).filter(function (g) { return g && holdStatusKey(g) === 'siap'; });
+    if (!arr.length) { showToast('Tidak Ada Pilihan', 'Pilih baris berstatus Siap Release.'); return; }
+    var body = '<p style="font-size:0.85rem;">Rilis <b>' + arr.length + '</b> hold Dibawah Min. Transaksi ke Checker. Baris pada bank+norek sama akan <b>digabung jadi 1 settlement</b> (tanggal perubahan = hari ini).</p>';
+    openModal('Rilis & Gabung ke Checker', body, [
         { label: 'Batal', onClick: closeModal },
-        { label: 'Ajukan Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
-            var reason = document.getElementById('asReason').value.trim();
-            if (!reason) { showToast('Catatan Wajib', 'Isi catatan reject.'); return; }
-            var bk = validateBukti(null); if (!bk) return;
-            var ids = Array.from(selected);
-            ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'reject', prevStatus: prev, reason: reason, bukti: bk.name, ts: todayProc() }; });
-            selected.clear(); saveItems(); closeModal(); render(); showToast('Bulk Reject Diajukan', ids.length + ' entry menunggu approval.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Reject ' + ids.length + ' entry');
+        { label: 'Rilis & Gabung', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
+            var norekBanks = {};
+            pool.forEach(function (t) { (norekBanks[t.bankAccount] = norekBanks[t.bankAccount] || {})[t.bankCode] = 1; });
+            arr.forEach(function (g) {
+                var isSplit = splits.some(function (sp) { return sp.id === g.groupId; });
+                if (isSplit) {
+                    splits = splits.filter(function (sp) { return sp.id !== g.groupId; });
+                    delete items[g.groupId];
+                    var baseId = 'STL-' + g.norek + (Object.keys(norekBanks[g.norek] || {}).length > 1 ? '-' + g.bank : '');
+                    var b = st(baseId);
+                    b.status = 'checker'; b.request = null; b.everHeld = true; b.released = true; b.holdScope = 'min';
+                    b.updatedTs = todayProc(); b.autoReq = { type: 'rilis', from: 'hold', to: 'checker', ts: todayProc() };
+                } else {
+                    var s = st(g.groupId);
+                    s.status = 'checker'; s.request = null; s.released = true; s.updatedTs = todayProc();
+                    s.autoReq = { type: 'rilis', from: 'hold', to: 'checker', ts: todayProc() };
+                }
+            });
+            selected.clear(); bulkMode = false;
+            saveSplits(); saveItems(); buildGroups(); closeModal(); render();
+            showToast('Rilis & Gabung', arr.length + ' hold dirilis & digabung ke Checker.');
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Rilis & Gabung ' + arr.length + ' hold Siap Release ke Checker');
         } }
     ]);
 }
@@ -1301,17 +1344,20 @@ function openBulkSettle() {
 function openRetry() {
     var body = '<div class="as-fld"><label>Tanggal Retry <span style="color:#ef4444;">*</span></label>' +
         '<input type="date" id="asRetryDate" value="' + todayISO() + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;"></div>' +
+        '<div class="as-fld"><label>Ganti Channel Payment <span style="font-weight:400;color:var(--text-muted);">(opsional — kosongkan = channel semula)</span></label>' +
+        '<select id="asRetryChannel"><option value="">Tanpa perubahan channel</option>' + CHANNELS.map(function (c) { return '<option>' + c + '</option>'; }).join('') + '</select></div>' +
         '<p style="font-size:0.8rem;padding:8px 12px;background:#e0f2fe;color:#075985;border-radius:6px;margin:0;"><i class="fas fa-info-circle"></i> Retry Settlement untuk data dengan Metode Settlement <b>Otomatis</b> dan berstatus <b>Gagal</b> — mengirim ulang data ke bank.</p>';
     openModal('Retry Settlement', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Retry', style: 'background:#0ea5e9;color:#fff;border:none;padding:8px 20px;font-weight:600;', onClick: function () {
             var d = document.getElementById('asRetryDate').value;
             if (!d) { showToast('Tanggal Wajib', 'Pilih Tanggal Retry.'); return; }
+            var ch = document.getElementById('asRetryChannel').value;
             var targets = groups.filter(function (g) { var s = st(g.groupId); return s.status === 'settle' && s.metodeSettlement === 'Otomatis' && s.settleStatus === 'fail'; });
-            targets.forEach(function (g) { st(g.groupId).settleStatus = 'pending'; });
+            targets.forEach(function (g) { var s = st(g.groupId); s.settleStatus = 'pending'; if (ch) { s.channel = ch; if (s.request) s.request.channel = ch; } s.updatedTs = todayProc(); });
             saveItems(); closeModal(); render();
-            showToast('Retry Settlement', targets.length + ' transaksi gagal dikirim ulang ke bank.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Retry Settlement (Metode Otomatis, status Gagal) tanggal ' + d.split('-').reverse().join('-') + ' — ' + targets.length + ' transaksi dikirim ulang ke bank');
+            showToast('Retry Settlement', targets.length + ' transaksi gagal dikirim ulang ke bank.' + (ch ? (' Channel diganti ke ' + ch + '.') : ''));
+            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Retry Settlement (Metode Otomatis, status Gagal) tanggal ' + d.split('-').reverse().join('-') + ' — ' + targets.length + ' transaksi dikirim ulang ke bank' + (ch ? (' — channel diganti ke ' + ch) : ''));
         } }
     ]);
 }
@@ -1322,7 +1368,7 @@ function openApproverModal(g) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
     var reqLabel = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type === 'rejectbybank' ? 'Reject by Bank' : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-'));
     var buktiVal = rq.bukti
-        ? esc(rq.bukti) + ' <button type="button" id="asBuktiBtn" class="btn" style="margin-left:8px;padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;">Lihat</button>'
+        ? esc(rq.bukti) + ' <button type="button" id="asBuktiBtn" class="btn" style="margin-left:8px;padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;"><i class="fas fa-download"></i> Download</button>'
         : '<span style="color:var(--text-muted);">tidak ada</span>';
     var reqSection = '<div style="margin-top:18px;font-weight:700;font-size:0.9rem;margin-bottom:6px;">Detail Request</div>' +
         kv('Tipe Request', esc(reqLabel)) +
@@ -1350,7 +1396,7 @@ function openApproverModal(g) {
         { label: 'Approve', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () { confirmApprover(g, true); } }
     ], '880px');
     var bb = document.getElementById('asBuktiBtn');
-    if (bb) bb.addEventListener('click', function () { openBukti(rq.bukti); });
+    if (bb) bb.addEventListener('click', function () { downloadBukti(rq.bukti); });
 }
 // §5.2: 2FA wajib saat approve & reject. Mock: PIN 6 digit.
 function require2FA(title, onOk) {
@@ -1442,33 +1488,12 @@ function approverDecide(g, approve) {
     saveItems(); render();
 }
 
-// ── settle tab: reject by bank (toolbar, kept for programmatic use) ──
-function openRejectByBank() {
-    var banks = ['BCA', 'Mandiri', 'BRI', 'Lainnya'];
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Ajukan reject seluruh entry <b>Settle</b> pada bank terpilih (perlu approval Approver).</p>' +
-        '<div class="as-fld"><label>Bank</label><select id="asRbbBank">' + banks.map(function (b) {
-            var n = groups.filter(function (g) { return st(g.groupId).status === 'settle' && bankGroup(g.bank) === b; }).length;
-            return '<option value="' + b + '">' + b + ' (' + n + ' entry)</option>';
-        }).join('') + '</select></div>';
-    openModal('Reject by Bank', body, [
-        { label: 'Batal', onClick: closeModal },
-        { label: 'Ajukan Reject', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
-            var b = document.getElementById('asRbbBank').value;
-            var targets = groups.filter(function (g) { return st(g.groupId).status === 'settle' && bankGroup(g.bank) === b; });
-            if (!targets.length) { showToast('Kosong', 'Tidak ada entry settle untuk bank ' + b + '.'); return; }
-            targets.forEach(function (g) { var s = st(g.groupId); var prev = s.status; s.status = 'pending'; s.request = { type: 'reject', prevStatus: prev, reason: 'Reject by Bank ' + b, bukti: '', ts: todayProc() }; });
-            saveItems(); closeModal(); render(); showToast('Reject Diajukan', targets.length + ' entry ' + b + ' menunggu approval.');
-            writeLog('auto-settlement', 'email : dion@paydia.id\naction : Ajukan Reject by Bank ' + b + ' (' + targets.length + ' entry)');
-        } }
-    ]);
-}
-
 // ── settle tab: per-row Reject by Bank (Manual only) — perlu approval Approver ──
 function openRejectByBankItem(g) {
     var s = st(g.groupId);
     var body = selInfo(g) +
         '<p style="font-size:0.82rem;padding:8px 12px;background:#fff7ed;color:#b45309;border-radius:6px;margin-bottom:14px;"><i class="fas fa-info-circle"></i> Metode Manual — settlement ditandai Reject by Bank dan <b>langsung dipindah ke Hold</b> tanpa approval. Approver hanya menerima notifikasi perpindahan data.</p>' +
-        noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG)');
+        noteField(true) + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG/ZIP/RAR)');
     openModal('Reject by Bank', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Pindahkan ke Hold', style: 'background:#dc2626;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
@@ -1589,14 +1614,14 @@ function openDetailModal(g) {
     var ssColor = SETTLE_STATUS_COLOR[ds] || '#475569';
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
     var buktiVal = rq.bukti
-        ? '<button type="button" id="asBuktiBtn" class="btn" style="padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;">Lihat</button>'
+        ? '<button type="button" id="asBuktiBtn" class="btn" style="padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;"><i class="fas fa-download"></i> Download</button>'
         : '<span style="color:var(--text-muted);">tidak ada</span>';
     var body =
         kv('Status', '<span style="font-weight:700;color:' + ssColor + ';">' + esc(SETTLE_STATUS_LABEL[ds] || ds) + '</span>') +
         kv('Metode Settlement', esc(s.metodeSettlement || '-')) +
         kv('Channel Payment', esc(s.channel || rq.channel || '-')) +
         kv('Metode Transfer', esc(rq.metode || '-')) +
-        kv('Catatan', rq.reason ? '<span style="white-space:pre-wrap;">' + esc(rq.reason) + '</span>' : '<span style="color:var(--text-muted);">-</span>') +
+        kv('Catatan <span style="font-weight:400;font-size:0.68rem;color:var(--text-muted);">(tertaut deskripsi transaksi bank — Fase API)</span>', rq.reason ? '<span style="white-space:pre-wrap;">' + esc(rq.reason) + '</span>' : '<span style="color:var(--text-muted);">-</span>') +
         kv('Bukti', buktiVal) +
         kv('Waktu Diajukan', esc(rq.ts || '-')) +
         kv('Waktu Disetujui', esc(s.approvedTs || '-')) +
@@ -1609,7 +1634,7 @@ function openDetailModal(g) {
     openModal('Lihat Detail', body, [{ label: 'Tutup', onClick: closeModal }]);
     setupExpanders(document.getElementById('asModalBody'));
     var bb = document.getElementById('asBuktiBtn');
-    if (bb) bb.addEventListener('click', function () { openBukti(rq.bukti); });
+    if (bb) bb.addEventListener('click', function () { downloadBukti(rq.bukti); });
 }
 
 // ── export current tab ──
@@ -1618,25 +1643,34 @@ var EXPORT_COLS = ['No', 'Tanggal Recon', 'Tanggal Perubahan Terakhir', 'ID Sett
 function exportCols() {
     if (activeTab === 'pending') return EXPORT_COLS.concat(['Request']);
     if (activeTab === 'hold') return EXPORT_COLS.concat(['Alasan', 'Status Hold', 'Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
-    if (activeTab === 'reject') return EXPORT_COLS.concat(['Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
-    if (activeTab === 'settle') return EXPORT_COLS.concat(['Channel Payment', 'Metode Transfer', 'Metode Settlement', 'Waktu Diajukan', 'Waktu Disetujui', 'Disetujui Oleh', 'Catatan']);
+    if (activeTab === 'settle') return ['No', 'ID Settlement', 'Tanggal Recon', 'Bank', 'Nomor Rekening', 'Nama Pemilik Rekening', 'Merchant', 'MID', 'Jumlah Transaksi', 'Nominal Settle (Rp)', 'Adjustment Chargeback (+) (Rp)', 'Adjustment Chargeback (−) (Rp)', 'Tipe Settlement', 'Channel Payment', 'Metode Settlement', 'Status', 'Waktu Disetujui', 'Disetujui Oleh'];
     return EXPORT_COLS;
 }
 
 function exportRowData(rows) {
+    // §6: tab Settle = 1 baris CSV per MID per group (norek) — mirip List Settlement di Detail ID Settlement.
+    if (activeTab === 'settle') {
+        var out = [], no = 0;
+        rows.forEach(function (g) {
+            var s = st(g.groupId); var rq = s.request || {};
+            midTipeSummary(g).forEach(function (m) {
+                out.push([++no, g.groupId, g.procDisplay, g.bank, g.norek, g.namaRek,
+                    m.merchant, m.mid, m.count, m.total, m.adjPlus || 0, m.adjMinus || 0, m.tipe,
+                    s.channel || rq.channel || '-', s.metodeSettlement || '-',
+                    SETTLE_STATUS_LABEL[displaySettleStatus(g)] || '-', s.approvedTs || '-', s.approvedBy || '-']);
+            });
+        });
+        return out;
+    }
     return rows.map(function (g, i) {
-        var row = [i + 1, g.procDisplay, updatedOf(g), g.groupId, g.nominalAwal, g.admin, g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek];
+        var row = [i + 1, g.procDisplay, updatedOf(g), g.groupId, g.nominalAwal, adminOf(g), g.adjPlus || 0, g.adjMinus || 0, totalOf(g), g.bank, g.norek, g.namaRek];
         var s = st(g.groupId); var rq = s.request || {};
         if (activeTab === 'pending') {
             var lbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');
             row.push(lbl);
         } else if (activeTab === 'hold') {
-            var hStat = s.status === 'hold' ? 'Aktif · Belum Diproses' : ('Selesai · ' + (s.released ? 'Dirilis ke Checker' : (s.status === 'settle' ? 'Settle' : (s.status === 'reject' ? 'Reject' : (STATUS_LABEL[s.status] || s.status)))));
-            row.push(rq.scope === 'anomaly' ? '-' : (SCOPE_LABEL[rq.scope] || '-'), hStat, rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
-        } else if (activeTab === 'reject') {
-            row.push(rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
-        } else if (activeTab === 'settle') {
-            row.push(s.channel || rq.channel || '-', rq.metode || '-', s.metodeSettlement || '-', rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
+            var hStat = s.status === 'hold' ? 'Aktif · Belum Diproses' : ('Selesai · ' + (s.released ? 'Dirilis ke Checker' : (s.status === 'settle' ? 'Settle' : (STATUS_LABEL[s.status] || s.status))));
+            row.push(SCOPE_LABEL[rq.scope] || '-', hStat, rq.ts || '-', s.approvedTs || '-', s.approvedBy || '-', rq.reason || '-');
         }
         return row;
     });
@@ -1653,7 +1687,8 @@ function downloadCsv(data) {
     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Export tab ' + STATUS_LABEL[activeTab]);
 }
 function showExportPreview(data) {
-    var fmt = function (c, v) { return (typeof v === 'number' && c >= 4 && c <= 8) ? num(v) : esc(v); };
+    var colsNow = exportCols();
+    var fmt = function (c, v) { return (typeof v === 'number' && /\(Rp\)$/.test(colsNow[c] || '')) ? num(v) : esc(v); };
     document.getElementById('asExportSub').innerHTML = 'Simulasi hasil ekspor tab <b>' + STATUS_LABEL[activeTab] + '</b> — ' + data.length + ' baris.';
     document.getElementById('asExportHead').innerHTML = '<tr>' + exportCols().map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
     document.getElementById('asExportBody').innerHTML = data.map(function (row) {
@@ -1709,7 +1744,7 @@ function segRecap(tables) {
     var adm = 0, hold = 0;
     groups.forEach(function (g) {
         var s = st(g.groupId);
-        if (s.status === 'settle' && s.metodeSettlement === 'Manual') adm += g.admin;
+        if (s.status === 'settle' && s.metodeSettlement === 'Manual') adm += adminOf(g);
         if (s.status === 'hold') hold += totalOf(g);
     });
     var diff = adm + hold;
@@ -1905,12 +1940,11 @@ function writeLog(type, detail) {
 }
 
 function runAction(act, g) {
-    // Settlement yang sedang menunggu approval Hold Partial dikunci — tidak bisa hold/reject/settle.
-    if ((act === 'hold' || act === 'reject' || act === 'settle') && st(g.groupId).partialLock) {
+    // Settlement yang sedang menunggu approval Hold Partial dikunci — tidak bisa hold/settle.
+    if ((act === 'hold' || act === 'settle') && st(g.groupId).partialLock) {
         showToast('Data Terkunci', 'Data di lock menunggu approval.'); return;
     }
     if (act === 'hold') openHold(g);
-    else if (act === 'reject') openReject(g);
     else if (act === 'settle') openSettle(g);
     else if (act === 'catatan') openCatatanModal(g);
     else if (act === 'detail') openDetailModal(g);
@@ -1925,7 +1959,7 @@ function openRilis(g) {
     openModal('Rilis ke Checker', body, [
         { label: 'Tetap Hold', onClick: closeModal },
         { label: 'Rilis ke Checker', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
-            var s = st(g.groupId); var from = s.status; // 'hold' atau 'reject'
+            var s = st(g.groupId); var from = s.status; // 'hold'
             s.status = 'checker'; s.request = null; s.settleStatus = null; s.released = true;
             s.autoReq = { type: 'rilis', from: from, to: 'checker', ts: todayProc() }; // auto-approve, tercatat persisten di Approver
             s.updatedTs = todayProc();
@@ -1955,9 +1989,9 @@ function openCatatanModal(g) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
     var reqLbl = rq.type === 'hold' ? (REQ_HOLD_LABEL[rq.scope] || 'Hold') : (rq.type ? rq.type.charAt(0).toUpperCase() + rq.type.slice(1) : '-');
     var buktiVal = rq.bukti
-        ? '<button type="button" id="asBuktiBtn" class="btn" style="padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;">Lihat</button>'
+        ? '<button type="button" id="asBuktiBtn" class="btn" style="padding:3px 12px;font-size:0.74rem;background:var(--primary);color:#fff;border:none;font-weight:600;"><i class="fas fa-download"></i> Download</button>'
         : '<span style="color:var(--text-muted);">tidak ada</span>';
-    // Tab hold: field "Tipe Request" jadi "Alasan". Tab reject: field dihapus.
+    // Tab hold: field "Tipe Request" jadi "Alasan".
     var reqLine = (activeTab === 'hold') ? kv('Alasan', esc(reqLbl)) : '';
     var body = kv('ID Settlement', '<span style="font-family:monospace;">' + esc(g.groupId) + '</span>') +
         reqLine +
@@ -1969,19 +2003,19 @@ function openCatatanModal(g) {
         kv('Disetujui Oleh', esc(s.approvedBy || '-')) +
         '<div style="margin-top:14px;border-top:1px solid var(--border-color);padding-top:12px;">' +
         '<div style="font-weight:700;font-size:0.82rem;margin-bottom:8px;">' + (rq.bukti ? 'Ganti Bukti' : 'Tambah Bukti') + '</div>' +
-        fileField('(maks 25 MB, format PDF/JPG/JPEG/PNG)') + '</div>';
+        fileField('(maks 25 MB, format PDF/JPG/JPEG/PNG/ZIP/RAR)') + '</div>';
     openModal('Lihat Bukti', body, [
         { label: 'Tutup', onClick: closeModal },
         { label: 'Simpan Bukti', style: 'background:var(--primary);color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
             var bk = validateBukti('Pilih file bukti dulu.'); if (!bk) return;
-            if (!s.request) s.request = { type: (activeTab === 'reject' ? 'reject' : 'hold'), scope: 'all', reason: '', ts: todayProc() };
+            if (!s.request) s.request = { type: 'hold', scope: 'all', reason: '', ts: todayProc() };
             s.request.bukti = bk.name; saveItems(); closeModal(); render();
             showToast('Bukti Disimpan', 'Bukti ' + g.groupId + ' diperbarui.');
             writeLog('auto-settlement', 'email : dion@paydia.id\naction : Tambah/ganti bukti ' + activeTab + ' ' + g.groupId + '\nbukti : ' + bk.name);
         } }
     ]);
     var bb = document.getElementById('asBuktiBtn');
-    if (bb) bb.addEventListener('click', function () { openBukti(rq.bukti); });
+    if (bb) bb.addEventListener('click', function () { downloadBukti(rq.bukti); });
 }
 
 function onTableClick(e) {
@@ -2081,14 +2115,12 @@ function bind() {
     document.getElementById('asBulkApprove').addEventListener('click', function () { bulkApproverDecide(true); });
     document.getElementById('asBulkRejectReq').addEventListener('click', function () { bulkApproverDecide(false); });
     document.getElementById('asBulkHold').addEventListener('click', openBulkHold);
-    document.getElementById('asBulkReject').addEventListener('click', openBulkReject);
     document.getElementById('asBulkSettle').addEventListener('click', openBulkSettle);
+    document.getElementById('asBulkRilisGabung').addEventListener('click', openBulkRilisGabung);
     document.getElementById('asUnselectAll').addEventListener('click', function () { selected.clear(); render(); });
     document.getElementById('asTableBody').addEventListener('click', onTableClick);
     document.getElementById('asModalClose').addEventListener('click', closeModal);
     document.getElementById('asModal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
-    document.getElementById('asBuktiClose').addEventListener('click', closeBukti);
-    document.getElementById('asBuktiOverlay').addEventListener('click', function (e) { if (e.target === this) closeBukti(); });
     document.getElementById('asExportClose').addEventListener('click', function () { document.getElementById('asExportModal').classList.remove('show'); document.body.style.overflow = 'auto'; });
     document.getElementById('asExportModal').addEventListener('click', function (e) { if (e.target === this) { this.classList.remove('show'); document.body.style.overflow = 'auto'; } });
 
@@ -2112,7 +2144,7 @@ function bind() {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Reset ke seed bersih sekali saat versi seed berubah (normalisasi data lama).
-    var SEED_VER = '2026-07-08-callback-picker-table';
+    var SEED_VER = '2026-07-17-v1.19.1-releasable-admin-fix';
     var fresh = localStorage.getItem('paydia_as_seedver') !== SEED_VER;
     if (fresh) {
         localStorage.removeItem('paydia_as_items');

@@ -8,7 +8,20 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.18.3', date: '2026-07-08', deployed: true, title: 'Sinkron Panduan Halaman dengan logic terkini + doc referensi settlement', changes: [
+        { v: '1.19.0', date: '2026-07-17', deployed: true, title: 'Hapus tab Reject · admin sekali (fix dobel) · default hari berjalan · bebas admin · reminder bell · export per-MID · rilis & gabung', changes: [
+            'Tab & aksi Reject dihapus (tab jadi 4: Checker, Approver, Hold, Settle); Reject by Bank (→ Hold) tetap ada',
+            'Fix admin dobel: biaya admin Rp6.500 tidak dikenakan pada settlement Hold — dikenakan sekali saat dana kembali/tergabung ke Checker (chargeback tetap dihitung)',
+            'Default view semua tab = hari berjalan (filter tanggal terisi hari ini); seed ditambah data hari ini',
+            'Flag akun bebas admin (UMKM/yayasan) per norek + badge BEBAS ADMIN + 1 contoh merchant seed',
+            '2 reminder baru di lonceng: hold tanpa bukti & settlement belum di-settle > 3 hari (mock — riil via Telegram)',
+            'Export tab Settle jadi detail per MID per norek (mirip List Settlement di Detail ID Settlement)',
+            'Retry Settlement bisa ganti Channel Payment (opsional)',
+            'Field Catatan form Settle disiapkan tertaut ke deskripsi transaksi bank (Fase API) — hint di form & detail',
+            'Konfirmasi Bulk Settle: jumlah transaksi dihapus dari tiap Breakdown per Bank Tujuan',
+            'Bukti: terima ZIP/RAR (maks 25 MB, 1 file); tombol Lihat diganti Download (viewer dihapus)',
+            'Tab Hold: checklist baris Siap Release + tombol Rilis & Gabung — split hold-min norek sama dilebur jadi 1 baris di Checker (tanggal perubahan terbaru)'
+        ] },
+        { v: '1.18.3', date: '2026-07-08', deployed: false, title: 'Sinkron Panduan Halaman dengan logic terkini + doc referensi settlement', changes: [
             'Panduan Halaman Auto Settlement di-update agar sesuai logic terkini (status hold, filter nominal/Tipe Request, Hold Partial lock+nominal per MID, notifikasi lonceng deteksi rekening, Log Callback, Reject by Bank auto, dll)',
             'Tambah dokumen SETTLEMENT-REFERENCE.md (referensi lengkap logic/flow/fitur untuk AI agent lain)'
         ] },

@@ -196,7 +196,6 @@
                         <button class="as-tab active" data-tab="checker">Checker <span class="as-tab-count" id="cnt-checker">0</span></button>
                         <button class="as-tab" data-tab="approver">Approver <span class="as-tab-count" id="cnt-approver">0</span></button>
                         <button class="as-tab" data-tab="hold">Hold <span class="as-tab-count" id="cnt-hold">0</span></button>
-                        <button class="as-tab" data-tab="reject">Reject <span class="as-tab-count" id="cnt-reject">0</span></button>
                         <button class="as-tab" data-tab="settle">Settle <span class="as-tab-count" id="cnt-settle">0</span></button>
                     </div>
 
@@ -249,7 +248,6 @@
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="hold"> Hold</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="holdpartial"> Hold Partial</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="holdmin"> Hold Dibawah Min. Transaksi</label>
-                                            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="reject"> Reject</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="settle"> Settle</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="rilis"> Rilis ke Checker (Otomatis)</label>
                                             <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" class="as-freq" value="rejectbybank"> Reject by Bank (Otomatis)</label>
@@ -325,7 +323,7 @@
                         </div>
                     </div>
 
-                    <!-- Bulk action bar (Checker only) -->
+                    <!-- Bulk action bar (Checker/Approver/Hold) -->
                     <div class="bulk-action-bar" id="asBulkBar" style="display:none; padding:12px 16px; background:rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.25); border-radius:8px; margin-bottom:12px; align-items:center; justify-content:space-between;">
                         <span style="font-size:0.85rem; font-weight:600;">
                             <i class="fas fa-tasks" style="color:var(--success); margin-right:6px;"></i>
@@ -335,8 +333,8 @@
                             <button class="btn" id="asBulkApprove" style="background:#16a34a;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-check"></i> Bulk Approve</button>
                             <button class="btn" id="asBulkRejectReq" style="background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-xmark"></i> Bulk Reject</button>
                             <button class="btn" id="asBulkHold" style="background:#b45309;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-hand"></i> Bulk Hold</button>
-                            <button class="btn" id="asBulkReject" style="background:#dc2626;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-ban"></i> Bulk Reject</button>
                             <button class="btn" id="asBulkSettle" style="background:var(--success);color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-circle-check"></i> Bulk Settle</button>
+                            <button class="btn" id="asBulkRilisGabung" style="background:#16a34a;color:#fff;border:none;font-size:0.8rem;font-weight:600;padding:6px 14px;"><i class="fas fa-object-group"></i> Rilis &amp; Gabung</button>
                             <button class="btn" id="asUnselectAll" style="background:#fff;color:var(--text-secondary);border:1px solid var(--border-color);font-size:0.8rem;font-weight:600;padding:6px 14px;">Unselect All</button>
                         </div>
                     </div>
@@ -398,20 +396,6 @@
         </div>
     </div>
 
-    <!-- Bukti viewer popup (layer di atas modal) -->
-    <div class="modal-overlay" id="asBuktiOverlay" style="z-index:10001;">
-        <div class="modal" style="max-width:640px; width:90%;">
-            <div class="modal-header">
-                <h2 class="modal-title">Bukti</h2>
-                <button class="modal-close" id="asBuktiClose" aria-label="Tutup"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="modal-body" style="padding:16px; text-align:center;">
-                <div id="asBuktiName" style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:10px; word-break:break-all;"></div>
-                <img src="sample-bukti.png" alt="bukti" style="max-width:100%; border-radius:8px; border:1px solid #e2e8f0;">
-            </div>
-        </div>
-    </div>
-
     <!-- Kebab action menu (positioned by JS) -->
     <div id="asKebabMenu" class="dropdown-menu" style="display:none; position:fixed; z-index:3000;"></div>
 
@@ -423,9 +407,9 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260706-v27"></script>
-    <script src="versions.js?v=20260706-v2"></script>
-    <script src="page-guide.js?v=20260706-v10"></script>
+    <script src="auto-settlement.js?v=20260717-v28"></script>
+    <script src="versions.js?v=20260717-v3"></script>
+    <script src="page-guide.js?v=20260717-v11"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
             fetch('/api/logout', { method: 'POST' }).then(() => { window.location.replace('login.html'); });

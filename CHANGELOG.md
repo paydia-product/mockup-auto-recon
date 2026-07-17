@@ -7,6 +7,25 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.19.0] — 2026-07-17
+### Added
+- Flag akun bebas admin (UMKM/yayasan) per norek (`FEE_EXEMPT_NOREKS`) + badge hijau "BEBAS ADMIN" + 1 contoh merchant seed (OCBC).
+- 2 reminder baru di lonceng notifikasi: hold tanpa bukti, dan settlement belum di-settle > 3 hari sejak Tanggal Recon (mock — implementasi riil di luar dashboard, mis. Telegram).
+- Retry Settlement bisa mengganti Channel Payment (opsional, kosongkan = channel semula).
+- Field Catatan pada form Settle disiapkan tertaut ke deskripsi transaksi bank (Fase API) — hint di form & label di Detail.
+- Tab Hold: checklist baris Siap Release + tombol "Rilis & Gabung" — split hold-min pada norek+bank sama dilebur kembali jadi 1 baris di Checker (tanggal perubahan = hari ini).
+- Bukti mendukung format ZIP/RAR (selain PDF/JPG/JPEG/PNG), maks 25 MB, 1 file.
+### Changed
+- **Fix admin dobel**: biaya admin Rp6.500 tidak lagi dikenakan pada settlement berstatus Hold — dihitung dinamis via `adminOf(g)` dan dikenakan sekali saat dana kembali/tergabung ke Checker. Chargeback tetap dihitung di semua status. Seed skenario Dibawah Min. Transaksi disesuaikan (10.500 → 4.000 per split).
+- Default filter tanggal semua tab menjadi **hari berjalan** (sebelumnya semua tanggal); seed ditambah ~20% data hari ini per section agar tab tidak kosong secara default.
+- Export tab Settle diubah jadi detail per MID per norek (1 baris CSV per MID), meniru struktur List Settlement di Detail ID Settlement.
+- Konfirmasi Bulk Settle: kolom "jumlah transaksi" dihapus dari tiap Breakdown per Bank Tujuan (tersisa jumlah rekening + total).
+- Tombol "Lihat" pada bukti diganti "Download" di semua modal (Approver, Detail Settle, Lihat Bukti Hold) — mengunduh `sample-bukti.png` bernama sesuai bukti (mock).
+### Removed
+- Tab & aksi Reject (Checker → Reject, Bulk Reject, tab Reject) dihapus seluruhnya; tombol "Reject" milik Approver (menolak request) dan "Reject by Bank" (per-item, → Hold) tetap ada tanpa perubahan.
+- Overlay viewer Bukti (`asBuktiOverlay`) dihapus (digantikan unduh langsung).
+- Dead code `openRejectByBank()` (toolbar, tidak terpakai) dihapus.
+
 ## [1.18.3] — 2026-07-08
 ### Changed
 - **Panduan Halaman Auto Settlement** (`page-guide.js`) disinkronkan dengan logic terkini: status Hold (Belum Diproses / Siap Release / Sudah Release Checker), filter Nominal 3-opsi berbasis Total Settle, filter Tipe Request multi-select, Hold Partial (picker tabel + nominal per MID + lock sampai approve), notifikasi deteksi rekening di ikon lonceng (bukan auto-hold/badge), Log Callback + hapus Response Data, Reject by Bank per-item auto (tanpa approval), Rilis/auto-approve records di Approver, Diajukan Oleh, akumulasi Siap Release, Ringkasan per Bank collapsible/paginated.
