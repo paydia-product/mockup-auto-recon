@@ -8,7 +8,12 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.21.0', date: '2026-07-20', deployed: true, title: 'Kelola Bebas Admin pindah ke sidebar (MOCKUP) · Catatan di Bulk Settle · breakdown bulk settle tambah Nomor Rekening + tombol Cari', changes: [
+        { v: '1.22.0', date: '2026-07-20', deployed: true, title: 'Breakdown Bulk Settle: nomor rekening per baris, tergroup per bank', changes: [
+            'Konfirmasi Bulk Settle: tabel breakdown per Bank Tujuan — tiap nomor rekening kini 1 baris sendiri (tetap tergroup di bawah bank tujuan yang sama via rowspan)',
+            'Sel Bank Tujuan tampilkan sub-teks "N rekening · Rp subtotal"; kolom jadi Bank Tujuan · Nomor Rekening · Total (Rp)',
+            'Kolom "No" dan "Jumlah Rekening" lama dihapus — informasi jumlah rekening dilebur ke sub-teks sel bank'
+        ] },
+        { v: '1.21.0', date: '2026-07-20', deployed: false, title: 'Kelola Bebas Admin pindah ke sidebar (MOCKUP) · Catatan di Bulk Settle · breakdown bulk settle tambah Nomor Rekening + tombol Cari', changes: [
             'Tombol toolbar "Kelola Bebas Admin" dihapus — dipindah jadi menu sidebar Settlement > Kelola Bebas Admin dengan badge MOCKUP',
             'Modal Bulk Settle kini punya field Catatan (opsional) di bawah Metode Transfer — nilainya ikut tercatat di request settle',
             'Konfirmasi Bulk Settle: tabel breakdown per Bank Tujuan tambah kolom Nomor Rekening',

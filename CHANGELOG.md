@@ -7,6 +7,12 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.22.0] — 2026-07-20
+### Changed
+- Konfirmasi **Bulk Settle**: tabel Breakdown per Bank Tujuan — kolom Nomor Rekening tidak lagi digabung koma; tiap nomor rekening kini 1 baris sendiri, tetap tergroup di bawah bank tujuan yang sama lewat sel Bank Tujuan `rowspan`.
+- Sel Bank Tujuan tampilkan sub-teks **"N rekening · Rp subtotal"**; kolom tabel jadi **Bank Tujuan · Nomor Rekening · Total (Rp)** (3 kolom, kolom **No** dan **Jumlah Rekening** lama dihapus).
+- Pagination tetap per bank (5/halaman), pencarian by nama bank/norek dan Grand Total tidak berubah.
+
 ## [1.21.0] — 2026-07-20
 ### Changed
 - Tombol toolbar **"Kelola Bebas Admin"** dihapus — dipindah jadi item menu sidebar Settlement (`#nav-fee-exempt`) dengan badge **MOCKUP**; membuka modal `openFeeExemptModal` yang sama.

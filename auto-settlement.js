@@ -1164,8 +1164,16 @@ function settleGroupedHTML(arr) {
 var _sbtPage = 1, _sbtSearch = '', _sbtData = [];
 function settleBankTable(arr) {
     var byBank = {};
-    arr.forEach(function (g) { var b = byBank[g.bank] = byBank[g.bank] || { bank: g.bank, noreks: [], total: 0 }; b.noreks.push(g.norek); b.total += totalOf(g); });
-    _sbtData = Object.keys(byBank).sort().map(function (b) { return byBank[b]; });
+    arr.forEach(function (g) {
+        var b = byBank[g.bank] = byBank[g.bank] || { bank: g.bank, byNorek: {}, order: [], total: 0 };
+        if (b.byNorek[g.norek] == null) { b.byNorek[g.norek] = 0; b.order.push(g.norek); }
+        b.byNorek[g.norek] += totalOf(g);
+        b.total += totalOf(g);
+    });
+    _sbtData = Object.keys(byBank).sort().map(function (bk) {
+        var b = byBank[bk];
+        return { bank: b.bank, total: b.total, rows: b.order.map(function (nr) { return { norek: nr, total: b.byNorek[nr] }; }) };
+    });
     _sbtPage = 1; _sbtSearch = '';
     var grand = arr.reduce(function (a, g) { return a + totalOf(g); }, 0);
     return '<div style="font-weight:700;font-size:0.85rem;margin:12px 0 8px;">Breakdown per Bank Tujuan</div>' +
@@ -1178,24 +1186,31 @@ function settleBankTable(arr) {
 function _sbtFiltered() {
     var q = _sbtSearch.trim().toLowerCase();
     if (!q) return _sbtData;
-    return _sbtData.filter(function (d) { return d.bank.toLowerCase().indexOf(q) !== -1 || d.noreks.some(function (n) { return String(n).indexOf(q) !== -1; }); });
+    return _sbtData.filter(function (d) { return d.bank.toLowerCase().indexOf(q) !== -1 || d.rows.some(function (r) { return String(r.norek).indexOf(q) !== -1; }); });
 }
 function renderSbtBody() {
     var box = document.getElementById('asSbtBody'); if (!box) return;
     var list = _sbtFiltered(), PER = 5, pages = Math.max(1, Math.ceil(list.length / PER));
     if (_sbtPage > pages) _sbtPage = pages;
     var slice = list.slice((_sbtPage - 1) * PER, _sbtPage * PER);
-    var rowsHtml = slice.length ? slice.map(function (d, i) {
-        return '<tr><td style="padding:6px 10px;">' + ((_sbtPage - 1) * PER + i + 1) + '</td><td style="padding:6px 10px;font-weight:600;">' + esc(d.bank) + '</td>' +
-            '<td style="padding:6px 10px;font-variant-numeric:tabular-nums;word-break:break-all;max-width:220px;">' + esc(d.noreks.join(', ')) + '</td>' +
-            '<td style="padding:6px 10px;text-align:right;">' + d.noreks.length + '</td><td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">' + rupiah(d.total) + '</td></tr>';
-    }).join('') : '<tr><td colspan="5" style="padding:10px;text-align:center;color:var(--text-muted);">Tidak ada bank cocok.</td></tr>';
+    var rowsHtml = slice.length ? slice.map(function (d) {
+        var n = d.rows.length;
+        return d.rows.map(function (r, ri) {
+            var bankCell = ri === 0
+                ? '<td rowspan="' + n + '" style="padding:6px 10px;font-weight:600;vertical-align:top;border-right:1px solid var(--border-color);">' + esc(d.bank) +
+                    '<div style="font-size:0.7rem;color:var(--text-secondary);font-weight:500;margin-top:2px;">' + n + ' rekening · ' + rupiah(d.total) + '</div></td>'
+                : '';
+            return '<tr style="border-top:1px solid var(--border-color);">' + bankCell +
+                '<td style="padding:6px 10px;font-variant-numeric:tabular-nums;">' + esc(r.norek) + '</td>' +
+                '<td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;">' + num(r.total) + '</td></tr>';
+        }).join('');
+    }).join('') : '<tr><td colspan="3" style="padding:10px;text-align:center;color:var(--text-muted);">Tidak ada bank cocok.</td></tr>';
     var nav = pages > 1 ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:0.78rem;">' +
         '<button type="button" class="btn" data-sbt="prev" style="padding:4px 10px;"' + (_sbtPage <= 1 ? ' disabled' : '') + '>‹ Sebelumnya</button>' +
         '<span>Hal ' + _sbtPage + '/' + pages + ' · ' + list.length + ' bank</span>' +
         '<button type="button" class="btn" data-sbt="next" style="padding:4px 10px;"' + (_sbtPage >= pages ? ' disabled' : '') + '>Berikutnya ›</button></div>' : '';
     box.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;"><thead><tr style="background:#f8fafc;text-align:left;">' +
-        '<th style="padding:6px 10px;">No</th><th style="padding:6px 10px;">Bank Tujuan</th><th style="padding:6px 10px;">Nomor Rekening</th><th style="padding:6px 10px;text-align:right;">Jumlah Rekening</th><th style="padding:6px 10px;text-align:right;">Total (Rp)</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' + nav;
+        '<th style="padding:6px 10px;">Bank Tujuan</th><th style="padding:6px 10px;">Nomor Rekening</th><th style="padding:6px 10px;text-align:right;">Total (Rp)</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' + nav;
 }
 function bindSbt() {
     var s = document.getElementById('asSbtSearch'); if (!s) return;
