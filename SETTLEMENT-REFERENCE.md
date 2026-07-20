@@ -2,7 +2,7 @@
 
 > Single source of truth for the **Auto Settlement QRIS** module (page `auto-settlement.html` / `auto-settlement.js`).
 > Written so another AI agent can understand every flow, feature, and page-level behavior without re-reading the whole codebase.
-> Reflects code at **VERSION 1.19.0** (see `CHANGELOG.md` for the version-by-version history).
+> Reflects code at **VERSION 1.20.0** (see `CHANGELOG.md` for the version-by-version history).
 
 ---
 
@@ -47,10 +47,13 @@ METODE_TRANSFER  = ['BI-Fast','On-Us / IFT','RTGS']
 STATUS_LABEL     = { checker:'Checker', pending:'Approver', hold:'Hold', settle:'Settle' }   // Reject tab/status removed in 1.19.0
 SETTLE_STATUS_LABEL = { pending:'Pending', success:'Success', fail:'Fail', rejectbybank:'Reject by Bank' }
 HOLD_STATUS_LABEL   = { belum:'Belum Diproses', siap:'Siap Release', released:'Sudah Release Checker' }
-FEE_EXEMPT_NOREKS   = { '8840000000001': 'Yayasan (bebas biaya admin)' }   // per-norek admin exemption
+FEE_EXEMPT_NOREKS   = {}  // mutable, loaded from localStorage (paydia_as_feeexempt) via loadFeeExempt()
+FEE_EXEMPT_DEFAULT  = { '8840000000001': 'Yayasan' }   // seed default, applied on first load / when localStorage is empty
 ```
 
 Note the internal status key `pending` is displayed as **"Approver"** (the pending-approval tab). `totalOf(g) = nominalAwal − adminOf(g) + adjPlus − adjMinus`.
+
+**Bebas Admin (1.20.0):** `FEE_EXEMPT_NOREKS` is no longer a static const — it's mutable and persisted (`paydia_as_feeexempt`). Managed entirely via the **"Kelola Bebas Admin"** toolbar button → `openFeeExemptModal()`: lists current exempt noreks (each with a "Hapus" button) + a form to add a norek (validated against `pool` — must belong to an existing seed merchant, `pool.some(t => t.bankAccount === norek)`) with a category select (UMKM/Yayasan/Lainnya). Mutations call `saveFeeExempt()` then re-render the modal body + `render()`. The table's green "BEBAS ADMIN" badge (`feeExemptBadge`) was **removed** — exemption is now only visible via the Rp0 admin value (table + "Bebas Admin (Rp 0)" in Detail ID Settlement, both driven by `isFeeExempt(g)` unchanged).
 
 **`adminOf(g)`** (replaces the old static `g.admin` read everywhere except the writer in `makeGroup`): `Rp0` if `isFeeExempt(g)`; `Rp0` while the group's status is `hold` (admin not charged during Hold); otherwise `ADMIN_FEE_OTHER` if `isOther(g.bank)`, else `0`. This fixes the old "double admin" bug where a hold-min split plus its base could each carry a `-6.500` even though only one payout ever happens — admin is now charged **once**, only when the money is actually heading to Checker/payout.
 
@@ -149,13 +152,13 @@ Picker (`openHold` → `renderHoldPicker`): a **table** (No · Pilih · Merchant
 `openRilis` — moves the group back to `checker` (`released:true`), **no approval**, and writes an `autoReq` record (`{type:'rilis', from, to:'checker'}`) shown in Approver as a read-only "Otomatis … → Checker" notification.
 
 ### 7.6 Account-change detection → bell notifications
-For **single-MID** groups, `accountStatus(g)` compares norek/nama/bank vs `REF_ACCOUNTS`/`NEW_MIDS` → `baru` / `notified` / `anomaly`. **No auto-hold, no table badge** (both removed). Instead `buildAcctNotifs()` + `renderNotifBell()` surface them in the **header bell** (badge count + dropdown). Two message templates: *"Merchant {MID} … terdeteksi baru pertama kali melakukan transaksi"* and *"Terdeteksi perubahan data merchant {MID}: dari nomor rekening A ke B, dari nama pemilik rekening C ke D"*. Checker reviews manually and may hold.
+For **single-MID** groups, `accountStatus(g)` compares norek/nama/bank vs `REF_ACCOUNTS`/`NEW_MIDS` → `baru` / `notified` / `anomaly`. **No auto-hold, no table badge** (both removed). Instead `buildAcctNotifs()` + `renderNotifBell()` surface them in the **header bell** (badge count + dropdown). Two message templates: *"Merchant {MID} … terdeteksi baru pertama kali melakukan transaksi"* and *"Terdeteksi perubahan data merchant {MID}: dari nomor rekening A ke B, dari nama pemilik rekening C ke D"*. Checker reviews manually and may hold. Each notif object carries `ts` (1.20.0): `buildAcctNotifs` uses `g.procDisplay` (transaction time), rendered as a small muted clock line below the body text.
 
 ### 7.7 Settle merge & split at approve
 On approving a **settle** request (`approverDecide`, settle branch): if BI-FAST > Rp250jt it splits (`splitBifast`, greedy 250jt + remainder); hold-min siblings on the same norek get absorbed (merged) into the settle (`mergeInfo` badge). These happen **at approve**, not at request time.
 
 ### 7.8 Reminder bell (mock)
-`buildReminderNotifs()` (1.19.0), concatenated after `buildAcctNotifs()` in `renderNotifBell()`: (1) count of `hold` groups with no `request.bukti` → amber `fa-file-circle-exclamation`; (2) count of `checker` groups whose `procISO <= _isoDaysAgo(SETTLE_DEADLINE_DAYS)` (3 days) → red `fa-clock`. Both skip `mergedInto` rows. Dropdown footer notes these are mock — real delivery would be outside the dashboard (e.g. Telegram).
+`buildReminderNotifs()`, concatenated after `buildAcctNotifs()` in `renderNotifBell()`: (1) count of `hold` groups with no `request.bukti` → amber `fa-file-circle-exclamation`; (2) count of `checker` groups whose `procISO <= _isoDaysAgo(SETTLE_DEADLINE_DAYS)` (3 days) → red `fa-clock`. Both skip `mergedInto` rows. Dropdown footer notes these are mock — real delivery would be outside the dashboard (e.g. Telegram). `ts: todayProc()` (1.20.0, generation time) on both aggregate notif objects.
 
 ---
 
@@ -169,12 +172,12 @@ On approving a **settle** request (`approverDecide`, settle branch): if BI-FAST 
 
 ## 9. Filters, search, pagination
 
-`defaultFilters()` → `{ start, end, banks:Set, big, mid, small, reqs:Set, settleStatuses:Set, metodeSettle, channel, holdAlasans:Set, holdStatuses:Set }`. Applied in `tabGroups`, wired via `syncFilterInputs` / `applyFilterPanel`.
+`defaultFilters()` → `{ start, end, banks:Set, big, mid, small, reqs:Set, settleStatuses:Set, metodeSettle, channel, holdAlasans:Set, holdStatuses:Set, holdBukti:Set }`. Applied in `tabGroups`, wired via `syncFilterInputs` / `applyFilterPanel`.
 
 - **Nominal** (all tabs, based on **Total Settle** `totalOf`): a clean partition — `small` (< Rp10.000) / `mid` (Rp10.000 – Rp250.000.000) / `big` (> Rp250.000.000). All three use `totalOf`.
 - **Bank Tujuan** — multi-select checkboxes.
 - **Approver only — "Tipe Request"**: multi-select checklist (Hold, Hold Partial, Hold Dibawah Min, Settle, Rilis ke Checker (Otomatis), Reject by Bank (Otomatis)) — Reject option removed. `reqMatchesValue`.
-- **Hold only — "Alasan"** (Reject by Bank / Dibawah Min / Semua / Partial) & **"Status"** (Belum Diproses / Siap Release / Sudah Release Checker) — both multi-select checklists.
+- **Hold only — "Alasan"** (Reject by Bank / Dibawah Min / Semua / Partial), **"Status"** (Belum Diproses / Siap Release / Sudah Release Checker), and **"Bukti"** (1.20.0 — Sudah Ada Bukti / Belum Ada Bukti, via `hasBukti(g)` = `!!(s.request && s.request.bukti)`) — all multi-select checklists.
 - **Settle only** — Status / Metode Settlement / Channel.
 - **Search** (main table): ID Settlement / Nama Pemilik / No. Rekening. **Hold-Partial picker** has its own search (MID / merchant).
 - **Default filter = hari berjalan (today)** on all tabs (`defaultFilters()` → `start:end:todayISO()`), applied fresh on every `resetForTab()` (tab switch). Widen via Date Range in the filter panel to see historical data.
@@ -183,7 +186,7 @@ On approving a **settle** request (`approverDecide`, settle branch): if BI-FAST 
 
 ## 10. Export
 
-- **Export** (per tab, `exportTab` / `exportCols`): CSV-style columns follow the active tab; money headers carry `(Rp)`. **Settle tab (1.19.0)** uses a different shape entirely — 1 row per **MID per group** (via `midTipeSummary(g)`, mirrors List Settlement in Detail ID Settlement): No, ID Settlement, Tanggal Recon, Bank, Nomor Rekening, Nama Pemilik Rekening, Merchant, MID, Jumlah Transaksi, Nominal Settle (Rp), Adjustment Chargeback (+/−) (Rp), Tipe Settlement, Channel Payment, Metode Settlement, Status, Waktu Disetujui, Disetujui Oleh. Other tabs keep the old group-per-row shape. `showExportPreview`'s numeric formatter now detects money columns generically via `/\(Rp\)$/` on the header instead of a hard-coded index range (needed because Settle's numeric columns moved).
+- **Export** (per tab, `exportTab` / `exportCols`): CSV-style columns follow the active tab; money headers carry `(Rp)`. **Settle tab** uses a different shape entirely — 1 row per **MID per group** (via `midTipeSummary(g)`, mirrors List Settlement in Detail ID Settlement): No, ID Settlement, Tanggal Recon, Bank, Nomor Rekening, Nama Pemilik Rekening, Merchant, MID, Jumlah Transaksi, Nominal Settle (Rp), Adjustment Chargeback (+/−) (Rp), Tipe Settlement, Channel Payment, Metode Settlement, Status, Waktu Disetujui, Disetujui Oleh. **1.20.0:** these rows are grouped **per Nomor Rekening** (`byNorek`), and each norek's group is followed by a **SUBTOTAL** row (`row._sub = true` marker; No/most text columns blank, ID Settlement column shows "SUBTOTAL", money/qty columns summed). `showExportPreview` styles `_sub` rows with a grey/bold background; `downloadCsv` emits them unchanged (the `_sub` prop doesn't affect `row.map`/CSV output). Other tabs keep the old group-per-row shape. `showExportPreview`'s numeric formatter detects money columns generically via `/\(Rp\)$/` on the header instead of a hard-coded index range.
 - **Export Segregasi** (Settle only): pick a date; **Manual** data only, split **per bank tujuan** (tables A–F) + Grand Total (Adm / Hold / Released HOLD). `SEG_COLS` intentionally has **no `(Rp)`** suffix — it mirrors the bank-consumed file format.
 - **Export Report Manajemen**: daily summary per method → channel → bank + recap (Total Sukses / Dirilis / Hold breakdown). Pending & Fail counts are 0 (Otomatis = Phase 2).
 
@@ -191,8 +194,9 @@ On approving a **settle** request (`approverDecide`, settle branch): if BI-FAST 
 
 ## 11. State, persistence, versioning
 
-- `localStorage` keys: `paydia_as_items`, `paydia_as_splits`, `paydia_as_seedver`. On load, if `SEED_VER` changed, items+splits are cleared and reseeded (`DOMContentLoaded` handler). Current `SEED_VER = '2026-07-17-v1.19.0-no-reject-today-admin'`.
-- **Metode Otomatis submit is disabled** in the Settle form (`Otomatis (Fase 2)` option is `disabled`). Otomatis data exists only from seed (pending/fail) so the callback log has something to show; a checker cannot newly submit an Otomatis settle.
+- `localStorage` keys: `paydia_as_items`, `paydia_as_splits`, `paydia_as_seedver`, and (1.20.0) `paydia_as_feeexempt` (Bebas Admin list — `loadFeeExempt`/`saveFeeExempt`; seeds from `FEE_EXEMPT_DEFAULT` on first load, independent of `SEED_VER`). On load, if `SEED_VER` changed, items+splits are cleared and reseeded (`DOMContentLoaded` handler).
+- **Metode Otomatis submit is disabled** in the Settle form (`Otomatis (Fase 2)` option is `disabled`). Otomatis data exists only from seed (pending/fail) so the callback log has something to show; a checker cannot newly submit an Otomatis settle. The Catatan field on Settle (single + Bulk Settle first modal) shows `SETTLE_NOTE_WARNING` — a static warning that the note becomes the bank transfer description on Otomatis settlement (replaces the old "Fase API" hint; the Detail-view "tertaut deskripsi transaksi bank — Fase API" label is unchanged).
+- **Konfirmasi Bulk Settle** (1.20.0): the per-bank breakdown (`settleSummaryHTML` → confirmation step of `openBulkSettle`) now renders via `settleBankTable(arr)` — a searchable, paginated table (5 banks/page, columns No/Bank Tujuan/Jumlah Rekening/Total) instead of the old stacked cards; state lives in module vars `_sbtPage`/`_sbtSearch`/`_sbtData`, wired by `bindSbt()` called right after `openModal('Konfirmasi Bulk Settle', ...)`. Bulk Approve's breakdown (`settleGroupedHTML`, still card-based) is unchanged.
 - Version picker (`versions.js`) + `VERSION` + `CHANGELOG.md` are updated together on every change; git tag `vX.Y.Z`.
 
 ---

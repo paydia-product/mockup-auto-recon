@@ -75,7 +75,7 @@ function buildAcctNotifs() {
         if (!stt) return;
         var mids = midSummary(g); var mid = mids[0] ? mids[0].mid : '-';
         if (stt === 'baru') {
-            out.push({ groupId: g.groupId, kind: 'baru',
+            out.push({ groupId: g.groupId, kind: 'baru', ts: g.procDisplay,
                 text: 'Merchant ' + mid + ' dengan nomor rekening ' + g.norek + ' dan nama pemilik rekening ' + g.namaRek + ' terdeteksi baru pertama kali melakukan transaksi' });
         } else {
             var ref = REF_ACCOUNTS[mid] || {};
@@ -83,7 +83,7 @@ function buildAcctNotifs() {
             if (ref.norek && ref.norek !== g.norek) parts.push('dari nomor rekening ' + ref.norek + ' ke ' + g.norek);
             if (ref.nama && ref.nama !== g.namaRek) parts.push('dari nama pemilik rekening ' + ref.nama + ' ke ' + g.namaRek);
             if (ref.bank && ref.bank !== g.bank) parts.push('dari bank ' + ref.bank + ' ke ' + g.bank);
-            out.push({ groupId: g.groupId, kind: stt,
+            out.push({ groupId: g.groupId, kind: stt, ts: g.procDisplay,
                 text: 'Terdeteksi perubahan data merchant ' + mid + ': ' + parts.join(', ') });
         }
     });
@@ -100,10 +100,12 @@ function buildReminderNotifs() {
         if (s.status === 'checker' && g.procISO <= cutoff) late++;
     });
     var out = [];
-    if (noBukti) out.push({ kind: 'nobukti', text: noBukti + ' settlement Hold belum memiliki bukti — lengkapi via aksi "Lihat Bukti" di tab Hold.' });
-    if (late) out.push({ kind: 'late', text: late + ' settlement belum di-settle > ' + SETTLE_DEADLINE_DAYS + ' hari sejak Tanggal Recon — proses di tab Checker.' });
+    if (noBukti) out.push({ kind: 'nobukti', ts: todayProc(), text: noBukti + ' settlement Hold belum memiliki bukti — lengkapi via aksi "Lihat Bukti" di tab Hold.' });
+    if (late) out.push({ kind: 'late', ts: todayProc(), text: late + ' settlement belum di-settle > ' + SETTLE_DEADLINE_DAYS + ' hari sejak Tanggal Recon — proses di tab Checker.' });
     return out;
 }
+// §Filter Hold: cek presensi bukti (dipakai filter tab Hold & reminder).
+function hasBukti(g) { var s = st(g.groupId); return !!(s.request && s.request.bukti); }
 // Render lonceng notifikasi (badge + dropdown).
 function renderNotifBell() {
     var notifs = buildAcctNotifs().concat(buildReminderNotifs());
@@ -114,7 +116,8 @@ function renderNotifBell() {
     var body = notifs.length ? notifs.map(function (nt) {
         var col = nt.kind === 'anomaly' ? '#dc2626' : (nt.kind === 'baru' ? '#2563eb' : (nt.kind === 'nobukti' ? '#b45309' : (nt.kind === 'late' ? '#dc2626' : '#b45309')));
         var ico = nt.kind === 'anomaly' ? 'fa-triangle-exclamation' : (nt.kind === 'baru' ? 'fa-user-plus' : (nt.kind === 'nobukti' ? 'fa-file-circle-exclamation' : (nt.kind === 'late' ? 'fa-clock' : 'fa-pen-to-square')));
-        return '<div class="notif-item"><span class="ni-ico" style="background:' + col + '22;color:' + col + ';"><i class="fas ' + ico + '"></i></span><span class="ni-body">' + esc(nt.text) + '</span></div>';
+        return '<div class="notif-item"><span class="ni-ico" style="background:' + col + '22;color:' + col + ';"><i class="fas ' + ico + '"></i></span><span class="ni-body">' + esc(nt.text) +
+            (nt.ts ? '<span style="display:block;margin-top:4px;font-size:0.68rem;color:var(--text-muted);"><i class="far fa-clock"></i> ' + esc(nt.ts) + '</span>' : '') + '</span></div>';
     }).join('') : '<div class="notif-empty">Tidak ada notifikasi.</div>';
     dd.innerHTML = '<div class="notif-dropdown-head"><span>Notifikasi</span><span style="font-size:0.7rem;color:var(--text-muted);font-weight:600;">' + notifs.length + ' notifikasi</span></div>' + body +
         '<div style="padding:8px 14px;font-size:0.68rem;color:var(--text-muted);border-top:1px solid #f1f5f9;">Reminder bersifat mock — implementasi riil dikirim di luar dashboard (mis. Telegram).</div>';
@@ -177,7 +180,7 @@ var bankGroup = function (b) { return isOther(b) ? 'Lainnya' : String(b).toUpper
 var todayProc = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return p(d.getDate()) + '-' + p(d.getMonth() + 1) + '-' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); };
 var todayISO = function () { var d = new Date(), p = function (x) { return String(x).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
 // Dokumentasi: default filter = HARI BERJALAN (start/end = hari ini). User bisa memperlebar via panel Filter.
-function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: new Set(), big: false, mid: false, small: false, reqs: new Set(), settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasans: new Set(), holdStatuses: new Set() }; }
+function defaultFilters() { return { start: todayISO(), end: todayISO(), banks: new Set(), big: false, mid: false, small: false, reqs: new Set(), settleStatuses: new Set(), metodeSettle: '', channel: '', holdAlasans: new Set(), holdStatuses: new Set(), holdBukti: new Set() }; }
 // Cocokkan 1 nilai filter Tipe Request ke state group (dipakai multi-select OR).
 function reqMatchesValue(v, s) {
     var rq = s.request || {};
@@ -468,8 +471,11 @@ function buildGroups() {
     saveItems();
 }
 
-// §Bebas Admin: norek merchant kategori UMKM/yayasan — tidak dikenai admin Rp6.500 walau bank non-core.
-var FEE_EXEMPT_NOREKS = { '8840000000001': 'Yayasan (bebas biaya admin)' };
+// §Bebas Admin: daftar norek bebas admin — mutable via modal, persist di localStorage.
+var FEE_EXEMPT_NOREKS = {};
+var FEE_EXEMPT_DEFAULT = { '8840000000001': 'Yayasan' };
+function loadFeeExempt() { try { FEE_EXEMPT_NOREKS = JSON.parse(localStorage.getItem('paydia_as_feeexempt')); } catch (e) { FEE_EXEMPT_NOREKS = null; } if (!FEE_EXEMPT_NOREKS) { FEE_EXEMPT_NOREKS = {}; Object.keys(FEE_EXEMPT_DEFAULT).forEach(function (k) { FEE_EXEMPT_NOREKS[k] = FEE_EXEMPT_DEFAULT[k]; }); } }
+function saveFeeExempt() { localStorage.setItem('paydia_as_feeexempt', JSON.stringify(FEE_EXEMPT_NOREKS)); }
 function isFeeExempt(g) { return !!FEE_EXEMPT_NOREKS[g.norek]; }
 // Admin flat Rp6.500 (bank non-core) hanya untuk group yang menuju payout.
 // Group ber-status 'hold' TIDAK kena admin — admin dikenakan sekali saat
@@ -480,10 +486,6 @@ function adminOf(g) {
     return isOther(g.bank) ? ADMIN_FEE_OTHER : 0;
 }
 function totalOf(g) { return g.nominalAwal - adminOf(g) + (g.adjPlus || 0) - (g.adjMinus || 0); }
-function feeExemptBadge(g) {
-    if (!isFeeExempt(g)) return '';
-    return ' <span title="' + esc(FEE_EXEMPT_NOREKS[g.norek]) + '" style="font-size:0.6rem;font-weight:700;border-radius:4px;padding:1px 6px;background:#16a34a22;color:#15803d;white-space:nowrap;">BEBAS ADMIN</span>';
-}
 function groupById(id) { return groups.find(function (g) { return g.groupId === id; }); }
 
 // Ringkas transaksi dalam satu group settlement per MID (untuk List Settlement & picker Hold Partial).
@@ -543,6 +545,7 @@ function tabGroups(tab) {
         if (tab === 'hold') {
             if (f.holdAlasans && f.holdAlasans.size > 0 && !f.holdAlasans.has(holdAlasan(g))) return false;
             if (f.holdStatuses && f.holdStatuses.size > 0 && !f.holdStatuses.has(holdStatusKey(g))) return false;
+            if (f.holdBukti && f.holdBukti.size > 0 && !f.holdBukti.has(hasBukti(g) ? 'ada' : 'belum')) return false;
         }
         if (tab === 'settle') {
             var ds = displaySettleStatus(g);
@@ -746,7 +749,7 @@ function renderTable() {
         }
         c += '<td>' + esc(g.bank) + '</td>';
         c += '<td style="font-variant-numeric:tabular-nums;">' + esc(g.norek) + '</td>';
-        c += '<td>' + esc(g.namaRek) + feeExemptBadge(g) + '</td>';
+        c += '<td>' + esc(g.namaRek) + '</td>';
         if (activeTab === 'pending') {
             if (s.autoReq) {
                 var acol = s.autoReq.type === 'rejectbybank' ? '#7c3aed' : '#0e7490';
@@ -960,6 +963,8 @@ function noteField(required, hint) {
     return '<div class="as-fld"><label>Catatan' + (required ? ' <span style="color:#ef4444;">*</span>' : ' (opsional)') + '</label><textarea id="asReason" rows="3" placeholder="Tulis catatan…"></textarea>' +
         (hint ? '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:5px;"><i class="fas fa-link"></i> ' + hint + '</div>' : '') + '</div>';
 }
+// §Settle: warning catatan jadi deskripsi transfer bank pada settlement otomatis.
+var SETTLE_NOTE_WARNING = '<div style="margin-top:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;font-size:0.76rem;color:#92400e;"><i class="fas fa-triangle-exclamation"></i> <b>Perhatian!</b> Catatan yang ditulis akan menjadi deskripsi transfer ke bank pada settlement otomatis.</div>';
 function validateBukti(requiredMsg) {
     var f = document.getElementById('asBukti');
     var file = f && f.files && f.files[0];
@@ -1155,10 +1160,51 @@ function settleGroupedHTML(arr) {
     return '<div style="font-weight:700;font-size:0.85rem;margin:12px 0 8px;">Breakdown per Bank Tujuan</div>' + blocks +
         '<div class="as-kv" style="margin-top:6px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
 }
+// §6: breakdown konfirmasi Bulk Settle — tabel per bank tujuan (5/hal, searchable).
+var _sbtPage = 1, _sbtSearch = '', _sbtData = [];
+function settleBankTable(arr) {
+    var byBank = {};
+    arr.forEach(function (g) { var b = byBank[g.bank] = byBank[g.bank] || { bank: g.bank, noreks: [], total: 0 }; b.noreks.push(g.norek); b.total += totalOf(g); });
+    _sbtData = Object.keys(byBank).sort().map(function (b) { return byBank[b]; });
+    _sbtPage = 1; _sbtSearch = '';
+    var grand = arr.reduce(function (a, g) { return a + totalOf(g); }, 0);
+    return '<div style="font-weight:700;font-size:0.85rem;margin:12px 0 8px;">Breakdown per Bank Tujuan</div>' +
+        '<input type="text" id="asSbtSearch" placeholder="Cari nama bank / nomor rekening…" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.82rem;margin-bottom:8px;">' +
+        '<div id="asSbtBody"></div>' +
+        '<div class="as-kv" style="margin-top:6px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
+}
+function _sbtFiltered() {
+    var q = _sbtSearch.trim().toLowerCase();
+    if (!q) return _sbtData;
+    return _sbtData.filter(function (d) { return d.bank.toLowerCase().indexOf(q) !== -1 || d.noreks.some(function (n) { return String(n).indexOf(q) !== -1; }); });
+}
+function renderSbtBody() {
+    var box = document.getElementById('asSbtBody'); if (!box) return;
+    var list = _sbtFiltered(), PER = 5, pages = Math.max(1, Math.ceil(list.length / PER));
+    if (_sbtPage > pages) _sbtPage = pages;
+    var slice = list.slice((_sbtPage - 1) * PER, _sbtPage * PER);
+    var rowsHtml = slice.length ? slice.map(function (d, i) {
+        return '<tr><td style="padding:6px 10px;">' + ((_sbtPage - 1) * PER + i + 1) + '</td><td style="padding:6px 10px;font-weight:600;">' + esc(d.bank) + '</td>' +
+            '<td style="padding:6px 10px;text-align:right;">' + d.noreks.length + '</td><td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">' + rupiah(d.total) + '</td></tr>';
+    }).join('') : '<tr><td colspan="4" style="padding:10px;text-align:center;color:var(--text-muted);">Tidak ada bank cocok.</td></tr>';
+    var nav = pages > 1 ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:0.78rem;">' +
+        '<button type="button" class="btn" data-sbt="prev" style="padding:4px 10px;"' + (_sbtPage <= 1 ? ' disabled' : '') + '>‹ Sebelumnya</button>' +
+        '<span>Hal ' + _sbtPage + '/' + pages + ' · ' + list.length + ' bank</span>' +
+        '<button type="button" class="btn" data-sbt="next" style="padding:4px 10px;"' + (_sbtPage >= pages ? ' disabled' : '') + '>Berikutnya ›</button></div>' : '';
+    box.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;"><thead><tr style="background:#f8fafc;text-align:left;">' +
+        '<th style="padding:6px 10px;">No</th><th style="padding:6px 10px;">Bank Tujuan</th><th style="padding:6px 10px;text-align:right;">Jumlah Rekening</th><th style="padding:6px 10px;text-align:right;">Total (Rp)</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' + nav;
+}
+function bindSbt() {
+    var s = document.getElementById('asSbtSearch'); if (!s) return;
+    s.addEventListener('input', function () { _sbtSearch = this.value; _sbtPage = 1; renderSbtBody(); });
+    var box = document.getElementById('asSbtBody');
+    box.addEventListener('click', function (e) { var b = e.target.closest('[data-sbt]'); if (!b) return; if (b.dataset.sbt === 'prev' && _sbtPage > 1) _sbtPage--; if (b.dataset.sbt === 'next') _sbtPage++; renderSbtBody(); });
+    renderSbtBody();
+}
 function settleSummaryHTML(arr, ms, tf) {
     var kv = function (k, v) { return '<div class="as-kv"><span>' + k + '</span><span>' + v + '</span></div>'; };
     return kv('Metode Settlement', esc(ms)) + kv('Channel Payment (sumber dana)', esc(tf.channel)) + kv('Metode Transfer', esc(tf.metode)) +
-        kv('Jumlah Baris (entry settlement)', arr.length) + settleGroupedHTML(arr);
+        kv('Jumlah Baris (entry settlement)', arr.length) + settleBankTable(arr);
 }
 
 // §10: pecah nominal > Rp250 juta jadi beberapa transfer BI-FAST secara otomatis.
@@ -1187,7 +1233,7 @@ function splitPreviewHTML(total) {
 function openSettle(g) {
     var warn = overBifastLimit(g) ? '<p style="font-size:0.8rem;padding:8px 12px;background:#fff7ed;color:#b45309;border-radius:6px;margin-bottom:14px;"><i class="fas fa-triangle-exclamation"></i> Nominal &gt; Rp250 juta — bila pakai BI-FAST, settlement <b>dipecah otomatis</b> jadi beberapa transfer &le; Rp250 juta. Alternatif: RTGS (&gt; Rp500 juta).</p>' : '';
     var body = selInfo(g) + warn +
-        metodeSettlementField() + channelField() + metodeField() + noteField(false, 'Catatan ini disiapkan untuk tertaut ke deskripsi transaksi bank (Fase API).') + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG/ZIP/RAR)');
+        metodeSettlementField() + channelField() + metodeField() + noteField(false) + SETTLE_NOTE_WARNING + fileField('(opsional, maks 25 MB, format PDF/JPG/JPEG/PNG/ZIP/RAR)');
     openModal('Settle Transaksi', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Lanjut', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
@@ -1305,7 +1351,7 @@ function openBulkRilisGabung() {
 
 function openBulkSettle() {
     if (selected.size === 0) { showToast('Tidak Ada Pilihan', 'Pilih minimal satu baris.'); return; }
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk settle <b>' + selected.size + '</b> entry terpilih.</p>' + metodeSettlementField() + channelField() + metodeField();
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk settle <b>' + selected.size + '</b> entry terpilih.</p>' + metodeSettlementField() + channelField() + metodeField() + SETTLE_NOTE_WARNING;
     openModal('Bulk Settle', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Lanjut', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
@@ -1326,6 +1372,7 @@ function openBulkSettle() {
                     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Settle ' + ids.length + ' entry [' + ms + '] via ' + tf.channel + ' / ' + tf.metode);
                 } }
             ]);
+            bindSbt();
         } }
     ]);
     // Note inline metode settlement (sama seperti settle single).
@@ -1648,17 +1695,30 @@ function exportCols() {
 }
 
 function exportRowData(rows) {
-    // §6: tab Settle = 1 baris CSV per MID per group (norek) — mirip List Settlement di Detail ID Settlement.
+    // §6: tab Settle = 1 baris CSV per MID per group (norek), dikelompokkan per norek + baris SUBTOTAL.
     if (activeTab === 'settle') {
-        var out = [], no = 0;
+        var byNorek = {}, order = [];
         rows.forEach(function (g) {
             var s = st(g.groupId); var rq = s.request || {};
             midTipeSummary(g).forEach(function (m) {
+                if (!byNorek[g.norek]) { byNorek[g.norek] = []; order.push(g.norek); }
+                byNorek[g.norek].push([g, s, rq, m]);
+            });
+        });
+        var out = [], no = 0;
+        order.forEach(function (nr) {
+            var sub = { count: 0, nominal: 0, adjP: 0, adjM: 0 };
+            byNorek[nr].forEach(function (t) {
+                var g = t[0], s = t[1], rq = t[2], m = t[3];
                 out.push([++no, g.groupId, g.procDisplay, g.bank, g.norek, g.namaRek,
                     m.merchant, m.mid, m.count, m.total, m.adjPlus || 0, m.adjMinus || 0, m.tipe,
                     s.channel || rq.channel || '-', s.metodeSettlement || '-',
                     SETTLE_STATUS_LABEL[displaySettleStatus(g)] || '-', s.approvedTs || '-', s.approvedBy || '-']);
+                sub.count += m.count; sub.nominal += m.total; sub.adjP += (m.adjPlus || 0); sub.adjM += (m.adjMinus || 0);
             });
+            var subRow = ['', 'SUBTOTAL', '', '', nr, '', '', '', sub.count, sub.nominal, sub.adjP, sub.adjM, '', '', '', '', '', ''];
+            subRow._sub = true;   // marker untuk styling preview
+            out.push(subRow);
         });
         return out;
     }
@@ -1692,7 +1752,8 @@ function showExportPreview(data) {
     document.getElementById('asExportSub').innerHTML = 'Simulasi hasil ekspor tab <b>' + STATUS_LABEL[activeTab] + '</b> — ' + data.length + ' baris.';
     document.getElementById('asExportHead').innerHTML = '<tr>' + exportCols().map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
     document.getElementById('asExportBody').innerHTML = data.map(function (row) {
-        return '<tr>' + row.map(function (v, c) { return '<td>' + fmt(c, v) + '</td>'; }).join('') + '</tr>';
+        var tr = row._sub ? '<tr style="background:#f1f5f9;font-weight:700;">' : '<tr>';
+        return tr + row.map(function (v, c) { return '<td>' + fmt(c, v) + '</td>'; }).join('') + '</tr>';
     }).join('');
     document.getElementById('asExportDownload').onclick = function () { downloadCsv(data); };
     document.getElementById('asExportModal').classList.add('show');
@@ -1919,6 +1980,51 @@ function openMgmtModal() {
     ]);
 }
 
+// §Bebas Admin: modal kelola daftar norek bebas biaya admin.
+function feExemptListHTML() {
+    var keys = Object.keys(FEE_EXEMPT_NOREKS);
+    var list = keys.length ? keys.map(function (nr) {
+        return '<div class="as-kv" style="align-items:center;"><span>' + esc(nr) + ' · ' + esc(FEE_EXEMPT_NOREKS[nr]) + '</span>' +
+            '<button type="button" class="btn" data-fe-del="' + esc(nr) + '" style="padding:3px 10px;font-size:0.72rem;background:#ef4444;color:#fff;border:none;">Hapus</button></div>';
+    }).join('') : '<p style="color:var(--text-muted);font-size:0.82rem;">Belum ada norek bebas admin.</p>';
+    return '<div id="asFeList">' + list + '</div>';
+}
+function renderFeExemptBody() {
+    var wrap = document.getElementById('asFeWrap'); if (!wrap) return;
+    var listEl = wrap.querySelector('#asFeList');
+    if (listEl) listEl.outerHTML = feExemptListHTML();
+}
+function openFeeExemptModal() {
+    var body = '<div id="asFeWrap">' + feExemptListHTML() +
+        '<div class="as-fld" style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:12px;"><label>Tambah Norek Bebas Admin</label>' +
+        '<input type="text" id="asFeNorek" placeholder="Nomor rekening merchant" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;margin-bottom:8px;">' +
+        '<select id="asFeKat" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;margin-bottom:8px;"><option>UMKM</option><option>Yayasan</option><option>Lainnya</option></select>' +
+        '<button type="button" id="asFeAddBtn" class="btn" style="background:#0f766e;color:#fff;border:none;">Tambah</button></div></div>';
+    openModal('Kelola Bebas Admin', body, [{ label: 'Tutup', onClick: closeModal }]);
+    // ponytail: listener dipasang di wrapper #asFeWrap (fresh tiap openModal, ikut dibuang saat innerHTML diganti) — cegah listener menumpuk di #asModalBody yang persisten
+    var wrap = document.getElementById('asFeWrap');
+    wrap.addEventListener('click', function (e) {
+        var addBtn = e.target.closest('#asFeAddBtn');
+        if (addBtn) {
+            var norek = document.getElementById('asFeNorek').value.trim();
+            var kat = document.getElementById('asFeKat').value;
+            if (!norek) { showToast('Norek Wajib', 'Isi nomor rekening merchant.'); return; }
+            if (!pool.some(function (t) { return t.bankAccount === norek; })) { showToast('Merchant Tidak Ditemukan', 'Nomor rekening tidak ada di data seed merchant.'); return; }
+            if (FEE_EXEMPT_NOREKS[norek]) { showToast('Sudah Bebas Admin', 'Norek ini sudah ada di daftar.'); return; }
+            FEE_EXEMPT_NOREKS[norek] = kat; saveFeeExempt();
+            renderFeExemptBody(); render();
+            showToast('Ditambahkan', norek + ' jadi bebas biaya admin.');
+            return;
+        }
+        var delBtn = e.target.closest('[data-fe-del]');
+        if (delBtn) {
+            delete FEE_EXEMPT_NOREKS[delBtn.dataset.feDel]; saveFeeExempt();
+            renderFeExemptBody(); render();
+            showToast('Dihapus', 'Norek dikeluarkan dari daftar bebas admin.');
+        }
+    });
+}
+
 // ── toast + log ──
 function showToast(title, msg) {
     var c = document.querySelector('.toast-container');
@@ -2070,6 +2176,8 @@ function syncFilterInputs() {
     if (hsEl) hsEl.style.display = isHold ? 'block' : 'none';
     document.querySelectorAll('.as-falasan').forEach(function (cb) { cb.checked = (filters.holdAlasans || new Set()).has(cb.value); });
     document.querySelectorAll('.as-fhs').forEach(function (cb) { cb.checked = (filters.holdStatuses || new Set()).has(cb.value); });
+    var hbEl = document.getElementById('asFilterHoldBuktiSection'); if (hbEl) hbEl.style.display = isHold ? 'block' : 'none';
+    document.querySelectorAll('.as-fbukti').forEach(function (cb) { cb.checked = (filters.holdBukti || new Set()).has(cb.value); });
 }
 function applyFilterPanel() {
     filters.start = document.getElementById('asFilterStart').value;
@@ -2086,6 +2194,7 @@ function applyFilterPanel() {
     filters.channel = channelEl ? channelEl.value : '';
     filters.holdAlasans = (activeTab === 'hold') ? new Set(Array.from(document.querySelectorAll('.as-falasan:checked')).map(function (c) { return c.value; })) : new Set();
     filters.holdStatuses = new Set(Array.from(document.querySelectorAll('.as-fhs:checked')).map(function (c) { return c.value; }));
+    filters.holdBukti = (activeTab === 'hold') ? new Set(Array.from(document.querySelectorAll('.as-fbukti:checked')).map(function (c) { return c.value; })) : new Set();
     page = 1; render();
     document.getElementById('asFilterPanel').style.display = 'none';
 }
@@ -2112,6 +2221,8 @@ function bind() {
     if (segBtn) segBtn.addEventListener('click', openSegregasiModal);
     var mgmtBtn = document.getElementById('asExportMgmtBtn');
     if (mgmtBtn) mgmtBtn.addEventListener('click', openMgmtModal);
+    var feBtn = document.getElementById('asFeeExemptBtn');
+    if (feBtn) feBtn.addEventListener('click', openFeeExemptModal);
     document.getElementById('asBulkApprove').addEventListener('click', function () { bulkApproverDecide(true); });
     document.getElementById('asBulkRejectReq').addEventListener('click', function () { bulkApproverDecide(false); });
     document.getElementById('asBulkHold').addEventListener('click', openBulkHold);
@@ -2154,6 +2265,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadItems();
     loadSplits();
     loadPool(fresh);
+    loadFeeExempt();
     filters = defaultFilters();
     bind();
     syncFilterInputs();

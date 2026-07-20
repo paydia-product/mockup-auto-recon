@@ -7,6 +7,19 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.20.0] — 2026-07-20
+### Added
+- Modal **"Kelola Bebas Admin"** (tombol toolbar baru) — tambah/hapus norek merchant bebas biaya admin, tervalidasi harus ada di data seed merchant (`pool`); daftar persist di localStorage (`paydia_as_feeexempt`), default seed OCBC (Yayasan) tetap.
+- Tab Hold: filter baru **"Bukti"** (Sudah Ada Bukti / Belum Ada Bukti).
+- Notifikasi lonceng: tiap item kini menampilkan **timestamp** tanggal+waktu (deteksi rekening pakai waktu transaksi; reminder pakai waktu generate).
+- Export tab Settle: baris dikelompokkan **per Nomor Rekening** + baris **SUBTOTAL** (jumlah transaksi, nominal, adjustment) per norek, di preview & CSV.
+### Changed
+- Badge hijau "BEBAS ADMIN" di kolom Nama Pemilik Rekening **dihapus** — status bebas admin kini hanya diatur/terlihat lewat modal "Kelola Bebas Admin" (nilai Admin Rp0 di detail-view tetap tampil).
+- Form Settle (single & Bulk Settle): hint "tertaut deskripsi transaksi bank (Fase API)" diganti **warning** — "Catatan yang ditulis akan menjadi deskripsi transfer ke bank pada settlement otomatis."
+- Konfirmasi **Bulk Settle**: Breakdown per Bank Tujuan diganti **tabel** (5 bank/halaman, search nama bank/nomor rekening); Bulk Approve tetap memakai tampilan kartu lama (tidak berubah).
+### Removed
+- Fungsi `feeExemptBadge()` (orphan setelah badge tabel dihapus).
+
 ## [1.19.0] — 2026-07-17
 ### Added
 - Flag akun bebas admin (UMKM/yayasan) per norek (`FEE_EXEMPT_NOREKS`) + badge hijau "BEBAS ADMIN" + 1 contoh merchant seed (OCBC).

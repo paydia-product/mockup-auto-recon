@@ -8,7 +8,15 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.19.0', date: '2026-07-17', deployed: true, title: 'Hapus tab Reject · admin sekali (fix dobel) · default hari berjalan · bebas admin · reminder bell · export per-MID · rilis & gabung', changes: [
+        { v: '1.20.0', date: '2026-07-20', deployed: true, title: 'Bebas Admin via modal · filter Hold Bukti · timestamp notif · subtotal export Settle · warning catatan · tabel breakdown bulk settle', changes: [
+            'Bebas Admin kini dikelola lewat modal "Kelola Bebas Admin" (tambah/hapus norek merchant, tervalidasi ke data seed) — badge BEBAS ADMIN di kolom Nama Pemilik Rekening dihapus',
+            'Tab Hold: filter baru "Bukti" (Sudah Ada Bukti / Belum Ada Bukti)',
+            'Notifikasi lonceng: tiap item kini tampil timestamp tanggal+waktu',
+            'Export tab Settle: baris dikelompokkan per Nomor Rekening + baris SUBTOTAL per norek',
+            'Form Settle (single & bulk): hint "Fase API" diganti warning bahwa Catatan jadi deskripsi transfer bank pada settlement otomatis',
+            'Konfirmasi Bulk Settle: Breakdown per Bank Tujuan jadi tabel (5 bank/halaman, searchable) — Bulk Approve tetap tampilan kartu lama'
+        ] },
+        { v: '1.19.0', date: '2026-07-17', deployed: false, title: 'Hapus tab Reject · admin sekali (fix dobel) · default hari berjalan · bebas admin · reminder bell · export per-MID · rilis & gabung', changes: [
             'Tab & aksi Reject dihapus (tab jadi 4: Checker, Approver, Hold, Settle); Reject by Bank (→ Hold) tetap ada',
             'Fix admin dobel: biaya admin Rp6.500 tidak dikenakan pada settlement Hold — dikenakan sekali saat dana kembali/tergabung ke Checker (chargeback tetap dihitung)',
             'Default view semua tab = hari berjalan (filter tanggal terisi hari ini); seed ditambah data hari ini',
