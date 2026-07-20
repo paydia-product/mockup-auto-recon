@@ -1169,7 +1169,9 @@ function settleBankTable(arr) {
     _sbtPage = 1; _sbtSearch = '';
     var grand = arr.reduce(function (a, g) { return a + totalOf(g); }, 0);
     return '<div style="font-weight:700;font-size:0.85rem;margin:12px 0 8px;">Breakdown per Bank Tujuan</div>' +
-        '<input type="text" id="asSbtSearch" placeholder="Cari nama bank / nomor rekening…" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.82rem;margin-bottom:8px;">' +
+        '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
+        '<input type="text" id="asSbtSearch" placeholder="Cari nama bank / nomor rekening…" style="flex:1;padding:8px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:0.82rem;">' +
+        '<button type="button" id="asSbtCari" class="btn" style="background:var(--primary);color:#fff;border:none;padding:8px 16px;font-weight:600;">Cari</button></div>' +
         '<div id="asSbtBody"></div>' +
         '<div class="as-kv" style="margin-top:6px;border-top:2px solid #cbd5e1;padding-top:10px;"><span style="font-weight:700;">Grand Total Settlement</span><span style="font-weight:800;">' + rupiah(grand) + '</span></div>';
 }
@@ -1185,18 +1187,20 @@ function renderSbtBody() {
     var slice = list.slice((_sbtPage - 1) * PER, _sbtPage * PER);
     var rowsHtml = slice.length ? slice.map(function (d, i) {
         return '<tr><td style="padding:6px 10px;">' + ((_sbtPage - 1) * PER + i + 1) + '</td><td style="padding:6px 10px;font-weight:600;">' + esc(d.bank) + '</td>' +
+            '<td style="padding:6px 10px;font-variant-numeric:tabular-nums;word-break:break-all;max-width:220px;">' + esc(d.noreks.join(', ')) + '</td>' +
             '<td style="padding:6px 10px;text-align:right;">' + d.noreks.length + '</td><td style="padding:6px 10px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">' + rupiah(d.total) + '</td></tr>';
-    }).join('') : '<tr><td colspan="4" style="padding:10px;text-align:center;color:var(--text-muted);">Tidak ada bank cocok.</td></tr>';
+    }).join('') : '<tr><td colspan="5" style="padding:10px;text-align:center;color:var(--text-muted);">Tidak ada bank cocok.</td></tr>';
     var nav = pages > 1 ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:0.78rem;">' +
         '<button type="button" class="btn" data-sbt="prev" style="padding:4px 10px;"' + (_sbtPage <= 1 ? ' disabled' : '') + '>‹ Sebelumnya</button>' +
         '<span>Hal ' + _sbtPage + '/' + pages + ' · ' + list.length + ' bank</span>' +
         '<button type="button" class="btn" data-sbt="next" style="padding:4px 10px;"' + (_sbtPage >= pages ? ' disabled' : '') + '>Berikutnya ›</button></div>' : '';
     box.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;"><thead><tr style="background:#f8fafc;text-align:left;">' +
-        '<th style="padding:6px 10px;">No</th><th style="padding:6px 10px;">Bank Tujuan</th><th style="padding:6px 10px;text-align:right;">Jumlah Rekening</th><th style="padding:6px 10px;text-align:right;">Total (Rp)</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' + nav;
+        '<th style="padding:6px 10px;">No</th><th style="padding:6px 10px;">Bank Tujuan</th><th style="padding:6px 10px;">Nomor Rekening</th><th style="padding:6px 10px;text-align:right;">Jumlah Rekening</th><th style="padding:6px 10px;text-align:right;">Total (Rp)</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' + nav;
 }
 function bindSbt() {
     var s = document.getElementById('asSbtSearch'); if (!s) return;
-    s.addEventListener('input', function () { _sbtSearch = this.value; _sbtPage = 1; renderSbtBody(); });
+    var cari = document.getElementById('asSbtCari');
+    if (cari) cari.addEventListener('click', function () { _sbtSearch = s.value; _sbtPage = 1; renderSbtBody(); });
     var box = document.getElementById('asSbtBody');
     box.addEventListener('click', function (e) { var b = e.target.closest('[data-sbt]'); if (!b) return; if (b.dataset.sbt === 'prev' && _sbtPage > 1) _sbtPage--; if (b.dataset.sbt === 'next') _sbtPage++; renderSbtBody(); });
     renderSbtBody();
@@ -1351,7 +1355,7 @@ function openBulkRilisGabung() {
 
 function openBulkSettle() {
     if (selected.size === 0) { showToast('Tidak Ada Pilihan', 'Pilih minimal satu baris.'); return; }
-    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk settle <b>' + selected.size + '</b> entry terpilih.</p>' + metodeSettlementField() + channelField() + metodeField() + SETTLE_NOTE_WARNING;
+    var body = '<p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:12px;">Bulk settle <b>' + selected.size + '</b> entry terpilih.</p>' + metodeSettlementField() + channelField() + metodeField() + noteField(false) + SETTLE_NOTE_WARNING;
     openModal('Bulk Settle', body, [
         { label: 'Batal', onClick: closeModal },
         { label: 'Lanjut', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
@@ -1362,12 +1366,13 @@ function openBulkSettle() {
                 var over = Array.from(selected).map(groupById).filter(function (g) { return g && overBifastLimit(g); });
                 if (over.length) { showToast('Melebihi Limit BI-FAST', over.length + ' entry > Rp250 juta. Pakai RTGS, atau settle satu per satu agar dipecah otomatis.'); return; }
             }
+            var reason = (document.getElementById('asReason') || {}).value || '';
             var ids = Array.from(selected);
             var arr = ids.map(groupById).filter(Boolean);
             openModal('Konfirmasi Bulk Settle', settleSummaryHTML(arr, ms, tf), [
                 { label: 'Batal', onClick: closeModal },
                 { label: 'Konfirmasi & Ajukan', style: 'background:#16a34a;color:#fff;border:none;padding:8px 16px;font-weight:600;', onClick: function () {
-                    ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: '', bukti: '', ts: todayProc() }; });
+                    ids.forEach(function (id) { var s = st(id); var prev = s.status; s.status = 'pending'; s.request = { type: 'settle', metodeSettlement: ms, channel: tf.channel, metode: tf.metode, prevStatus: prev, reason: reason.trim(), bukti: '', ts: todayProc() }; });
                     selected.clear(); saveItems(); closeModal(); render(); showToast('Bulk Settle Diajukan', ids.length + ' entry menunggu approval.');
                     writeLog('auto-settlement', 'email : dion@paydia.id\naction : Bulk Settle ' + ids.length + ' entry [' + ms + '] via ' + tf.channel + ' / ' + tf.metode);
                 } }
@@ -2221,8 +2226,8 @@ function bind() {
     if (segBtn) segBtn.addEventListener('click', openSegregasiModal);
     var mgmtBtn = document.getElementById('asExportMgmtBtn');
     if (mgmtBtn) mgmtBtn.addEventListener('click', openMgmtModal);
-    var feBtn = document.getElementById('asFeeExemptBtn');
-    if (feBtn) feBtn.addEventListener('click', openFeeExemptModal);
+    // nav-fee-exempt di-inject sidebar.js pada window.load (setelah bind ini jalan) → pakai delegasi.
+    document.addEventListener('click', function (e) { if (e.target.closest('#nav-fee-exempt')) { e.preventDefault(); openFeeExemptModal(); } });
     document.getElementById('asBulkApprove').addEventListener('click', function () { bulkApproverDecide(true); });
     document.getElementById('asBulkRejectReq').addEventListener('click', function () { bulkApproverDecide(false); });
     document.getElementById('asBulkHold').addEventListener('click', openBulkHold);

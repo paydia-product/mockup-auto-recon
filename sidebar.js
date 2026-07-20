@@ -155,6 +155,16 @@
         var sb = document.getElementById('sidebar');
         if (!sb) return null;
         sb.innerHTML = NAV;
+        // Item khusus halaman Auto Settlement: pemicu modal Kelola Bebas Admin (mockup).
+        if (currentFile() === 'auto-settlement.html') {
+            var feSub = sb.querySelector('#nav-settlement-group .submenu');
+            if (feSub) {
+                var feA = document.createElement('a');
+                feA.href = '#'; feA.className = 'submenu-item'; feA.id = 'nav-fee-exempt';
+                feA.innerHTML = '<i class="fas fa-hand-holding-dollar"></i><span>Kelola Bebas Admin <span style="font-size:0.58rem;font-weight:700;background:#f59e0b22;color:#b45309;border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;">MOCKUP</span></span>';
+                feSub.appendChild(feA);
+            }
+        }
         markActive(sb);
         return sb;
     }

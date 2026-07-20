@@ -8,7 +8,13 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.20.0', date: '2026-07-20', deployed: true, title: 'Bebas Admin via modal · filter Hold Bukti · timestamp notif · subtotal export Settle · warning catatan · tabel breakdown bulk settle', changes: [
+        { v: '1.21.0', date: '2026-07-20', deployed: true, title: 'Kelola Bebas Admin pindah ke sidebar (MOCKUP) · Catatan di Bulk Settle · breakdown bulk settle tambah Nomor Rekening + tombol Cari', changes: [
+            'Tombol toolbar "Kelola Bebas Admin" dihapus — dipindah jadi menu sidebar Settlement > Kelola Bebas Admin dengan badge MOCKUP',
+            'Modal Bulk Settle kini punya field Catatan (opsional) di bawah Metode Transfer — nilainya ikut tercatat di request settle',
+            'Konfirmasi Bulk Settle: tabel breakdown per Bank Tujuan tambah kolom Nomor Rekening',
+            'Pencarian di tabel breakdown Bulk Settle kini pakai tombol Cari — tidak lagi live search saat mengetik'
+        ] },
+        { v: '1.20.0', date: '2026-07-20', deployed: false, title: 'Bebas Admin via modal · filter Hold Bukti · timestamp notif · subtotal export Settle · warning catatan · tabel breakdown bulk settle', changes: [
             'Bebas Admin kini dikelola lewat modal "Kelola Bebas Admin" (tambah/hapus norek merchant, tervalidasi ke data seed) — badge BEBAS ADMIN di kolom Nama Pemilik Rekening dihapus',
             'Tab Hold: filter baru "Bukti" (Sudah Ada Bukti / Belum Ada Bukti)',
             'Notifikasi lonceng: tiap item kini tampil timestamp tanggal+waktu',

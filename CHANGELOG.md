@@ -7,6 +7,13 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.21.0] — 2026-07-20
+### Changed
+- Tombol toolbar **"Kelola Bebas Admin"** dihapus — dipindah jadi item menu sidebar Settlement (`#nav-fee-exempt`) dengan badge **MOCKUP**; membuka modal `openFeeExemptModal` yang sama.
+- Modal **Bulk Settle**: tambah field **Catatan (opsional)** di bawah Metode Transfer (`noteField(false)`); nilainya diambil sebelum modal konfirmasi diganti dan ikut tercatat sebagai `reason` pada request settle (sebelumnya selalu kosong).
+- Konfirmasi **Bulk Settle**: tabel Breakdown per Bank Tujuan tambah kolom **Nomor Rekening** (daftar norek per bank).
+- Konfirmasi **Bulk Settle**: pencarian tabel breakdown kini via **tombol Cari** — tidak lagi live search saat mengetik.
+
 ## [1.20.0] — 2026-07-20
 ### Added
 - Modal **"Kelola Bebas Admin"** (tombol toolbar baru) — tambah/hapus norek merchant bebas biaya admin, tervalidasi harus ada di data seed merchant (`pool`); daftar persist di localStorage (`paydia_as_feeexempt`), default seed OCBC (Yayasan) tetap.

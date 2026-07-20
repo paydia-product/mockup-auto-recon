@@ -87,7 +87,7 @@
     </style>
 
 <script src="boot.js?v=20260624-v14"></script>
-<script src="sidebar.js?v=20260701-v3"></script>
+<script src="sidebar.js?v=20260720-v1"></script>
 </head>
 
 <body>
@@ -208,7 +208,6 @@
                         <button class="btn btn-export" id="asExportBtn" style="margin:0;"><i class="far fa-file-excel"></i> Export</button>
                         <button class="btn btn-export" id="asExportSegBtn" style="margin:0;"><i class="far fa-file-excel"></i> Export Segregasi</button>
                         <button class="btn btn-export" id="asExportMgmtBtn" style="margin:0;"><i class="far fa-file-lines"></i> Export Report Manajemen</button>
-                        <button class="btn" id="asFeeExemptBtn" style="margin:0;background:#0f766e;color:#fff;border:none;"><i class="fas fa-hand-holding-dollar"></i> Kelola Bebas Admin</button>
                         <div class="as-toolbar-actions" id="asTabActions"></div>
                         <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
                             <input type="text" id="asSearch" class="as-search-input" placeholder="Cari ID Settlement / Nama Pemilik / No. Rekening">
@@ -415,9 +414,9 @@
         </div>
     </div>
 
-    <script src="auto-settlement.js?v=20260720-v1"></script>
-    <script src="versions.js?v=20260720-v1"></script>
-    <script src="page-guide.js?v=20260720-v1"></script>
+    <script src="auto-settlement.js?v=20260720-v2"></script>
+    <script src="versions.js?v=20260720-v2"></script>
+    <script src="page-guide.js?v=20260720-v2"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function () {
             fetch('/api/logout', { method: 'POST' }).then(() => { window.location.replace('login.html'); });
