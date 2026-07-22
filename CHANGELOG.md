@@ -7,6 +7,11 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.24.0] — 2026-07-22
+Fix di sisi **Auto Reconcile**.
+### Fixed
+- **Single Flag Settle tidak memunculkan modal konfirmasi** saat baris berstatus `Flag Recon` sudah memiliki pending approval. Penyebab: guard `isPendingApproval` / `isDisputePending` melakukan early-return dengan toast **sebelum** modal dibuka. Perbaikan: guard dipindah ke dalam callback konfirmasi, sehingga modal konfirmasi selalu tampil saat klik Flag Settle (unmatch & dispute); pencegahan double-request tetap berlaku (konfirmasi pada data pending menampilkan toast tanpa membuat request baru).
+
 ## [1.23.0] — 2026-07-22
 Fitur di sisi **Auto Reconcile** (halaman QRIS Acquirer Reconcile), bukan Auto Settlement.
 ### Added

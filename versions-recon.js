@@ -8,7 +8,11 @@
 (function () {
     // Terbaru di atas. deployed=true → badge Deployed. Versi pertama = Latest.
     var VERSIONS = [
-        { v: '1.4.0', date: '2026-07-22', deployed: true, title: 'Version picker recon · konfirmasi bulk action · catatan wajib Tolak · +600 seed', changes: [
+        { v: '1.5.0', date: '2026-07-22', deployed: true, title: 'Fix: single Flag Settle tidak memunculkan modal konfirmasi saat sudah ada pending approval', changes: [
+            'Bug: klik Flag Settle (single) pada baris berstatus Flag Recon yang sudah punya pending approval hanya memunculkan toast, tanpa modal konfirmasi',
+            'Fix: guard "sudah direquest approval" dipindah ke DALAM callback konfirmasi — modal konfirmasi kini selalu tampil saat klik Flag Settle (unmatch & dispute); pencegahan double-request tetap jalan'
+        ] },
+        { v: '1.4.0', date: '2026-07-22', deployed: false, title: 'Version picker recon · konfirmasi bulk action · catatan wajib Tolak · +600 seed', changes: [
             'Version picker in-app di halaman Auto Reconcile (dropdown changelog, pola Auto Settlement)',
             'Modal konfirmasi untuk semua bulk action — menampilkan jumlah data + wording sesuai jenis aksi',
             'Tolak (bulk & single): modal catatan wajib diisi; catatan diterapkan ke seluruh data yang ditolak',

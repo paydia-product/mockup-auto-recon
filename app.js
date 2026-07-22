@@ -2181,12 +2181,12 @@ function bindEvents() {
             if (dropdownItem.classList.contains('btn-dispute-flag-settle')) {
                 const d = disputes.find(item => item.id == activeFlaggingTrxId);
                 if (d) {
-                    if (isDisputePending(d.id)) {
-                        showToast('Peringatan', 'data sudah direquest approval, mohon tunggu');
-                        hideFlagDropdown();
-                        return;
-                    }
                     openActionConfirmModal(`Apakah Anda yakin ingin mengajukan <strong>Flag Settle</strong> untuk dispute ${d.id}? (Memerlukan persetujuan Management)`, () => {
+                        // Guard pending dicek SETELAH konfirmasi supaya modal selalu tampil saat klik Flag Settle.
+                        if (isDisputePending(d.id)) {
+                            showToast('Peringatan', 'data sudah direquest approval, mohon tunggu');
+                            return;
+                        }
                         // Keep status as 'Transaksi Terbuat' while pending approval
                         const approvals = JSON.parse(localStorage.getItem('paydia_approvals') || '[]');
                         const now = new Date();
@@ -2308,12 +2308,12 @@ function bindEvents() {
                         hideFlagDropdown();
                         return;
                     }
-                    if (isPendingApproval(t.id)) {
-                        showToast('Peringatan', 'data sudah direquest approval, mohon tunggu');
-                        hideFlagDropdown();
-                        return;
-                    }
                     openActionConfirmModal(`Apakah Anda yakin ingin mengajukan <strong>Flag Settle</strong> untuk transaksi ${t.id}? (Memerlukan persetujuan Management)`, () => {
+                        // Guard pending dicek SETELAH konfirmasi supaya modal selalu tampil saat klik Flag Settle.
+                        if (isPendingApproval(t.id)) {
+                            showToast('Peringatan', 'data sudah direquest approval, mohon tunggu');
+                            return;
+                        }
                         // Keep flaggingStatus as is (Flag Recon) while pending approval
                         createUnmatchApproval('flag_settle', [t]);
                         writeLog('flag-settle-unmatch-request', `email : dion@paydia.id\naction : Mengajukan flag settle untuk transaksi ${t.id}`);
