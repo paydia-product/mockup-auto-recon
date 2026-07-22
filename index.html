@@ -249,6 +249,7 @@
                 </button>
             </div>
             <div class="topbar-right">
+                <div id="versionPicker" style="margin-right:12px;"></div>
                 <button class="topbar-icon" id="notificationBtn" aria-label="Notifications">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge">3</span>
@@ -878,6 +879,27 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="rejectNoteOverlay">
+      <div class="modal" style="max-width: 440px;">
+        <div class="modal-header">
+          <h2 class="modal-title">Tolak Proses Data</h2>
+          <button class="modal-close" id="rejectNoteClose" aria-label="Tutup"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;"><strong id="rejectNoteCount">0</strong> data akan ditolak.</p>
+          <div class="form-group">
+            <label class="form-label">Catatan <span class="required">*</span></label>
+            <textarea id="rejectNoteText" class="form-input form-textarea" rows="4" maxlength="255" placeholder="Masukkan catatan penolakan..." style="resize:none;"></textarea>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;"><i class="fas fa-info-circle"></i> Catatan akan ditambah ke seluruh data yang ditolak</div>
+          </div>
+          <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">
+            <button class="btn" id="rejectNoteCancel" style="background:rgba(255,255,255,0.05);color:var(--text-primary);border:1px solid var(--border-color);">Batal</button>
+            <button class="btn" id="rejectNoteConfirm" style="background:var(--danger);color:white;border:none;" disabled>Tolak Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Telegram Alert Toast Card -->
     <div class="telegram-alert-card" id="telegramAlertCard">
         <div class="telegram-alert-header">
@@ -899,7 +921,8 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260624-v24"></script>
+    <script src="app.js?v=20260722-v25"></script>
+    <script src="versions-recon.js?v=20260722-v2"></script>
     <script src="page-guide.js?v=20260625-v3"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {

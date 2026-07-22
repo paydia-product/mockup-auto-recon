@@ -7,6 +7,17 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.23.0] — 2026-07-22
+Fitur di sisi **Auto Reconcile** (halaman QRIS Acquirer Reconcile), bukan Auto Settlement.
+### Added
+- **Version picker in-app** di halaman Auto Reconcile (`versions-recon.js`) — dropdown changelog, pola sama Auto Settlement. Changelog recon punya lini versi sendiri (mulai 1.0.0), badge Latest/Deployed, search, link CHANGELOG.
+- **Modal konfirmasi bulk action**: semua bulk action (Buat Transaksi / Flag Recon / Flag Settle) kini konfirmasi dulu, menampilkan **jumlah data** + wording sesuai jenis aksi.
+- **Modal catatan wajib Tolak** (`#rejectNoteOverlay`): Tolak (bulk & single, unmatch & dispute) memunculkan textarea kosong yang wajib diisi; tombol Tolak disabled sampai terisi; catatan diterapkan ke **seluruh** data yang ditolak dengan pesan "Catatan akan ditambah ke seluruh data yang ditolak".
+- **Seed +600 data unmatched** (200 Double RRN → Buat Transaksi, 200 Paydia-Only Success → Flag Recon, 200 Switching-Only RC00 → Tolak) agar bulk action bisa didemokan di prod.
+### Changed
+- `handleBulkUnmatchAction` / `handleBulkDisputeAction` dipecah jadi gate konfirmasi + fungsi eksekusi (`execBulkUnmatch` / `execBulkDispute`); logika approval per merchant & guard "harus gagal dulu" dipertahankan.
+- Single Tolak (unmatch & dispute) kini lewat modal catatan wajib yang sama (menggantikan precheck toast lama).
+
 ## [1.22.0] — 2026-07-20
 ### Changed
 - Konfirmasi **Bulk Settle**: tabel Breakdown per Bank Tujuan — kolom Nomor Rekening tidak lagi digabung koma; tiap nomor rekening kini 1 baris sendiri, tetap tergroup di bawah bank tujuan yang sama lewat sel Bank Tujuan `rowspan`.

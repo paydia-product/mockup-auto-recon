@@ -119,6 +119,74 @@ const rawTransactions = [
     { id: 'TX-ISS-30001', refNo: 'REF-20260527-060', date: '2026-05-27 07:44:06', nominal: 18000, merchantId: 'MID-99002', merchantName: 'HokBen PIM', rc: '14', switching: 'Jalin', statusRekon: 'Declined', label: 'Match', flaggingStatus: 'Unflagged', tipe: 'Issuer', skema: 'MPM', domestic: 'Domestic', disputeRef: null }
 ];
 
+// ── Extra seed: 600 unmatched rows (200 each) so bulk Buat Transaksi / Flag Recon /
+// Tolak have plenty of eligible data to demo. ponytail: flat generator, no new shape.
+(function seedBulkDemoRows() {
+    const merchants = [
+        { merchantId: 'MID-88129', merchantName: 'Kopi Kenangan' },
+        { merchantId: 'MID-88134', merchantName: 'Indomaret' },
+        { merchantId: 'MID-88220', merchantName: 'Sushi Tei' },
+        { merchantId: 'MID-88301', merchantName: 'Starbucks' },
+        { merchantId: 'MID-88155', merchantName: 'Alfa Mart' },
+        { merchantId: 'MID-88901', merchantName: 'Matahari Dept Store' }
+    ];
+    const switchers = ['Rintis', 'Jalin', 'Artajasa', 'Alto'];
+    const rows = [];
+    let seq = 90000;
+
+    function baseRow(i) {
+        const m = merchants[i % merchants.length];
+        const sw = switchers[i % switchers.length];
+        const day = 23 + (i % 5); // 2026-06-23..27
+        const hh = String(7 + (i % 12)).padStart(2, '0');
+        const mm = String((i * 7) % 60).padStart(2, '0');
+        const ss = String((i * 13) % 60).padStart(2, '0');
+        return {
+            id: 'TX-ACQ-' + (seq++),
+            refNo: 'REF-20260623-' + (900 + i),
+            date: `2026-06-${String(day).padStart(2, '0')} ${hh}:${mm}:${ss}`,
+            nominal: 25000 + (i % 40) * 15000,
+            merchantId: m.merchantId,
+            merchantName: m.merchantName,
+            switching: sw,
+            statusRekon: 'Unmatched',
+            flaggingStatus: 'On-Hold',
+            tipe: 'Acquirer',
+            skema: i % 2 === 0 ? 'MPM' : 'CPM',
+            domestic: i % 5 === 0 ? 'Crossborder' : 'Domestic',
+            disputeRef: null
+        };
+    }
+
+    // 200 × Double RRN → eligible buat_trx (+ tolak).
+    for (let i = 0; i < 200; i++) {
+        const r = baseRow(i);
+        r.label = 'Double RRN';
+        r.rcSwitching = '00';
+        r.rcPaydia = null;
+        r.switchingTime = r.date.slice(11) ;
+        rows.push(r);
+    }
+    // 200 × Paydia-Only Success → eligible flag_recon.
+    for (let i = 200; i < 400; i++) {
+        const r = baseRow(i);
+        r.label = 'Paydia-Only Success';
+        r.rcPaydia = '00';
+        r.rcSwitching = null;
+        rows.push(r);
+    }
+    // 200 × Switching-Only RC00 → eligible tolak.
+    for (let i = 400; i < 600; i++) {
+        const r = baseRow(i);
+        r.label = 'Switching-Only RC00';
+        r.rcSwitching = '00';
+        r.rcPaydia = null;
+        rows.push(r);
+    }
+
+    rawTransactions.push.apply(rawTransactions, rows);
+})();
+
 const seedLogs = [
     { id: 9145, tanggal: '28-05-2026 15:01:39', container: 'paydia-account', type: 'merchant-login', detail: 'email : incarnata.maria@pt-mfa.com\nuser.type : merchant', ip: '36.75.6.222' },
     { id: 9144, tanggal: '28-05-2026 15:00:31', container: 'paydia-account', type: 'merchant-login', detail: 'email : incarnata.maria@pt-mfa.com\nuser.type : merchant', ip: '36.75.6.222' },
@@ -417,6 +485,29 @@ function openActionConfirmModal(message, onConfirm) {
     btnCancel.addEventListener('click', closeModal);
     btnClose.addEventListener('click', closeModal);
     btnConfirm.addEventListener('click', confirmAction);
+}
+
+// Mandatory-note reject modal (single & bulk Tolak). Textarea starts empty;
+// confirm button stays disabled until a note is entered.
+function openRejectNoteModal(count, onConfirm) {
+    const ov = document.getElementById('rejectNoteOverlay');
+    const txt = document.getElementById('rejectNoteText');
+    const btn = document.getElementById('rejectNoteConfirm');
+    const cnt = document.getElementById('rejectNoteCount');
+    const cancel = document.getElementById('rejectNoteCancel');
+    const close = document.getElementById('rejectNoteClose');
+    if (!ov) return;
+    txt.value = '';                 // selalu kosong
+    cnt.textContent = count;
+    btn.disabled = true;            // gate: wajib isi
+    ov.classList.add('show');
+    const onInput = () => { btn.disabled = txt.value.trim().length === 0; };
+    const closeM = () => { ov.classList.remove('show'); txt.removeEventListener('input', onInput); btn.removeEventListener('click', doIt); cancel.removeEventListener('click', closeM); close.removeEventListener('click', closeM); };
+    const doIt = () => { const v = txt.value.trim(); if (!v) return; closeM(); onConfirm(v); };
+    txt.addEventListener('input', onInput);
+    btn.addEventListener('click', doIt);
+    cancel.addEventListener('click', closeM);
+    close.addEventListener('click', closeM);
 }
 
 if (document.readyState === 'loading') {
@@ -2039,17 +2130,11 @@ function bindEvents() {
             if (dropdownItem.classList.contains('btn-dispute-tolak')) {
                 const d = disputes.find(item => item.id == activeFlaggingTrxId);
                 if (d) {
-                    // PRD: Tolak wajib mengisi catatan lebih dulu
-                    if (!(d.desc || '').trim()) {
-                        showToast('Catatan Wajib', 'Harus mengisi catatan untuk aksi Tolak');
-                        hideFlagDropdown();
-                        openNotesForm(d.id);
-                        return;
-                    }
-                    openActionConfirmModal(`Apakah Anda yakin ingin melakukan <strong>Tolak</strong> pada dispute ${d.id}?`, () => {
+                    openRejectNoteModal(1, (note) => {
                         d.status = 'Ditolak';
+                        d.rejectNote = note;
                         saveDisputesToStorage();
-                        writeLog('tolak-dispute', `email : dion@paydia.id\naction : Menolak proses dispute ${d.id}`);
+                        writeLog('tolak-dispute', `email : dion@paydia.id\naction : Menolak proses dispute ${d.id}, catatan: ${note}`);
                         showToast('Dispute Ditolak', `Dispute ${d.id} berhasil ditolak.`);
                         renderActiveTableWithLoading();
                     });
@@ -2170,17 +2255,12 @@ function bindEvents() {
                         hideFlagDropdown();
                         return;
                     }
-                    // PRD: Tolak wajib mengisi catatan lebih dulu
-                    if (!(rrnNotes[t.id] || '').trim()) {
-                        showToast('Catatan Wajib', 'Harus mengisi catatan untuk aksi Tolak');
-                        hideFlagDropdown();
-                        openNotesForm(t.id);
-                        return;
-                    }
-                    openActionConfirmModal(`Apakah Anda yakin ingin melakukan <strong>Tolak</strong> pada transaksi ${t.id}?`, () => {
+                    openRejectNoteModal(1, (note) => {
                         t.flaggingStatus = 'Ditolak';
+                        rrnNotes[t.id] = note;
+                        localStorage.setItem('paydia_rrn_notes', JSON.stringify(rrnNotes));
                         saveTrxToStorage();
-                        writeLog('tolak-unmatch', `email : dion@paydia.id\naction : Menolak proses transaksi ${t.id}`);
+                        writeLog('tolak-unmatch', `email : dion@paydia.id\naction : Menolak proses transaksi ${t.id}, catatan: ${note}`);
                         showToast('Transaksi Ditolak', `Transaksi ${t.id} berhasil ditolak.`);
                         renderActiveTableWithLoading();
                     });
@@ -3420,8 +3500,34 @@ function initBulkActionMenu() {
     });
 }
 
-// Bulk action across selected good-faith disputes. Loading -> success/error -> reload.
+// Wording for the bulk confirm modal (non-tolak actions). Count = eligible data.
+function bulkConfirmMsg(action, n) {
+    if (action === 'buat_trx') return `Ajukan <strong>Buat Transaksi</strong> untuk <strong>${n}</strong> data? (Memerlukan persetujuan Management)`;
+    if (action === 'flag_recon') return `Lakukan <strong>Flag Recon</strong> pada <strong>${n}</strong> data?`;
+    if (action === 'flag_settle') return `Ajukan <strong>Flag Settle</strong> untuk <strong>${n}</strong> data? (Memerlukan persetujuan Management)`;
+    return '';
+}
+
+// Bulk action across selected good-faith disputes: confirm gate, then loading -> success/error -> reload.
 function handleBulkDisputeAction(action, ids) {
+    const eligible = ids.filter(id => {
+        const d = disputes.find(x => x.id === id);
+        return d && isDisputeEligible(d, action);
+    });
+    if (eligible.length === 0) {
+        showToast('Tidak Ada Perubahan', 'Tidak ada dispute yang bisa diproses.');
+        updateDisputeBulkBar();
+        return;
+    }
+    const n = eligible.length;
+    if (action === 'tolak') {
+        openRejectNoteModal(n, (note) => execBulkDispute(action, eligible, note));
+    } else {
+        openActionConfirmModal(bulkConfirmMsg(action, n), () => execBulkDispute(action, eligible, null));
+    }
+}
+
+function execBulkDispute(action, ids, note) {
     const btnContainer = document.getElementById('acqDisputeBulkActionButtons');
     if (btnContainer) { btnContainer.style.opacity = '0.5'; btnContainer.style.pointerEvents = 'none'; btnContainer.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i>'; }
     setTimeout(() => {
@@ -3433,7 +3539,7 @@ function handleBulkDisputeAction(action, ids) {
                 if (action === 'buat_trx') d.status = 'Transaksi Terbuat';
                 else if (action === 'flag_recon') d.status = 'Flag Recon';
                 else if (action === 'flag_settle') d.status = 'Flag Settle';
-                else if (action === 'tolak') d.status = 'Ditolak';
+                else if (action === 'tolak') { d.status = 'Ditolak'; d.rejectNote = note; }
                 count++;
             });
             if (count === 0) {
@@ -3454,31 +3560,34 @@ function handleBulkDisputeAction(action, ids) {
     }, 600);
 }
 
-// Execute a bulk action across selected rows, applying the same effect as the
-// single-row handler. Rows whose action set no longer includes `action` are skipped.
+// Confirm gate: validate max/eligibility, show the right modal, then hand off to execBulkUnmatch.
 function handleBulkUnmatchAction(action, ids) {
     // PRD: maks 50 data sekali waktu.
     if (ids.length > BULK_MAX) {
         showToast('Maksimal 50 Data', 'Maksimal 50 data dapat diproses dalam satu bulk action.');
         return;
     }
+    const eligible = ids.map(id => transactions.find(t => t.id === id)).filter(t => t && isUnmatchEligible(t, action));
+    if (eligible.length === 0) {
+        showToast('Tidak Ada Perubahan', 'Tidak ada transaksi yang bisa diproses.');
+        updateBulkActionBar();
+        return;
+    }
+    const n = eligible.length;
+    if (action === 'tolak') {
+        openRejectNoteModal(n, (note) => execBulkUnmatch(action, eligible, note));
+    } else {
+        openActionConfirmModal(bulkConfirmMsg(action, n), () => execBulkUnmatch(action, eligible, null));
+    }
+}
 
-    // Loading state: spinner in the action button, unclickable.
+// Execute a bulk action across already-confirmed eligible rows, applying the same
+// effect as the single-row handler. Loading state -> apply -> log -> reload.
+function execBulkUnmatch(action, eligible, note) {
     const btnContainer = document.getElementById('acqBulkActionButtons');
     if (btnContainer) { btnContainer.style.pointerEvents = 'none'; btnContainer.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:var(--primary);"></i>'; }
 
     try {
-        const eligible = ids
-            .map(id => transactions.find(item => item.id === id))
-            .filter(t => t && isUnmatchEligible(t, action));
-
-        if (eligible.length === 0) {
-            if (btnContainer) { btnContainer.style.pointerEvents = ''; }
-            showToast('Tidak Ada Perubahan', 'Tidak ada transaksi yang bisa diproses.');
-            updateBulkActionBar();
-            return;
-        }
-
         if (action === 'buat_trx' || action === 'flag_settle') {
             // PRD: lewat approval, request digrouping per merchant.
             const groups = {};
@@ -3486,9 +3595,15 @@ function handleBulkUnmatchAction(action, ids) {
             Object.values(groups).forEach(group => createUnmatchApproval(action, group));
             const reqCount = Object.keys(groups).length;
             writeLog('bulk-unmatch-' + action + '-request', `email : dion@paydia.id\naction : Mengajukan bulk ${BULK_ACTION_LABELS[action]} untuk ${eligible.length} transaksi (${reqCount} request approval per merchant)`);
+        } else if (action === 'tolak') {
+            // Tolak: langsung diterapkan, catatan wajib disimpan per transaksi.
+            eligible.forEach(t => { t.flaggingStatus = 'Ditolak'; rrnNotes[t.id] = note; });
+            localStorage.setItem('paydia_rrn_notes', JSON.stringify(rrnNotes));
+            saveTrxToStorage();
+            writeLog('bulk-unmatch-tolak', `email : dion@paydia.id\naction : Bulk Tolak untuk ${eligible.length} transaksi unmatched, catatan: ${note}`);
         } else {
-            // flag_recon & tolak: langsung diterapkan (tanpa approval).
-            eligible.forEach(t => { t.flaggingStatus = action === 'tolak' ? 'Ditolak' : 'Flag Recon'; });
+            // flag_recon: langsung diterapkan (tanpa approval).
+            eligible.forEach(t => { t.flaggingStatus = 'Flag Recon'; });
             saveTrxToStorage();
             writeLog('bulk-unmatch-' + action, `email : dion@paydia.id\naction : Bulk ${BULK_ACTION_LABELS[action]} untuk ${eligible.length} transaksi unmatched`);
         }
