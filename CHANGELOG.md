@@ -7,6 +7,11 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.25.2] — 2026-09-29
+### Fixed
+- Menu Action Payin kini menjaga satu menu aktif dan status `aria-expanded` sinkron saat berpindah baris atau menutup menu.
+- Batal, X, dan Escape pada form Request Edit/Approve kembali ke daftar atau Detail asal tanpa menyimpan draft; selama submit berlangsung kontrol pembatalan dinonaktifkan.
+
 ## [1.25.1] — 2026-09-29
 ### Fixed
 - CSP preview topup ditambah `frame-src 'self' blob:` agar PDF Blob dapat dibuka dalam embedded frame di produksi. Izin tetap terbatas pada sumber sendiri dan Blob.

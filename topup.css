@@ -18,7 +18,8 @@
 #topup-page .data-table th:last-child, #topup-page .data-table td:last-child { position: sticky; right: 0; min-width: 102px; background: white; box-shadow: -5px 0 8px #0f172a0a; }
 #topup-page .data-table thead th:last-child { background: #f8fafc; }
 #topup-page .topup-action-menu { position: fixed; inset: auto; margin: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px #0f172a1a; width: 180px; padding: 4px; }
-#topup-page .topup-action-menu:not(:popover-open) { display: none; }
+#topup-page .topup-action-menu.is-open { display: block; }
+#topup-page .topup-action-menu[hidden], #topup-page .topup-action-menu:not(.is-open) { display: none !important; }
 #topup-page .topup-action-menu button { width: 100%; border: 0; background: transparent; text-align: left; padding: 9px; border-radius: 5px; font: inherit; cursor: pointer; }
 #topup-page .topup-action-menu button:hover { background: #eef2ff; }
 #topup-page .topup-action-menu button:disabled { color: #94a3b8; cursor: not-allowed; }

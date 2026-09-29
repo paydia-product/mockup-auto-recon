@@ -17,7 +17,13 @@
     const status = value => ({ pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' }[value] || 'Belum ada');
     let activeObjectUrl = null;
     let dialogOpener = null;
+    let dialogOpenerTransactionId = null;
+    let pendingDialogOpener = null;
+    let listScroll = null;
     let dialogSerial = 0;
+    let formContext = null;
+    let formSubmitting = false;
+    let activeMenu = null;
     let page = 1;
     let search = '';
     let filters = { status: '', adjustment: '', vendor: '' };
@@ -32,7 +38,12 @@
             document.body.appendChild(el);
         }
         if (!el.dataset.topupWired) {
-            el.querySelector('#topup-dialog-close').addEventListener('click', closeDialog);
+            el.querySelector('#topup-dialog-close').addEventListener('click', () => formContext ? cancelForm() : closeDialog());
+            el.addEventListener('cancel', event => {
+                if (!formContext) return;
+                event.preventDefault();
+                cancelForm();
+            });
             el.addEventListener('close', cleanupDialog);
             el.dataset.topupWired = 'true';
         }
@@ -42,25 +53,70 @@
         dialogSerial++;
         if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
         activeObjectUrl = null;
-        dialogOpener?.focus();
+        formContext = null;
+        formSubmitting = false;
+        const opener = dialogOpener?.isConnected ? dialogOpener :
+            [...document.querySelectorAll('[data-topup-menu]')].find(button => button.dataset.topupMenu === dialogOpenerTransactionId) ||
+            $('topup-search-input') || $('topup-filter-btn');
+        if (listScroll) {
+            const wrapper = $('topup-table')?.closest('.table-wrapper');
+            if (wrapper) { wrapper.scrollLeft = listScroll.tableLeft; wrapper.scrollTop = listScroll.tableTop; }
+            window.scrollTo(listScroll.x, listScroll.y);
+        }
+        opener?.focus({ preventScroll: true });
         dialogOpener = null;
+        dialogOpenerTransactionId = null;
+        listScroll = null;
     }
-    function closeDialog() { const el = dialog(); if (el.open) el.close(); }
+    function closeDialog(force = false) { const el = dialog(); if (force) { formContext = null; formSubmitting = false; } if (el.open) el.close(); }
     function openDialog(title, html) {
         const el = dialog();
-        if (!el.open) dialogOpener = document.activeElement;
+        if (!el.open) {
+            dialogOpener = pendingDialogOpener?.button || document.activeElement;
+            dialogOpenerTransactionId = pendingDialogOpener?.transactionId || null;
+            listScroll = pendingDialogOpener?.scroll || null;
+        }
+        pendingDialogOpener = null;
         if (activeObjectUrl) URL.revokeObjectURL(activeObjectUrl);
         activeObjectUrl = null;
         dialogSerial++;
         $('topup-dialog-title').textContent = title;
         $('topup-dialog-body').innerHTML = html;
+        $('topup-dialog-close').disabled = false;
         if (!el.open) el.showModal();
         el.querySelector('#topup-dialog-close').focus();
         return $('topup-dialog-body');
     }
     function row(label, value) { return `<div class="topup-readonly-row"><span>${escape(label)}</span><strong>${escape(value ?? '-')}</strong></div>`; }
     function actions(extra = '') { return `<div class="topup-actions"><button type="button" class="topup-button secondary" data-topup-close>Batal / Tutup</button>${extra}</div>`; }
-    function bindClose(body) { body.querySelector('[data-topup-close]')?.addEventListener('click', closeDialog); }
+    function bindClose(body) { body.querySelector('[data-topup-close]')?.addEventListener('click', () => closeDialog()); }
+    function cancelForm() {
+        if (formSubmitting || !formContext) return;
+        const context = formContext;
+        formContext = null;
+        if (context.origin === 'detail') {
+            txDetail(context.transactionId);
+            dialog().scrollTop = context.scrollTop;
+            dialog().querySelector(context.focus)?.focus({ preventScroll: true });
+        } else closeDialog();
+    }
+    function startSubmitting(body) {
+        formSubmitting = true;
+        body.querySelector('[data-topup-close]').disabled = true;
+        $('topup-dialog-close').disabled = true;
+        const submit = body.querySelector('[type=submit]');
+        submit.disabled = true;
+        submit.textContent = 'Mengirim…';
+        return dialogSerial;
+    }
+    function stopSubmitting(body, label) {
+        formSubmitting = false;
+        body.querySelector('[data-topup-close]').disabled = false;
+        $('topup-dialog-close').disabled = false;
+        const submit = body.querySelector('[type=submit]');
+        submit.disabled = false;
+        submit.textContent = label;
+    }
     function message(body, text, kind = 'notice') {
         let box = body.querySelector('[data-topup-message]');
         if (!box) { box = document.createElement('div'); box.dataset.topupMessage = ''; body.prepend(box); }
@@ -127,15 +183,17 @@
         }
         const body = openDialog(`Detail Payin ${id}`, html + actions(buttons));
         bindClose(body);
-        body.querySelector('[data-topup-edit]')?.addEventListener('click', () => editForm(id));
-        body.querySelector('[data-topup-approve]')?.addEventListener('click', () => topupForm(id));
+        body.querySelector('[data-topup-edit]')?.addEventListener('click', () => editForm(id, { origin: 'detail', transactionId: id, scrollTop: dialog().scrollTop, focus: '[data-topup-edit]' }));
+        body.querySelector('[data-topup-approve]')?.addEventListener('click', () => topupForm(id, { origin: 'detail', transactionId: id, scrollTop: dialog().scrollTop, focus: '[data-topup-approve]' }));
     }
 
-    function editForm(id) {
+    function editForm(id, context = { origin: 'list', transactionId: id }) {
         const state = core.getState(), tx = state.transactions.find(t => t.id === id);
         if (!tx) return;
+        formContext = context;
         const body = openDialog(`Request Edit · ${id}`, `${baseContext(tx)}<form class="topup-form" id="topup-edit-form" novalidate><div class="topup-field"><span class="topup-label">Nominal awal (read-only)</span><div class="topup-value">${money(tx.effectiveAmount)}</div></div><div class="topup-field"><label for="topup-proposed">Nominal usulan (Rp) <span aria-hidden="true">*</span></label><input id="topup-proposed" type="text" inputmode="numeric" autocomplete="off" aria-describedby="topup-proposed-error"><span class="topup-error" id="topup-proposed-error"></span></div><div class="topup-field"><label for="topup-reason">Alasan (opsional)</label><textarea id="topup-reason" maxlength="256" aria-describedby="topup-reason-count topup-reason-error"></textarea><span class="topup-counter" id="topup-reason-count">0 / 255</span><span class="topup-error" id="topup-reason-error"></span></div><div class="topup-field"><label for="topup-edit-file">Bukti mutasi baru <span aria-hidden="true">*</span></label><input id="topup-edit-file" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" aria-describedby="topup-edit-file-error"><span class="topup-help">Tepat satu JPG, JPEG, PNG, atau PDF; maksimal 15 MB.</span><span class="topup-error" id="topup-edit-file-error"></span><div class="topup-preview" id="topup-edit-preview" hidden></div></div>${actions('<button class="topup-button" type="submit">Request Edit</button>')}</form>`);
-        bindClose(body);
+        body.querySelector('[data-topup-close]').textContent = 'Batal';
+        body.querySelector('[data-topup-close]').addEventListener('click', cancelForm);
         const form = $('topup-edit-form'), amount = $('topup-proposed'), reason = $('topup-reason'), file = $('topup-edit-file'), preview = $('topup-edit-preview');
         amount.focus();
         reason.addEventListener('input', () => { $('topup-reason-count').textContent = `${reason.value.length} / 255`; $('topup-reason-error').textContent = reason.value.length > 255 ? 'Alasan maksimal 255 karakter.' : ''; });
@@ -148,36 +206,41 @@
             $('topup-reason-error').textContent = reason.value.length <= 255 ? '' : 'Alasan maksimal 255 karakter.';
             $('topup-edit-file-error').textContent = core.validateEvidence(file.files);
             if (!validAmount || reason.value.length > 255 || $('topup-edit-file-error').textContent) return;
-            const submit = form.querySelector('[type=submit]'); submit.disabled = true;
+            const serial = startSubmitting(body);
             try {
                 const evidence = await core.saveEvidence(file.files[0]);
+                if (serial !== dialogSerial || !dialog().open) return;
                 core.submitAdjustment({ transactionId: id, proposedAmount: raw, reason: reason.value, evidenceId: evidence.id });
                 result(`Request Edit untuk ${id} berhasil diajukan. Nominal efektif tetap ${money(tx.effectiveAmount)} sampai L3 menyetujui.`, 'Request Edit terkirim');
-            } catch (error) { message(body, error.message); submit.disabled = false; }
+            } catch (error) { if (serial === dialogSerial) { message(body, error.message); stopSubmitting(body, 'Request Edit'); } }
         });
     }
-    function topupForm(id) {
+    function topupForm(id, context = { origin: 'list', transactionId: id }) {
         const state = core.getState(), tx = state.transactions.find(t => t.id === id);
         if (!tx) return;
+        formContext = context;
         const body = openDialog(`Request Approve · ${id}`, `${baseContext(tx)}<form class="topup-form" id="topup-approval-form" novalidate><div class="topup-field"><span class="topup-label">Nominal efektif (read-only)</span><div class="topup-value">${money(tx.effectiveAmount)}</div></div><div class="topup-field"><label for="topup-approval-file">Bukti mutasi untuk L2 <span aria-hidden="true">*</span></label><input id="topup-approval-file" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" aria-describedby="topup-approval-file-error"><span class="topup-help">Unggah bukti baru untuk request ini. Bukti adjustment tidak terisi otomatis.</span><span class="topup-error" id="topup-approval-file-error"></span><div class="topup-preview" id="topup-approval-preview" hidden></div></div>${actions('<button type="submit" class="topup-button">Request Approve</button>')}</form>`);
-        bindClose(body);
+        body.querySelector('[data-topup-close]').textContent = 'Batal';
+        body.querySelector('[data-topup-close]').addEventListener('click', cancelForm);
         const form = $('topup-approval-form'), file = $('topup-approval-file'), preview = $('topup-approval-preview');
         file.addEventListener('change', () => { preview.hidden = file.files.length !== 1; liveEvidence(file, preview); });
         form.addEventListener('submit', async e => {
             e.preventDefault();
             $('topup-approval-file-error').textContent = core.validateEvidence(file.files);
             if ($('topup-approval-file-error').textContent) return;
-            const submit = form.querySelector('[type=submit]'); submit.disabled = true;
+            const serial = startSubmitting(body);
             try {
                 const evidence = await core.saveEvidence(file.files[0]);
+                if (serial !== dialogSerial || !dialog().open) return;
                 core.submitTopup({ transactionId: id, evidenceId: evidence.id });
                 result(`Request Approve untuk ${id} berhasil diajukan ke L2. Status topup dan saldo dealer belum berubah.`, 'Request Approve terkirim');
-            } catch (error) { message(body, error.message); submit.disabled = false; }
+            } catch (error) { if (serial === dialogSerial) { message(body, error.message); stopSubmitting(body, 'Request Approve'); } }
         });
     }
-    function result(text, title) { const body = openDialog(title, `<p class="topup-success">${escape(text)}</p>${actions()}`); bindClose(body); }
+    function result(text, title) { formContext = null; formSubmitting = false; const body = openDialog(title, `<p class="topup-success">${escape(text)}</p>${actions()}`); bindClose(body); }
 
     function openRequest(id) {
+        formContext = null;
         const state = core.getState(), req = state.requests.find(r => r.id === id);
         if (!req) return;
         const tx = state.transactions.find(t => t.id === req.transactionId);
@@ -198,6 +261,7 @@
         }));
     }
     function openLog(id) {
+        formContext = null;
         const state = core.getState(), log = state.logs.find(l => String(l.id) === String(id));
         if (!log) return;
         const request = state.requests.find(r => r.id === log.requestId);
@@ -217,13 +281,43 @@
             return !search || haystack.includes(search);
         });
     }
+    function closeActionMenu() {
+        if (!activeMenu) return;
+        const { button, panel } = activeMenu;
+        activeMenu = null;
+        if (panel.hidePopover && panel.matches(':popover-open')) panel.hidePopover();
+        panel.hidden = true;
+        panel.classList.remove('is-open');
+        button.setAttribute('aria-expanded', 'false');
+    }
+    function openActionMenu(button) {
+        closeActionMenu();
+        const panel = button.parentElement.querySelector('.topup-action-menu');
+        const rect = button.getBoundingClientRect(), width = 180, height = 122;
+        panel.style.left = `${Math.max(8, Math.min(rect.right - width, innerWidth - width - 8))}px`;
+        panel.style.top = `${rect.bottom + height + 8 > innerHeight ? Math.max(8, rect.top - height - 5) : rect.bottom + 5}px`;
+        panel.hidden = false;
+        panel.classList.add('is-open');
+        if (panel.showPopover) panel.showPopover();
+        activeMenu = { button, panel };
+        button.setAttribute('aria-expanded', 'true');
+    }
     function renderPayin() {
         const tbody = $('topup-table-body'); if (!tbody) return;
+        closeActionMenu();
         const state = core.getState();
         const rows = filteredTransactions(state);
         const pages = Math.max(1, Math.ceil(rows.length / 10)); page = Math.min(page, pages);
         const start = (page - 1) * 10;
-        tbody.innerHTML = rows.length ? rows.slice(start, start + 10).map((tx, index) => { const blocked = tx.status === 'Sukses' || !account(state)?.canRequest || state.requests.some(r => r.transactionId === tx.id && r.status === 'pending'); return `<tr><td>${start + index + 1}</td><td>${escape(tx.id)}</td><td>Biller Gateway</td><td>${dateTime(tx.createdAt)}</td><td>Topup Dealer</td><td>${escape(tx.dealerName)}<br><small>${escape(tx.dealerEmail)}</small></td><td>${money(tx.effectiveAmount)}</td><td><span class="topup-table-status ${tx.status === 'Sukses' ? 'sukses' : ''}">${escape(tx.status)}</span></td><td class="topup-action"><button type="button" class="btn-action" data-topup-menu="${escape(tx.id)}" aria-expanded="false">Action <i class="fas fa-chevron-down"></i></button><div class="topup-action-menu" popover="auto"><button type="button" data-topup-detail="${escape(tx.id)}">Detail</button><button type="button" data-topup-edit="${escape(tx.id)}" ${blocked ? 'disabled' : ''}>Edit</button><button type="button" data-topup-approve="${escape(tx.id)}" ${blocked ? 'disabled' : ''}>Request Approve</button></div></td></tr>`; }).join('') : '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:36px">No Data</td></tr>';
+        tbody.innerHTML = rows.length ? rows.slice(start, start + 10).map((tx, index) => { const blocked = tx.status === 'Sukses' || !account(state)?.canRequest || state.requests.some(r => r.transactionId === tx.id && r.status === 'pending'); return `<tr><td>${start + index + 1}</td><td>${escape(tx.id)}</td><td>Biller Gateway</td><td>${dateTime(tx.createdAt)}</td><td>Topup Dealer</td><td>${escape(tx.dealerName)}<br><small>${escape(tx.dealerEmail)}</small></td><td>${money(tx.effectiveAmount)}</td><td><span class="topup-table-status ${tx.status === 'Sukses' ? 'sukses' : ''}">${escape(tx.status)}</span></td><td class="topup-action"><button type="button" class="btn-action" data-topup-menu="${escape(tx.id)}" aria-expanded="false">Action <i class="fas fa-chevron-down"></i></button><div class="topup-action-menu" popover="auto" hidden><button type="button" data-topup-detail="${escape(tx.id)}">Detail</button><button type="button" data-topup-edit="${escape(tx.id)}" ${blocked ? 'disabled' : ''}>Edit</button><button type="button" data-topup-approve="${escape(tx.id)}" ${blocked ? 'disabled' : ''}>Request Approve</button></div></td></tr>`; }).join('') : '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:36px">No Data</td></tr>';
+        tbody.querySelectorAll('.topup-action-menu').forEach(panel => panel.addEventListener('toggle', () => {
+            if (!panel.matches(':popover-open')) {
+                panel.hidden = true;
+                panel.classList.remove('is-open');
+                panel.parentElement.querySelector('[data-topup-menu]').setAttribute('aria-expanded', 'false');
+                if (activeMenu?.panel === panel) activeMenu = null;
+            }
+        }));
         $('topup-page-info').textContent = `${rows.length ? start + 1 : 0} - ${Math.min(start + 10, rows.length)} of ${rows.length}`;
         $('topup-prev').disabled = page === 1; $('topup-next').disabled = page === pages;
         $('topup-page-buttons').innerHTML = Array.from({ length: pages }, (_, i) => `<button type="button" class="page-btn ${page === i + 1 ? 'active' : ''}" data-topup-page="${i + 1}">${i + 1}</button>`).join('');
@@ -251,20 +345,26 @@
         $('topup-table-body').addEventListener('click', e => {
             const menu = e.target.closest('[data-topup-menu]');
             if (menu) {
-                const panel = menu.parentElement.querySelector('.topup-action-menu');
-                if (panel.matches(':popover-open')) { panel.hidePopover(); menu.setAttribute('aria-expanded', 'false'); return; }
-                const rect = menu.getBoundingClientRect(), width = 180, height = 122;
-                panel.style.left = `${Math.max(8, Math.min(rect.right - width, innerWidth - width - 8))}px`;
-                panel.style.top = `${rect.bottom + height + 8 > innerHeight ? Math.max(8, rect.top - height - 5) : rect.bottom + 5}px`;
-                panel.showPopover(); menu.setAttribute('aria-expanded', 'true');
+                if (activeMenu?.button === menu) closeActionMenu();
+                else openActionMenu(menu);
                 return;
             }
             const btn = e.target.closest('[data-topup-detail],[data-topup-edit],[data-topup-approve]');
             if (!btn || btn.disabled) return;
+            const action = activeMenu?.button || [...$('topup-table-body').querySelectorAll('[data-topup-menu]')].find(button => button.dataset.topupMenu === (btn.dataset.topupDetail || btn.dataset.topupEdit || btn.dataset.topupApprove));
+            if (action) {
+                const wrapper = $('topup-table').closest('.table-wrapper');
+                pendingDialogOpener = { button: action, transactionId: action.dataset.topupMenu, scroll: { x: window.scrollX, y: window.scrollY, tableLeft: wrapper.scrollLeft, tableTop: wrapper.scrollTop } };
+            }
+            closeActionMenu();
             if (btn.dataset.topupDetail) txDetail(btn.dataset.topupDetail);
             if (btn.dataset.topupEdit) editForm(btn.dataset.topupEdit);
             if (btn.dataset.topupApprove) topupForm(btn.dataset.topupApprove);
         });
+        document.addEventListener('click', e => { if (activeMenu && !e.target.closest('.topup-action-menu,[data-topup-menu]')) closeActionMenu(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeActionMenu(); });
+        window.addEventListener('resize', closeActionMenu);
+        window.addEventListener('scroll', closeActionMenu, true);
     }
     function renderDemo() {
         const panel = $('topup-demo'); if (!panel) return;
@@ -288,7 +388,7 @@
             const button = e.currentTarget;
             if (!button.dataset.confirm) { button.dataset.confirm = 'true'; button.textContent = 'Klik lagi untuk reset data topup'; return; }
             button.disabled = true;
-            try { await core.resetDemo(); closeDialog(); button.textContent = 'Reset simulasi topup'; delete button.dataset.confirm; }
+            try { await core.resetDemo(); closeActionMenu(); closeDialog(true); button.textContent = 'Reset simulasi topup'; delete button.dataset.confirm; }
             catch (error) { button.textContent = error.message; }
             finally { button.disabled = false; }
         });
