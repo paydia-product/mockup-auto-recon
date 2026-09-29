@@ -16,6 +16,14 @@ The audit agent had no browser provider. CUA reported an empty browser inventory
 Native Edge supplied independent human-flow checks. The audit stopped Edge interactions when the user resumed using Edge.
 Existing user tabs remain intact. The topup audit tab remains available.
 
+## Verifikasi produksi dan patch 1.25.1
+
+Setelah audit lokal, root merilis 1.25.0 dan mengonfirmasi status deployment **Ready**. Pemeriksaan HTTP terhadap 19 path lulus; 11 body halaman lama identik dengan versi sebelum rilis. Ini bukti cakupan path tersebut, bukan verifikasi seluruh alur lama.
+
+Root menguji alur baru di produksi: L3 menyetujui adjustment menjadi Rp1.000.000, sementara status topup tetap Proses dan saldo dealer belum bertambah. Setelah L2 menyetujui request transaksi dengan bukti terpisah, status menjadi Sukses dan saldo Dealer Sentosa naik Rp5.900.000 → Rp6.900.000. Nilai itu bertahan setelah reload. Preview gambar PNG dari Blob berhasil dimuat.
+
+**Temuan sebelum patch:** embedded PDF produksi terblokir meskipun CSP sudah mengizinkan `object-src blob:`. Diagnosis Chromium menunjukkan PDF viewer dalam frame juga memerlukan `frame-src 'self' blob:`. Patch 1.25.1 menambahkan izin frame tersebut secara terbatas. Codex in-app browser menampilkan viewer PDF kosong bahkan saat membuka PDF langsung sebagai kontrol; Chrome tidak tersedia untuk audit ini. Header CSP dan tautan **Buka bukti** dapat diperiksa terpisah, sedangkan tampilan PDF native tetap **belum terverifikasi** dalam audit ini.
+
 ## Confirmed findings
 
 | Finding | Evidence | Status |

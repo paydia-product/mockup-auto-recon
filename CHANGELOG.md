@@ -7,6 +7,10 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.25.1] — 2026-09-29
+### Fixed
+- CSP preview topup ditambah `frame-src 'self' blob:` agar PDF Blob dapat dibuka dalam embedded frame di produksi. Izin tetap terbatas pada sumber sendiri dan Blob.
+
 ## [1.25.0] — 2026-09-29
 ### Added
 - Mockup **Payin topup dealer Biller Gateway** terhubung ke Approval, permission Admin, Log, dan panel simulasi Telegram. Sebelas transaksi contoh mencakup nominal sesuai, adjustment L3, approval topup L2, penolakan, larangan self-approval, serta kegagalan notifikasi.

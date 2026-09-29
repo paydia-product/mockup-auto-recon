@@ -1,6 +1,6 @@
 # Mockup kontrol nominal topup dealer
 
-Target produksi: [Payin di ar-mockup.vercel.app](https://ar-mockup.vercel.app/payin.html), memerlukan login. URL ini perlu diverifikasi setelah deployment. Untuk lokal, buka [Payin lokal](http://127.0.0.1:8765/payin.html); jika server belum aktif, jalankan `python3 -m http.server 8765` dari folder ini. Navigasi Payin, Approval, Admin, dan Log memakai data simulasi yang sama selama browser menyimpan data situs lokal.
+Produksi: [Payin di ar-mockup.vercel.app](https://ar-mockup.vercel.app/payin.html), memerlukan login. Patch 1.25.1 menambahkan izin `frame-src 'self' blob:` untuk preview PDF; tampilan PDF native belum terverifikasi dalam audit ini. Untuk lokal, buka [Payin lokal](http://127.0.0.1:8765/payin.html); jika server belum aktif, jalankan `python3 -m http.server 8765` dari folder ini. Navigasi Payin, Approval, Admin, dan Log memakai data simulasi yang sama selama browser menyimpan data situs lokal.
 
 ## Akun demo
 

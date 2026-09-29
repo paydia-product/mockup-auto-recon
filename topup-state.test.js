@@ -159,8 +159,9 @@ async function demo() {
     assert.equal(blobs.size, 0);
 
     const headerRoutes = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, 'vercel.json'), 'utf8')).headers;
+    assert.equal(headerRoutes[0].headers.find(header => header.key === 'X-Frame-Options').value, 'DENY');
     const oldCsp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https://ui-avatars.com; connect-src 'self'; frame-ancestors 'none';";
-    const topupCsp = oldCsp.replace('img-src \'self\' data: https://ui-avatars.com;', "img-src 'self' data: https://ui-avatars.com blob:; object-src 'self' blob:;");
+    const topupCsp = oldCsp.replace('img-src \'self\' data: https://ui-avatars.com;', "img-src 'self' data: https://ui-avatars.com blob:; object-src 'self' blob:; frame-src 'self' blob:;");
     assert.deepEqual(headerRoutes.filter(route => route.headers.some(header => header.key === 'Content-Security-Policy')).map(route => route.source), [
         '/((?!payin\\.html$|approval\\.html$|log\\.html$).*)', '/payin.html', '/approval.html', '/log.html'
     ]);
@@ -170,6 +171,8 @@ async function demo() {
         assert.deepEqual(matched(path).filter(header => header.key === 'Content-Security-Policy').map(header => header.value), [topupCsp]);
         assert.match(topupCsp, /img-src[^;]*blob:/);
         assert.match(topupCsp, /object-src 'self' blob:/);
+        assert.match(topupCsp, /frame-src 'self' blob:/);
+        assert.match(topupCsp, /frame-ancestors 'none'/);
     }
     for (const path of ['/', '/index.html', '/admin.html', '/settle-recon.html', '/auto-settlement.html', '/transaksi.html']) {
         assert.deepEqual(matched(path).filter(header => header.key === 'Content-Security-Policy').map(header => header.value), [oldCsp]);
