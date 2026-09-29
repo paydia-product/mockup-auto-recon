@@ -11,9 +11,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="styles.css?v=20260624-v14">
+    <link rel="stylesheet" href="topup.css?v=20260929-6">
 
 <script src="boot.js?v=20260624-v14"></script>
-<script src="sidebar.js?v=20260701-v3"></script>
+<script src="sidebar.js?v=20260929-topup1"></script>
+<script src="topup-state.js?v=20260929-3"></script>
 </head>
 
 <body>
@@ -280,6 +282,8 @@
                                         <option value="Campaign Promo">Campaign Promo</option>
                                         <option value="Merchant">Merchant</option>
                                         <option value="Ubah Public Key Merchant">Ubah Public Key Merchant</option>
+                                        <option value="Request Adjustment">Request Adjustment</option>
+                                        <option value="Ubah Status Top Up Pengguna">Ubah Status Top Up Pengguna</option>
                                     </select>
                                 </div>
                                 <div class="filter-group" style="display:flex; flex-direction:column; gap:6px;">
@@ -329,7 +333,8 @@
     <!-- Overlay for mobile sidebar -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <script src="approval.js?v=20260624-v16"></script>
+    <script src="approval.js?v=20260929-topup1"></script>
+    <script src="topup-ui.js?v=20260929-7"></script>
     <script src="page-guide.js?v=20260625-v3"></script>
     <script>
         document.getElementById('logoutBtn').addEventListener('click', function() {

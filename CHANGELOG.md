@@ -7,6 +7,13 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.25.0] — 2026-09-29
+### Added
+- Mockup **Payin topup dealer Biller Gateway** terhubung ke Approval, permission Admin, Log, dan panel simulasi Telegram. Sebelas transaksi contoh mencakup nominal sesuai, adjustment L3, approval topup L2, penolakan, larangan self-approval, serta kegagalan notifikasi.
+- Request Edit menyimpan bukti baru dan menunggu otorisasi L3 sebelum nominal efektif berubah. Request Approve memakai bukti terpisah; saldo dealer bertambah sekali hanya setelah persetujuan L2.
+### Changed
+- CSP deployment diberi izin terbatas untuk preview bukti lokal berbasis Blob pada halaman topup, tanpa mengubah alur Auto Recon dan Auto Settlement.
+
 ## [1.24.0] — 2026-07-22
 Fix di sisi **Auto Reconcile**.
 ### Fixed

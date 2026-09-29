@@ -113,6 +113,7 @@ const requestTypeColors = {
     'Ubah Status Top Up Pengguna':           { bg: 'rgba(168, 85, 247, 0.12)', color: '#a855f7', border: 'rgba(168, 85, 247, 0.2)' },
     'Ubah Detail Pengguna':                  { bg: 'rgba(20, 184, 166, 0.12)', color: '#20b2aa', border: 'rgba(20, 184, 166, 0.2)' },
     'Ubah Status Transaksi Digital Content': { bg: 'rgba(100, 116, 139, 0.12)', color: '#94a3b8', border: 'rgba(100, 116, 139, 0.2)' },
+    'Request Adjustment':                 { bg: '#eef2ff', color: '#4338ca', border: '#c7d2fe' },
     'Finalize Reconcile':                    { bg: 'rgba(79, 70, 229, 0.12)', color: '#4f46e5', border: 'rgba(79, 70, 229, 0.2)' }
 };
 
@@ -203,11 +204,8 @@ function getAllApprovals() {
         populatedVal = 'true';
     }
     const isPopulated = populatedVal === 'true';
-    if (!isPopulated) {
-        return [];
-    }
-    const stored = JSON.parse(localStorage.getItem('paydia_approvals') || '[]');
-    let all = [...stored, ...seedApprovals];
+    const stored = isPopulated ? JSON.parse(localStorage.getItem('paydia_approvals') || '[]') : [];
+    let all = [...window.PaydiaTopup.approvalRows(), ...stored, ...(isPopulated ? seedApprovals : [])];
     // Apply active filters (Tipe Request + Admin)
     if (approvalFilters.tipe) all = all.filter(a => (a.tipeRequest || '') === approvalFilters.tipe);
     if (approvalFilters.admin) all = all.filter(a => (a.admin || '').toLowerCase().includes(approvalFilters.admin));
@@ -248,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPermissions();
     applyPermissions();
     renderTableWithLoading();
+    window.addEventListener('paydia-topup-change', () => { renderTable(); renderPagination(); });
     renderPagination();
     bindEvents();
     initMockDataControl();
@@ -733,16 +732,16 @@ function renderTable() {
         const colors = requestTypeColors[item.tipeRequest] || { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' };
 
         // Account may contain newlines (multi-line)
-        const accountHtml = item.account.replace(/\n/g, '<br>');
+        const accountHtml = item.topupRequestId ? item.account.split('\n').map(window.PaydiaTopupUI.escape).join('<br>') : item.account.replace(/\n/g, '<br>');
 
         tr.innerHTML = `
             <td class="col-no">${start + idx + 1}</td>
             <td>${item.tanggal}</td>
             <td class="account-cell">${accountHtml}</td>
-            <td>${item.admin}</td>
+            <td>${item.topupRequestId ? window.PaydiaTopupUI.escape(item.admin) : item.admin}</td>
             <td>
                 <span class="request-badge" style="background:${colors.bg};color:${colors.color};border:1px solid ${colors.border};">
-                    ${item.tipeRequest}
+                    ${item.tipeRequest}${item.topupRequestId ? `<small style="display:block">${window.PaydiaTopupUI.escape(item.status)}</small>` : ''}
                 </span>
             </td>
             <td class="col-action-approval">
@@ -882,6 +881,7 @@ function bindEvents() {
             const allData = getAllApprovals();
             const item = allData.find(a => a.id == itemId);
             if (!item) return;
+            if (item.topupRequestId) { window.PaydiaTopupUI.openRequest(item.topupRequestId); return; }
 
             const isInteractive = 
                 (item.tipeRequest === 'Ubah Status Transaksi Digital Content' && item.refId) || 

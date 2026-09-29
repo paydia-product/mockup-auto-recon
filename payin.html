@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payin - Paydia Bisnis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css?v=20260624-v14">
+    <link rel="stylesheet" href="topup.css?v=20260929-6">
+    <script src="sidebar.js?v=20260929-topup1"></script>
+    <script src="topup-state.js?v=20260929-3"></script>
+    <script src="topup-ui.js?v=20260929-7" defer></script>
+</head>
+<body>
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="main-wrapper">
+        <header class="topbar" id="topbar">
+            <div class="topbar-left"><button class="mobile-toggle" id="mobileToggle" aria-label="Buka menu"><i class="fas fa-bars"></i></button></div>
+            <div class="topbar-right"><div class="topbar-user"><span class="topbar-username">Dashboard Admin</span></div></div>
+        </header>
+        <main class="main-content" id="topup-page">
+            <nav class="breadcrumb" aria-label="Breadcrumb"><a href="index.html">Home</a><span class="breadcrumb-sep">/</span><span>Paydia Bisnis</span><span class="breadcrumb-sep">/</span><span>Transaction</span><span class="breadcrumb-sep">/</span><span class="breadcrumb-current">Payin</span></nav>
+            <h1 class="page-title">Payin</h1>
+            <section class="card" aria-label="Transaksi Payin Biller Gateway">
+                <div class="toolbar topup-toolbar">
+                    <div class="toolbar-left"><button type="button" class="btn btn-filter" id="topup-filter-btn"><i class="fas fa-filter"></i> Filter</button><button type="button" class="btn btn-export" id="topup-export-btn"><i class="fas fa-file-excel"></i> Export</button></div>
+                    <div class="topup-search"><label for="topup-search-input">Search</label><input id="topup-search-input" type="search" autocomplete="off"><button type="button" class="btn btn-search" id="topup-search-btn">Search</button><button type="button" class="btn btn-reset" id="topup-reset-filters">Reset</button></div>
+                </div>
+                <div class="topup-filter-panel" id="topup-filter-panel" hidden>
+                    <label>Vendor<select id="topup-filter-vendor"><option value="">Semua</option><option value="Biller Gateway">Biller Gateway</option></select></label>
+                    <label>Status topup<select id="topup-filter-status"><option value="">Semua</option><option value="Proses">Proses</option><option value="Sukses">Sukses</option></select></label>
+                    <label>Status Request Adjustment<select id="topup-filter-adjustment"><option value="">Semua</option><option value="none">Belum ada</option><option value="pending">Menunggu L3</option><option value="approved">Disetujui L3</option><option value="rejected">Ditolak L3</option></select></label>
+                    <button type="button" class="btn btn-search" id="topup-apply-filters">Terapkan</button>
+                </div>
+                <p class="topup-scroll-hint">Geser tabel ke samping untuk melihat semua kolom transaksi.</p>
+                <div class="table-wrapper"><table class="data-table" id="topup-table"><colgroup><col style="width:44px"><col style="width:115px"><col style="width:120px"><col style="width:160px"><col style="width:95px"><col style="width:255px"><col style="width:115px"><col style="width:90px"><col style="width:106px"></colgroup><thead><tr><th>No</th><th>Id Referensi</th><th>Vendor</th><th>Tanggal</th><th>Kategori</th><th>Merchant</th><th>Nominal</th><th>Status</th><th>Action</th></tr></thead><tbody id="topup-table-body"></tbody></table></div>
+                <div class="pagination-wrapper topup-pagination"><span class="pagination-info" id="topup-page-info"></span><div class="pagination"><button class="page-btn" type="button" id="topup-prev" aria-label="Halaman sebelumnya"><i class="fas fa-chevron-left"></i></button><span id="topup-page-buttons"></span><button class="page-btn" type="button" id="topup-next" aria-label="Halaman berikutnya"><i class="fas fa-chevron-right"></i></button></div></div>
+            </section>
+        </main>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <dialog id="topup-dialog" class="topup-dialog" aria-labelledby="topup-dialog-title"><div class="topup-dialog-head"><h2 id="topup-dialog-title"></h2><button type="button" id="topup-dialog-close" class="topup-close" aria-label="Tutup">&times;</button></div><div id="topup-dialog-body"></div></dialog>
+</body>
+</html>

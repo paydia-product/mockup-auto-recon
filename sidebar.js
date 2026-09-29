@@ -74,7 +74,7 @@
                     <i class="fas fa-chevron-down submenu-arrow"></i>
                 </a>
                 <div class="submenu">
-                    <a href="#" class="submenu-item" id="nav-trx-payin"><i class="fas fa-arrow-down"></i><span>Payin</span></a>
+                    <a href="payin.html" class="submenu-item" id="nav-trx-payin"><i class="fas fa-arrow-down"></i><span>Payin</span></a>
                     <a href="#" class="submenu-item" id="nav-trx-payout"><i class="fas fa-arrow-up"></i><span>Payout</span></a>
                     <a href="qris-mpm.html" class="submenu-item" id="nav-trx-qris-mpm"><i class="fas fa-th"></i><span>QRIS MPM <i class="fas fa-hammer" style="color:#f59e0b; margin-left:6px; font-size:0.8rem;" title="Butuh Pengerjaan"></i></span></a>
                     <a href="#" class="submenu-item" id="nav-trx-qris-cpm"><i class="fas fa-th-large"></i><span>QRIS CPM</span></a>

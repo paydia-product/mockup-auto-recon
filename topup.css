@@ -1,0 +1,73 @@
+/* Dealer topup simulation: every new selector stays in the topup namespace. */
+#topup-page .topup-toolbar { align-items: center; flex-wrap: wrap; gap: 12px; }
+#topup-page .topup-search { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+#topup-page .topup-search input, #topup-page .topup-filter-panel select, .topup-dialog input, .topup-dialog textarea { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; font: inherit; min-height: 36px; background: white; }
+#topup-page .topup-search input { width: 190px; }
+#topup-page .topup-filter-panel { display: flex; align-items: end; gap: 12px; padding: 14px 22px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+#topup-page .topup-filter-panel[hidden] { display: none; }
+#topup-page .topup-filter-panel label { display: grid; gap: 5px; color: #475569; font-size: 12px; font-weight: 600; }
+#topup-page .topup-scroll-hint { color: #64748b; font-size: 11px; padding: 5px 22px; margin: 0; }
+#topup-page .topup-table-status, .topup-request-status { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 99px; font-weight: 600; font-size: 11px; white-space: nowrap; background: #f1f5f9; color: #475569; }
+#topup-page .topup-table-status.sukses, .topup-request-status.approved { background: #dcfce7; color: #15803d; }
+.topup-request-status.pending { background: #fef3c7; color: #92400e; }
+.topup-request-status.rejected { background: #fee2e2; color: #b91c1c; }
+#topup-page .topup-action { position: relative; }
+#topup-page .data-table { min-width: 1100px; }
+#topup-page .data-table th:nth-child(4), #topup-page .data-table td:nth-child(4) { min-width: 144px; white-space: nowrap; }
+#topup-page .data-table th:nth-child(6), #topup-page .data-table td:nth-child(6) { min-width: 210px; white-space: nowrap; }
+#topup-page .data-table th:last-child, #topup-page .data-table td:last-child { position: sticky; right: 0; min-width: 102px; background: white; box-shadow: -5px 0 8px #0f172a0a; }
+#topup-page .data-table thead th:last-child { background: #f8fafc; }
+#topup-page .topup-action-menu { position: fixed; inset: auto; margin: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px #0f172a1a; width: 180px; padding: 4px; }
+#topup-page .topup-action-menu:not(:popover-open) { display: none; }
+#topup-page .topup-action-menu button { width: 100%; border: 0; background: transparent; text-align: left; padding: 9px; border-radius: 5px; font: inherit; cursor: pointer; }
+#topup-page .topup-action-menu button:hover { background: #eef2ff; }
+#topup-page .topup-action-menu button:disabled { color: #94a3b8; cursor: not-allowed; }
+#topup-page .topup-pagination { padding: 14px 22px; display: flex; align-items: center; justify-content: space-between; }
+#topup-page #topup-page-buttons { display: inline-flex; }
+.topup-dialog { border: 0; border-radius: 12px; padding: 0; margin: auto; width: min(760px, calc(100vw - 28px)); max-height: min(92vh, 920px); overflow: auto; box-shadow: 0 24px 70px #0f172a44; color: #1e293b; }
+.topup-dialog::backdrop { background: #0f172a8a; }
+.topup-dialog .topup-dialog-head { position: sticky; top: 0; background: white; padding: 20px 24px; border-bottom: 1px solid #e2e8f0; z-index: 2; display: flex; align-items: center; justify-content: space-between; }
+.topup-dialog .topup-dialog-head h2 { font-size: 18px; margin: 0; }
+.topup-dialog .topup-close { border: 0; background: transparent; color: #64748b; font-size: 26px; cursor: pointer; }
+.topup-dialog #topup-dialog-body { padding: 20px 24px 24px; }
+.topup-dialog .topup-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.topup-dialog .topup-field { display: grid; gap: 5px; min-width: 0; }
+.topup-dialog .topup-field label, .topup-dialog .topup-label { color: #64748b; font-size: 12px; font-weight: 600; }
+.topup-dialog .topup-value { border: 1px solid #e2e8f0; border-radius: 6px; padding: 9px 10px; background: #f8fafc; min-height: 36px; overflow-wrap: anywhere; }
+.topup-dialog .topup-form { display: grid; gap: 14px; }
+.topup-dialog .topup-form textarea { min-height: 88px; resize: vertical; }
+.topup-dialog .topup-form input[type=file] { width: 100%; }
+.topup-dialog .topup-error { color: #b91c1c; font-size: 12px; min-height: 15px; }
+.topup-dialog .topup-help { color: #64748b; font-size: 12px; }
+.topup-dialog .topup-counter { text-align: right; color: #64748b; font-size: 12px; }
+.topup-dialog .topup-preview { margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; max-height: 300px; overflow: auto; }
+.topup-dialog .topup-preview img { max-width: 100%; max-height: 240px; object-fit: contain; display: block; }
+.topup-dialog .topup-preview embed { width: 100%; height: 250px; }
+.topup-dialog .topup-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+.topup-dialog .topup-button { border: 1px solid #4f46e5; border-radius: 6px; background: #4f46e5; color: white; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+.topup-dialog .topup-button.secondary { border-color: #cbd5e1; background: white; color: #334155; }
+.topup-dialog .topup-button.danger { border-color: #dc2626; background: #dc2626; }
+.topup-dialog .topup-button:disabled { opacity: .5; cursor: not-allowed; }
+.topup-dialog .topup-notice { padding: 10px 12px; border-radius: 6px; background: #fef3c7; color: #92400e; margin: 12px 0; }
+.topup-dialog .topup-success { padding: 10px 12px; border-radius: 6px; background: #dcfce7; color: #166534; margin: 12px 0; }
+.topup-dialog .topup-readonly-list { display: grid; gap: 10px; }
+.topup-dialog .topup-readonly-row { display: grid; grid-template-columns: 185px minmax(0,1fr); gap: 10px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+.topup-dialog .topup-readonly-row strong { overflow-wrap: anywhere; }
+.topup-dialog .topup-readonly-row span { color: #64748b; }
+.topup-dialog .topup-amount-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.topup-dialog .topup-amount-pair > div { padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+.topup-dialog .topup-amount-pair strong { display: block; font-size: 18px; margin-top: 5px; }
+.topup-demo { margin: 14px 22px 18px; border: 1px dashed #a5b4fc; border-radius: 9px; background: #f8faff; color: #334155; }
+.topup-demo summary { padding: 10px 12px; cursor: pointer; font-weight: 700; }
+.topup-demo .topup-demo-body { padding: 0 12px 12px; display: grid; gap: 10px; }
+.topup-demo .topup-demo-controls { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.topup-demo .topup-demo-controls label { display: grid; gap: 4px; font-size: 12px; }
+.topup-demo select { max-width: 260px; min-height: 34px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px; background: white; }
+.topup-demo button { border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 10px; background: white; cursor: pointer; }
+.topup-demo .topup-demo-messages { max-height: 210px; overflow: auto; display: grid; gap: 6px; }
+.topup-demo .topup-demo-message { white-space: pre-wrap; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; background: white; font-size: 12px; }
+.topup-demo .topup-demo-message.failed { border-color: #fca5a5; background: #fef2f2; }
+.topup-log-detail { display: inline-block; margin-top: 5px; border: 1px solid #c7d2fe; color: #4338ca; background: #eef2ff; border-radius: 5px; padding: 4px 9px; cursor: pointer; font: inherit; }
+.topup-dialog :focus-visible, .topup-demo :focus-visible, #topup-page :focus-visible, .topup-log-detail:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+@media (max-width: 1280px) { #topup-page .topup-search { margin-left: 0; } #topup-page .table-wrapper { overflow-x: auto; } }
+@media (max-width: 600px) { .topup-dialog .topup-context, .topup-dialog .topup-amount-pair { grid-template-columns: 1fr; } .topup-dialog .topup-readonly-row { grid-template-columns: 1fr; gap: 2px; } }

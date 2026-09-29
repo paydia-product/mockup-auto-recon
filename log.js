@@ -159,6 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
     bindEvents();
     renderTableData();
     initMockDataControl();
+    window.addEventListener('paydia-topup-change', renderTableData);
+    document.getElementById('logsTableBody').addEventListener('click', e => {
+        const button = e.target.closest('[data-topup-log-id]');
+        if (button) window.PaydiaTopupUI.openLog(button.dataset.topupLogId);
+    });
 });
 
 // Map raw writeLog types -> clean display types (PRD activity log naming).
@@ -272,7 +277,7 @@ function renderTableData() {
         filterDateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
 
-    let filtered = logs.filter(l => {
+    let filtered = [...window.PaydiaTopup.logRows(), ...logs].filter(l => {
         if (filterDateStr && !l.tanggal.startsWith(filterDateStr)) return false;
         if (containerVals.length && !containerVals.includes(l.container)) return false;
         if (typeVals.length && !typeVals.includes(l.type)) return false;
@@ -316,8 +321,9 @@ function renderTableData() {
         const detailLines = l.detail.split('\n');
         let detailHtml = '';
         detailLines.forEach(line => {
-            detailHtml += `<div class="log-detail-line">${line}</div>`;
+            detailHtml += `<div class="log-detail-line">${l.topupLogId ? window.PaydiaTopupUI.escape(line) : line}</div>`;
         });
+        if (l.topupLogId) detailHtml += `<button type="button" class="topup-log-detail" data-topup-log-id="${window.PaydiaTopupUI.escape(l.topupLogId)}">Detail</button>`;
 
         tr.innerHTML = `
             <td>${l.id}</td>

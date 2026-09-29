@@ -26,6 +26,7 @@ let admins = JSON.parse(JSON.stringify(seedAdmins));
 let currentPage = 1;
 const perPage = 10;
 let editingId = null;
+let topupPermDraft = { requestAdjustment: false, topupManual: false };
 
 // ── Permission segments (PRD: + Process Unmatched Transaction, + Export per Bank, + Reconcile QRIS Acquirer) ──
 const permSegments = [
@@ -36,7 +37,8 @@ const permSegments = [
             'Change Edit', 'Change Merchant', 'Change Merchant Bank Account', 'Change User', 'Merchant',
             'Promo Campaign', 'Public Key', 'Qris Callback', 'Read', 'Topup Manual', 'Trx Bisnis',
             'Trx User', 'Update Soundbox', 'Upgrade Gold', 'User Config Transaction', 'User Device Id',
-            { label: 'Process Unmatched Transaction', isNew: true }
+            { label: 'Process Unmatched Transaction', isNew: true },
+            { label: 'Request Adjustment', isNew: true }
         ]
     },
     { name: 'Settlement Rekon', perms: ['Export', 'Inquiry', 'Read', 'Update', { label: 'Export per Bank', isNew: true }] },
@@ -103,7 +105,8 @@ function renderPermSegments(filter = '') {
             const label = typeof p === 'string' ? p : p.label;
             const isNew = typeof p === 'object' && p.isNew;
             const id = `perm-${si}-${pi}`;
-            return `<label class="perm-item"><input type="checkbox" class="perm-chk" data-seg="${si}" id="${id}"> ${label}${isNew ? '<span class="perm-new-badge">Baru</span>' : ''}</label>`;
+            const key = label === 'Request Adjustment' ? 'requestAdjustment' : label === 'Topup Manual' && seg.name === 'Approval' ? 'topupManual' : '';
+            return `<label class="perm-item"><input type="checkbox" class="perm-chk" data-seg="${si}" id="${id}" ${key ? `data-topup-perm="${key}" ${topupPermDraft[key] ? 'checked' : ''}` : ''}> ${label}${isNew ? '<span class="perm-new-badge">Baru</span>' : ''}</label>`;
         }).join('');
         const seg_html = `
             <div class="perm-segment" data-seg="${si}">
@@ -119,6 +122,8 @@ function renderPermSegments(filter = '') {
 
 function openAdminModal(admin) {
     editingId = admin ? admin.id : null;
+    const topupAccount = admin && window.PaydiaTopup.getState().accounts.find(a => String(a.id) === String(admin.id));
+    topupPermDraft = { requestAdjustment: !!topupAccount?.requestAdjustment, topupManual: !!topupAccount?.topupManual };
     document.getElementById('adminModalTitle').textContent = admin ? 'Edit Admin' : 'Tambah Admin';
     document.getElementById('adminEmail').value = admin ? admin.email : '';
     document.getElementById('adminNama').value = admin ? admin.nama : '';
@@ -152,14 +157,14 @@ function showToast(title, msg) {
 document.addEventListener('DOMContentLoaded', () => {
     renderTable();
 
-    document.getElementById('btnAddAdmin').addEventListener('click', () => openAdminModal(null));
+    document.getElementById('btnAddAdmin').addEventListener('click', () => { try { openAdminModal(null); } catch (error) { showToast('Gagal', error.message); } });
     document.getElementById('btnRefreshPerm').addEventListener('click', () => showToast('Permissions', 'Permission list di-refresh.'));
 
     document.getElementById('adminTableBody').addEventListener('click', (e) => {
         const btn = e.target.closest('.btn-edit-admin');
         if (btn) {
             const a = admins.find(x => x.id === parseInt(btn.dataset.id, 10));
-            if (a) openAdminModal(a);
+            if (a) { try { openAdminModal(a); } catch (error) { showToast('Gagal', error.message); } }
         }
     });
 
@@ -171,14 +176,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!status) { showToast('Validasi', 'Status wajib dipilih.'); return; }
         const email = document.getElementById('adminEmail').value.trim();
         const nama = document.getElementById('adminNama').value.trim();
+        let savedAccount;
         if (editingId) {
             const a = admins.find(x => x.id === editingId);
-            if (a) { a.email = email || a.email; a.nama = nama || a.nama; a.status = status; }
-            showToast('Berhasil', 'Data admin & permission diperbarui.');
+            savedAccount = a && { ...a, email: email || a.email, nama: nama || a.nama, status };
         } else {
-            admins.unshift({ id: Date.now(), email: email || 'admin@paydia.id', nama: nama || 'Admin Baru', status });
-            showToast('Berhasil', 'Admin baru ditambahkan.');
+            savedAccount = { id: Date.now(), email: email || 'admin@paydia.id', nama: nama || 'Admin Baru', status };
         }
+        try {
+            if (savedAccount) window.PaydiaTopup.setAccountPermissions({ id: savedAccount.id, name: savedAccount.nama, email: savedAccount.email }, topupPermDraft);
+        } catch (error) { showToast('Gagal', error.message); return; }
+        if (editingId) Object.assign(admins.find(x => x.id === editingId), savedAccount);
+        else admins.unshift(savedAccount);
+        showToast('Berhasil', 'Data admin & permission diperbarui.');
         closeAdminModal();
         renderTable();
     });
@@ -188,9 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Select-all per segment + sync
     document.getElementById('permSegments').addEventListener('change', (e) => {
+        if (e.target.dataset.topupPerm) topupPermDraft[e.target.dataset.topupPerm] = e.target.checked;
         if (e.target.classList.contains('perm-selectall-chk')) {
             const si = e.target.dataset.seg;
             document.querySelectorAll(`.perm-chk[data-seg="${si}"]`).forEach(c => { c.checked = e.target.checked; });
+            document.querySelectorAll(`.perm-chk[data-seg="${si}"][data-topup-perm]`).forEach(c => { topupPermDraft[c.dataset.topupPerm] = c.checked; });
         } else if (e.target.classList.contains('perm-chk')) {
             const si = e.target.dataset.seg;
             const all = [...document.querySelectorAll(`.perm-chk[data-seg="${si}"]`)];
