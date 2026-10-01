@@ -7,6 +7,14 @@ Aturan: **setiap pengerjaan wajib menambah entri di sini + bump `VERSION` + comm
 
 ## [Unreleased]
 
+## [1.26.0] — 2026-10-01
+### Added
+- Modal khusus **Request Adjustment** di Approval menampilkan Data Sekarang, Permintaan Data, Request Detail, bukti transfer, serta keputusan Reject/Approve.
+- Seed transaksi Payin dilengkapi ID merchant dan biaya admin agar data modal konsisten.
+
+### Changed
+- Action Payin menjadi tombol langsung **Ubah Status**. Modal menampilkan data transaksi dan mempertahankan alur Edit Nominal serta Request Approve per transaksi.
+
 ## [1.25.2] — 2026-09-29
 ### Fixed
 - Menu Action Payin kini menjaga satu menu aktif dan status `aria-expanded` sinkron saat berpindah baris atau menutup menu.

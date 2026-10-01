@@ -17,12 +17,6 @@
 #topup-page .data-table th:nth-child(6), #topup-page .data-table td:nth-child(6) { min-width: 210px; white-space: nowrap; }
 #topup-page .data-table th:last-child, #topup-page .data-table td:last-child { position: sticky; right: 0; min-width: 102px; background: white; box-shadow: -5px 0 8px #0f172a0a; }
 #topup-page .data-table thead th:last-child { background: #f8fafc; }
-#topup-page .topup-action-menu { position: fixed; inset: auto; margin: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px #0f172a1a; width: 180px; padding: 4px; }
-#topup-page .topup-action-menu.is-open { display: block; }
-#topup-page .topup-action-menu[hidden], #topup-page .topup-action-menu:not(.is-open) { display: none !important; }
-#topup-page .topup-action-menu button { width: 100%; border: 0; background: transparent; text-align: left; padding: 9px; border-radius: 5px; font: inherit; cursor: pointer; }
-#topup-page .topup-action-menu button:hover { background: #eef2ff; }
-#topup-page .topup-action-menu button:disabled { color: #94a3b8; cursor: not-allowed; }
 #topup-page .topup-pagination { padding: 14px 22px; display: flex; align-items: center; justify-content: space-between; }
 #topup-page #topup-page-buttons { display: inline-flex; }
 .topup-dialog { border: 0; border-radius: 12px; padding: 0; margin: auto; width: min(760px, calc(100vw - 28px)); max-height: min(92vh, 920px); overflow: auto; box-shadow: 0 24px 70px #0f172a44; color: #1e293b; }
@@ -55,6 +49,13 @@
 .topup-dialog .topup-readonly-row { display: grid; grid-template-columns: 185px minmax(0,1fr); gap: 10px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
 .topup-dialog .topup-readonly-row strong { overflow-wrap: anywhere; }
 .topup-dialog .topup-readonly-row span { color: #64748b; }
+.topup-dialog .topup-transaction-data .topup-readonly-row { padding: 12px 8px; }
+.topup-dialog .topup-transaction-data strong { white-space: pre-line; }
+.topup-dialog .topup-approval-section { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 14px; overflow: hidden; }
+.topup-dialog .topup-approval-section h3 { margin: 0; padding: 14px 18px; border-bottom: 1px solid #e2e8f0; color: #2439bf; font-size: 16px; }
+.topup-dialog .topup-approval-section .topup-readonly-list, .topup-dialog .topup-approval-section .topup-field { padding: 10px 18px; }
+.topup-dialog .topup-approval-section .topup-preview { max-height: 150px; }
+.topup-dialog .topup-approval-section .topup-preview embed { height: 100px; }
 .topup-dialog .topup-amount-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .topup-dialog .topup-amount-pair > div { padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
 .topup-dialog .topup-amount-pair strong { display: block; font-size: 18px; margin-top: 5px; }

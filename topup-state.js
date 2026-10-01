@@ -76,9 +76,11 @@
             state.transactions.push({
                 id: `TOPUP-${String(n).padStart(3, '0')}`, dealerId: dealer.id,
                 dealerName: dealer.name, dealerEmail: dealer.email,
+                merchantId: `250604001${String(n).padStart(6, '0')}`,
                 createdAt: `2026-09-${pad(10 + n)}T09:00:00+07:00`,
                 originalAmount: amount, effectiveAmount: amount, status: 'Proses',
-                credited: false, creditedAmount: 0, vendor: 'Biller Gateway', category: 'Topup Dealer'
+                adminFee: 0, credited: false, creditedAmount: 0,
+                vendor: 'Biller Gateway', category: 'payin-topup'
             });
         });
         const dion = actor(accounts[0]);
